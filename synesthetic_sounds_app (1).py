@@ -6,6 +6,11 @@ import numpy as np
 import pygame.sndarray
 import os
 
+class SynestheticSoundsApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("SynestheticSounds - Paint with Music")
+        
 # Initialize mixer
 pygame.mixer.init(frequency=44100, size=-16, channels=1)
 
