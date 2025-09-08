@@ -11,6 +11,14 @@ pygame.mixer.init(frequency=44100, size=-16, channels=1)
 
 # Sound frequencies in Hz
 sound_freqs = {
+    "#ff0000": 440    # Red A4
+    "#00ff00": 493  # Green B4
+    "#0000ff": 261  # Blue C4
+    "#ffff00": 293   # Yellow D4
+    "#000000": 329   # Black E4
+    "#ffffff": 349   # White F4
+    "#ffffff": 392    # White G4
+    "#ffffff": 880    # White A5
 }
 
 # Generate sound samples from frequencies
