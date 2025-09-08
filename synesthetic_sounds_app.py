@@ -2,25 +2,46 @@
 import pygame
 import tkinter as tk
 from tkinter import colorchooser
+import numpy as np
+import pygame.sndarray
 import os
 
 # Initialize mixer
 pygame.mixer.init(frequency=44100, size=-16, channels=1)
 
-# Load sound samples
-sound_files = {
-    "#ff0000": "A4_piano_mono.wav",   # Red
-    "#00ff00": "C5_piano_mono.wav",   # Green
-    "#0000ff": "E5_piano_mono.wav",   # Blue
-    "#ffff00": "G5_piano_mono.wav",   # Yellow
-    "#000000": "D4_piano_mono.wav",   # Black
-    "#ffffff": "A5_piano_mono.wav"    # White
+# Sound frequencies in Hz
+sound_freqs = {
+    "#ff0000": 440,      # Red A4
+    "#00ff00": 493.88,   # Green B4
+    "#0000ff": , 261,63  # Blue C4
+    "#ffff00": 293,66,   # Yellow D4
+    "#000000": 329,63,   # Black E4
+    "#ffffff": 349,23,     # White F4
+    "#ffffff": 392,00,    # White G4
+    "#ffffff": 880      # White A5
 }
-sounds = {color: pygame.mixer.Sound(file) for color, file in sound_files.items()}
+
+# Generate sound samples from frequencies
+sounds = {}
+sample_rate = pygame.mixer.get_init()[0]
+duration = 0.5  # seconds
+num_samples = int(duration * sample_rate)
+
+for color, freq in sound_freqs.items():
+    # Generate a sine wave
+    arr = np.sin(2 * np.pi * freq * np.arange(num_samples) / sample_rate)
+    
+    # Scale to 16-bit signed integer range
+    sound_array = np.int16(arr * 32767)
+    
+    # Create a pygame sound object from the NumPy array
+    sound = pygame.sndarray.make_sound(sound_array)
+    sounds[color] = sound
 
 # GUI setup
 brush_size = 16
 current_color = "#ff0000"
+
 
 def play_sound():
     color_hex = current_color.lower()
@@ -43,7 +64,7 @@ def draw(event):
     play_sound()
 
 root = tk.Tk()
-root.title("SynestheticSounds - Paint with Piano")
+root.title("SynestheticSounds - Paint with Melody")
 
 canvas = tk.Canvas(root, width=800, height=600, bg="white")
 canvas.pack()
