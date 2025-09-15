@@ -41,21 +41,46 @@ jobs:
           path: |
             .
             !venv/
+            
+      - name: Zip artifact for deployment
+        run: zip release.zip ./* -r
 
+      - name: Upload artifact for deployment jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-app
+          path: |
+            release.zip
+            !venv/
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    
+     environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
+
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: python-app
-      
+       - name: Unzip artifact for deployment
+        run: unzip release.zip
+       - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_3D3A8168EB3947959ED132C7BA7AF38F }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_6ED0868798E3498C93F656DB300A2032 }} 
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_a140ea2d-87f6-45d0-bbcf-7eec7094be14 }} 
+   
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
           app-name: 'Synes'
           slot-name: 'Production'
+
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_F83CE5BDEF8E486A9E79466D957155CD }}
