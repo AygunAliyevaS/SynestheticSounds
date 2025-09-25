@@ -45,17 +45,27 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
+
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: python-app
       
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_2844DE53995C4654937A38CF0E6D9654 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9A7B9A0E404E4B2D89B67621E9CF0DE2 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_1F5EE4A50B504E5CAE990587DDDFB539 }}
+
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
           app-name: 'synes'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_7B0E48B962AC4622850BC63661679B99 }}
+          
