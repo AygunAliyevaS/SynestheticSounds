@@ -591,7 +591,7 @@ def process_audio(audio_data):
 @app.route('/upload', methods=['POST'])
 def upload_file():
     return record()  # Delegate to the record function
-
+'''
 @dash_app.callback(
     Output('bar-chart', 'figure'),
     [Input('frequency-data', 'data')]
@@ -601,6 +601,7 @@ def upload_file():
     Output('bar-chart', 'figure'),
     [Input('frequency-data', 'data')]
 )
+'''
 def update_bar_chart(frequency_data):
     if not frequency_data:
         return go.Figure()  # Return empty figure if no data
