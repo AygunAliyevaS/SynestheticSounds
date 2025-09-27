@@ -49,9 +49,6 @@ from numpy.random import uniform
 from scipy import signal
 
 app = Flask(__name__)
-app.secret_key = 'Lantop2333'  # Set a secret key session
-
-app = Flask(__name__)
 OUTPUT_DIR = "static/audio"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
