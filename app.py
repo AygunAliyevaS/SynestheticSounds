@@ -38,7 +38,7 @@ import pandas as pd
 from werkzeug.utils import secure_filename
 # from dash import dcc, html
 #import dash_core_components as dcc
-#from dash import Dash, dcc, html, callback, Input, Output
+from dash import Dash, dcc, html, callback, Input, Output
 import plotly.graph_objs as go
 import plotly.express as px
 #from dash import Dash
@@ -66,7 +66,7 @@ NOTE_TO_SEMITONE = {
 note_names = list(NOTE_TO_SEMITONE.keys())
 
 
-#dash_app = Dash(__name__, server=app, url_base_pathname='/dash/')
+dash_app = Dash(__name__, server=app, url_base_pathname='/dash/')
 
 
 Fs = 44100  # Sampling frequency
