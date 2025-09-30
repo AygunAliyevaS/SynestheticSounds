@@ -36,8 +36,8 @@ import pandas as pd
 from pydub import AudioSegment
 from werkzeug.utils import secure_filename
 from dash import Dash, dcc, html
-import dash_core_components as dcc
-import dash_html_components as html
+#import dash_core_components as dcc
+#import dash_html_components as html
 from dash import Dash, dcc, html, callback, Input, Output
 import plotly.graph_objs as go
 import plotly.express as px
