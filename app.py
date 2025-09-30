@@ -18,7 +18,6 @@ from io import BytesIO
 from PIL import Image
 from colorsys import rgb_to_hsv
 from scipy.io.wavfile import write as write_wav
-# good
 
 
 from PIL import Image, ImageDraw, ImageFont
@@ -34,19 +33,22 @@ from scipy.fft import fft
 import io
 import base64
 import pandas as pd
-#from pydub import AudioSegment
+from pydub import AudioSegment
 from werkzeug.utils import secure_filename
-# from dash import dcc, html
-#import dash_core_components as dcc
+from dash import Dash, dcc, html
+import dash_core_components as dcc
+import dash_html_components as html
 from dash import Dash, dcc, html, callback, Input, Output
 import plotly.graph_objs as go
 import plotly.express as px
-#from dash import Dash
 global session
 
 import numpy as np
 from numpy.random import uniform
 from scipy import signal
+
+app = Flask(__name__)
+app.secret_key = 'Lantop2333'  # Set a secret key session
 
 app = Flask(__name__)
 OUTPUT_DIR = "static/audio"
@@ -588,7 +590,7 @@ def process_audio(audio_data):
 @app.route('/upload', methods=['POST'])
 def upload_file():
     return record()  # Delegate to the record function
-'''
+
 @dash_app.callback(
     Output('bar-chart', 'figure'),
     [Input('frequency-data', 'data')]
@@ -598,7 +600,6 @@ def upload_file():
     Output('bar-chart', 'figure'),
     [Input('frequency-data', 'data')]
 )
-'''
 def update_bar_chart(frequency_data):
     if not frequency_data:
         return go.Figure()  # Return empty figure if no data
@@ -1126,6 +1127,5 @@ def serve_audio(filename):
     return send_from_directory(OUTPUT_DIR, filename)
 
 if __name__ == '__main__':
-     app.run(debug=True)
-
+     app.run(debug=True,host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
 
