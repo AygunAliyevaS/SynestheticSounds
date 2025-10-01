@@ -68,7 +68,7 @@ NOTE_TO_SEMITONE = {
 note_names = list(NOTE_TO_SEMITONE.keys())
 
 
-dash_app = Dash(__name__, server=app, url_base_pathname='/dash/')
+#dash_app = Dash(__name__, server=app, url_base_pathname='/dash/')
 
 
 Fs = 44100  # Sampling frequency
@@ -590,7 +590,7 @@ def process_audio(audio_data):
 @app.route('/upload', methods=['POST'])
 def upload_file():
     return record()  # Delegate to the record function
-
+'''
 @dash_app.callback(
     Output('bar-chart', 'figure'),
     [Input('frequency-data', 'data')]
@@ -600,6 +600,7 @@ def upload_file():
     Output('bar-chart', 'figure'),
     [Input('frequency-data', 'data')]
 )
+'''
 def update_bar_chart(frequency_data):
     if not frequency_data:
         return go.Figure()  # Return empty figure if no data
@@ -680,7 +681,7 @@ print(frequency_data.head())
 
 fig2 = px.bar(frequency_data2, x="notes", y="amplitudes", title="Amplitude vs Frequency")
 fig2.update_traces(marker_color=colors)
-
+'''
 dash_app.layout = html.Div([  
     dcc.Graph(id='bar-chart',figure=fig2)
     #dcc.Store(id='frequency-data', data={}),  # To store frequency data
@@ -693,6 +694,7 @@ dash_app.layout = html.Div([
     Output('frequency-data', 'data'),
     [Input('bar-chart', 'id')]  # Dummy input to trigger callback
 )
+'''
 def load_frequency_data(_):
     frequency_data = session.get('frequency_data', {})
     return frequency_data  # Return the data to the Store
