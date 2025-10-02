@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def serve_index():
-    return render_template("index.html")
+    return 'giood'
 
 @app.route("/gif/<filename>")
 def serve_gif(filename):
