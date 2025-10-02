@@ -10,8 +10,9 @@ def serve_index():
 def serve_gif(filename):
     return send_from_directory("static", filename)
 
-# Health check route (for Azure)
+# Health check routes (for Azure probes)
 @app.route("/robots933456.txt")
+@app.route("/robots.txt")
 def robots():
     return "User-agent: *\nDisallow:", 200, {"Content-Type": "text/plain"}
 
