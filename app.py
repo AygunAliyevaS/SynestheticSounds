@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def serve_index():
-    return render_template("index.html")
+    return 'everything is good'
 
 # Add route for serving GIFs (referenced in the HTML)
 @app.route("/gif/<filename>")
