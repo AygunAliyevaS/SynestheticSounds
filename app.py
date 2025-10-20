@@ -1,0 +1,731 @@
+import os
+import time
+import base64
+import logging
+from io import BytesIO
+import numpy as np
+from scipy.io.wavfile import write as write_wav
+from scipy import signal
+from PIL import Image
+from flask import Flask, request, render_template, jsonify, send_from_directory, session, redirect, url_for
+from colorsys import rgb_to_hsv
+from dotenv import load_dotenv
+import msal
+import requests
+from flask_session import Session
+from datetime import datetime
+import pyodbc
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
+# Load environment variables
+load_dotenv()
+logger = logging.getLogger(__name__)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler('app.log'),
+        logging.StreamHandler()
+    ]
+)
+
+app = Flask(__name__)
+
+# Production-ready Session Configuration
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(24).hex())
+app.config['SESSION_TYPE'] = os.getenv('SESSION_TYPE', 'filesystem')
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_KEY_PREFIX'] = 'synesthetica:'
+app.config['SESSION_FILE_DIR'] = os.getenv('SESSION_FILE_DIR', '/tmp/flask_session')
+
+# SQL Server Database Configuration
+app.config['DB_SERVER'] = os.getenv('DB_SERVER')
+app.config['DB_NAME'] = os.getenv('DB_NAME')
+app.config['DB_USER'] = os.getenv('DB_USER')
+app.config['DB_PASSWORD'] = os.getenv('DB_PASSWORD')
+app.config['DB_DRIVER'] = os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')
+
+# SendGrid Configuration
+SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
+
+Session(app)
+
+def get_db_connection():
+    try:
+        connection_string = f"DRIVER={app.config['DB_DRIVER']};SERVER={app.config['DB_SERVER']};DATABASE={app.config['DB_NAME']};UID={app.config['DB_USER']};PWD={app.config['DB_PASSWORD']}"
+        connection = pyodbc.connect(connection_string)
+        logger.info("Successfully connected to SQL Server database")
+        return connection
+    except pyodbc.Error as e:
+        logger.error(f"Error connecting to SQL Server: {e}")
+        return None
+
+# Microsoft Auth Configuration
+CLIENT_ID = os.getenv('CLIENT_ID')
+CLIENT_SECRET = os.getenv('CLIENT_SECRET')
+AUTHORITY = os.getenv('AUTHORITY')
+REDIRECT_URI = os.getenv('REDIRECT_URI')
+SCOPE = [os.getenv('SCOPE')]
+
+# Build MSAL client
+msal_client = msal.ConfidentialClientApplication(
+    CLIENT_ID,
+    authority=AUTHORITY,
+    client_credential=CLIENT_SECRET
+)
+
+# Configuration for audio generation
+OUTPUT_DIR = "static/audio"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+SAMPLE_RATE = 44100
+DURATION_PER_STEP = 60 / 1000
+
+# Note-to-semitone mapping
+NOTE_TO_SEMITONE = {
+    'C': 0, 'C#': 1, 'D': 2, 'D#': 3,
+    'E': 4, 'F': 5, 'F#': 6, 'G': 7,
+    'G#': 8, 'A': 9, 'A#': 10, 'B': 11
+}
+note_names = list(NOTE_TO_SEMITONE.keys())
+
+# 🔹 Frequency-to-color mapping
+freq_symbols = {
+    "A0": {"frequency": 27.50, "color": [139, 0, 0], "range": [27.50, 29.14], "symbol": "♩"},
+    "A#0/Bb0": {"frequency": 29.14, "color": [255, 69, 0], "range": [29.14, 30.87], "symbol": "♯"},
+    "B0": {"frequency": 30.87, "color": [204, 204, 0], "range": [30.87, 32.70], "symbol": "♩"},
+    "C1": {"frequency": 32.70, "color": [102, 152, 0], "range": [32.70, 34.65], "symbol": "♩"},
+    "C#1/Db1": {"frequency": 34.65, "color": [0, 100, 0], "range": [34.65, 36.71], "symbol": "♯"},
+    "D1": {"frequency": 36.71, "color": [0, 50, 69], "range": [36.71, 38.89], "symbol": "♩"},
+    "D#1/Eb1": {"frequency": 38.89, "color": [0, 0, 139], "range": [38.89, 41.20], "symbol": "♯"},
+    "E1": {"frequency": 41.20, "color": [75, 0, 130], "range": [41.20, 43.65], "symbol": "♩"},
+    "F1": {"frequency": 43.65, "color": [112, 0, 171], "range": [43.65, 46.25], "symbol": "♩"},
+    "F#1/Gb1": {"frequency": 46.25, "color": [148, 0, 211], "range": [46.25, 49.00], "symbol": "♯"},
+    "G1": {"frequency": 49.00, "color": [157, 0, 106], "range": [49.00, 51.91], "symbol": "♩"},
+    "G#1/Ab1": {"frequency": 51.91, "color": [165, 0, 0], "range": [51.91, 55.00], "symbol": "♯"},
+    "A1": {"frequency": 55.00, "color": [210, 0, 128], "range": [55.00, 58.27], "symbol": "♩"},
+    "A#1/Bb1": {"frequency": 58.27, "color": [255, 94, 0], "range": [58.27, 61.74], "symbol": "♯"},
+    "B1": {"frequency": 61.74, "color": [221, 221, 0], "range": [61.74, 65.41], "symbol": "♩"},
+    "C2": {"frequency": 65.41, "color": [111, 175, 0], "range": [65.41, 69.30], "symbol": "♩"},
+    "C#2/Db2": {"frequency": 69.30, "color": [0, 128, 0], "range": [69.30, 73.42], "symbol": "♯"},
+    "D2": {"frequency": 73.42, "color": [0, 64, 85], "range": [73.42, 77.78], "symbol": "♩"},
+    "D#2/Eb2": {"frequency": 77.78, "color": [0, 0, 170], "range": [77.78, 82.41], "symbol": "♯"},
+    "E2": {"frequency": 82.41, "color": [92, 0, 159], "range": [82.41, 87.31], "symbol": "♩"},
+    "F2": {"frequency": 87.31, "color": [119, 0, 96], "range": [87.31, 92.50], "symbol": "♩"},
+    "F#2/Gb2": {"frequency": 92.50, "color": [159, 0, 226], "range": [92.50, 98.00], "symbol": "♯"},
+    "G2": {"frequency": 98.00, "color": [175, 0, 113], "range": [98.00, 103.83], "symbol": "♩"},
+    "G#2/Ab2": {"frequency": 103.83, "color": [191, 0, 0], "range": [103.83, 110.00], "symbol": "♯"},
+    "A2": {"frequency": 110.00, "color": [223, 59, 128], "range": [110.00, 116.54], "symbol": "♩"},
+    "A#2/Bb2": {"frequency": 116.54, "color": [255, 119, 0], "range": [116.54, 123.47], "symbol": "♯"},
+    "B2": {"frequency": 123.47, "color": [238, 238, 0], "range": [123.47, 130.81], "symbol": "♩"},
+    "C3": {"frequency": 130.81, "color": [119, 159, 0], "range": [130.81, 138.59], "symbol": "♩"},
+    "C#3/Db3": {"frequency": 138.59, "color": [0, 160, 0], "range": [138.59, 146.83], "symbol": "♯"},
+    "D3": {"frequency": 146.83, "color": [0, 80, 100], "range": [146.83, 155.56], "symbol": "♩"},
+    "D#3/Eb3": {"frequency": 155.56, "color": [0, 0, 200], "range": [155.56, 164.81], "symbol": "♯"},
+    "E3": {"frequency": 164.81, "color": [109, 0, 188], "range": [164.81, 174.61], "symbol": "♩"},
+    "F3": {"frequency": 174.61, "color": [140, 0, 215], "range": [174.61, 185.00], "symbol": "♩"},
+    "F#3/Gb3": {"frequency": 185.00, "color": [170, 0, 241], "range": [185.00, 196.00], "symbol": "♯"},
+    "G3": {"frequency": 196.00, "color": [194, 0, 121], "range": [196.00, 207.65], "symbol": "♩"},
+    "G#3/Ab3": {"frequency": 207.65, "color": [217, 0, 0], "range": [207.65, 220.00], "symbol": "♯"},
+    "A3": {"frequency": 220.00, "color": [236, 72, 0], "range": [220.00, 233.08], "symbol": "♩"},
+    "A#3/Bb3": {"frequency": 233.08, "color": [255, 144, 0], "range": [233.08, 246.94], "symbol": "♯"},
+    "B3": {"frequency": 246.94, "color": [255, 255, 0], "range": [246.94, 261.63], "symbol": "♩"},
+    "C4": {"frequency": 261.63, "color": [128, 224, 0], "range": [261.63, 277.18], "symbol": "♩"},
+    "C#4/Db4": {"frequency": 277.18, "color": [0, 192, 0], "range": [277.18, 293.66], "symbol": "♯"},
+    "D4": {"frequency": 293.66, "color": [0, 96, 115], "range": [293.66, 311.13], "symbol": "♩"},
+    "D#4/Eb4": {"frequency": 311.13, "color": [0, 0, 230], "range": [311.13, 329.63], "symbol": "♯"},
+    "E4": {"frequency": 329.63, "color": [126, 0, 217], "range": [329.63, 349.23], "symbol": "♩"},
+    "F4": {"frequency": 349.23, "color": [159, 26, 236], "range": [349.23, 369.99], "symbol": "♩"},
+    "F#4/Gb4": {"frequency": 369.99, "color": [191, 51, 255], "range": [369.99, 392.00], "symbol": "♯"},
+    "G4": {"frequency": 392.00, "color": [217, 26, 128], "range": [392.00, 415.30], "symbol": "♩"},
+    "G#4/Ab4": {"frequency": 415.30, "color": [243, 0, 0], "range": [415.30, 440.00], "symbol": "♯"},
+    "A4": {"frequency": 440.00, "color": [249, 85, 0], "range": [440.00, 466.16], "symbol": "♩"},
+    "A#4/Bb4": {"frequency": 466.16, "color": [255, 169, 0], "range": [466.16, 493.88], "symbol": "♯"},
+    "B4": {"frequency": 493.88, "color": [255, 255, 51], "range": [493.88, 523.25], "symbol": "♩"},
+    "C5": {"frequency": 523.25, "color": [153, 255, 51], "range": [523.25, 554.37], "symbol": "♩"},
+    "C#5/Db5": {"frequency": 554.37, "color": [51, 255, 51], "range": [554.37, 587.33], "symbol": "♯"},
+    "D5": {"frequency": 587.33, "color": [51, 204, 204], "range": [587.33, 622.25], "symbol": "♪"},
+    "D#5/Eb5": {"frequency": 622.25, "color": [51, 51, 255], "range": [622.25, 659.25], "symbol": "♭"},
+    "E5": {"frequency": 659.25, "color": [128, 51, 255], "range": [659.25, 698.46], "symbol": "𝅘𝅥𝅮"},
+    "F5": {"frequency": 698.46, "color": [159, 87, 255], "range": [698.46, 739.99], "symbol": "♩"},
+    "F#5/Gb5": {"frequency": 739.99, "color": [190, 123, 255], "range": [739.99, 783.99], "symbol": "♯"},
+    "G5": {"frequency": 783.99, "color": [204, 87, 128], "range": [783.99, 830.61], "symbol": "♫"},
+    "G#5/Ab5": {"frequency": 830.61, "color": [255, 51, 51], "range": [830.61, 880.00], "symbol": "♭"},
+    "A5": {"frequency": 880.00, "color": [255, 128, 102], "range": [880.00, 932.33], "symbol": "𝅗𝅥"},
+    "A#5/Bb5": {"frequency": 932.33, "color": [255, 204, 102], "range": [932.33, 987.77], "symbol": "♯"},
+    "B5": {"frequency": 987.77, "color": [255, 255, 102], "range": [987.77, 1046.50], "symbol": "𝅘𝅥"},
+    "C6": {"frequency": 1046.50, "color": [179, 255, 102], "range": [1046.50, 1108.73], "symbol": "♩"},
+    "C#6/Db6": {"frequency": 1108.73, "color": [102, 255, 102], "range": [1108.73, 1174.66], "symbol": "♯"},
+    "D6": {"frequency": 1174.66, "color": [102, 204, 204], "range": [1174.66, 1244.51], "symbol": "♪"},
+    "D#6/Eb6": {"frequency": 1244.51, "color": [102, 102, 255], "range": [1244.51, 1318.51], "symbol": "♭"},
+    "E6": {"frequency": 1318.51, "color": [153, 102, 255], "range": [1318.51, 1396.91], "symbol": "𝅘𝅥𝅮"},
+    "F6": {"frequency": 1396.91, "color": [171, 128, 255], "range": [1396.91, 1479.98], "symbol": "♩"},
+    "F#6/Gb6": {"frequency": 1479.98, "color": [201, 153, 255], "range": [1479.98, 1567.98], "symbol": "♯"},
+    "G6": {"frequency": 1567.98, "color": [209, 128, 153], "range": [1567.98, 1661.22], "symbol": "♫"},
+    "G#6/Ab6": {"frequency": 1661.22, "color": [255, 102, 102], "range": [1661.22, 1760.00], "symbol": "♭"},
+    "A6": {"frequency": 1760.00, "color": [255, 153, 128], "range": [1760.00, 1864.66], "symbol": "𝅗𝅥"},
+    "A#6/Bb6": {"frequency": 1864.66, "color": [255, 204, 153], "range": [1864.66, 1975.53], "symbol": "♯"},
+    "B6": {"frequency": 1975.53, "color": [255, 255, 153], "range": [1975.53, 2093.00], "symbol": "𝅘𝅥"},
+    "C7": {"frequency": 2093.00, "color": [204, 255, 153], "range": [2093.00, 2217.46], "symbol": "♩"},
+    "C#7/Db7": {"frequency": 2217.46, "color": [153, 255, 153], "range": [2217.46, 2349.32], "symbol": "♯"},
+    "D7": {"frequency": 2349.32, "color": [153, 204, 204], "range": [2349.32, 2489.02], "symbol": "♪"},
+    "D#7/Eb7": {"frequency": 2489.02, "color": [153, 153, 255], "range": [2489.02, 2637.02], "symbol": "♭"},
+    "E7": {"frequency": 2637.02, "color": [197, 153, 255], "range": [2637.02, 2793.83], "symbol": "𝅘𝅥𝅮"},
+    "F7": {"frequency": 2793.83, "color": [222, 176, 255], "range": [2793.83, 2959.96], "symbol": "♩"},
+    "F#7/Gb7": {"frequency": 2959.96, "color": [246, 198, 255], "range": [2959.96, 3135.96], "symbol": "♯"},
+    "G7": {"frequency": 3135.96, "color": [255, 176, 204], "range": [3135.96, 3322.44], "symbol": "♫"},
+    "G#7/Ab7": {"frequency": 3322.44, "color": [255, 153, 153], "range": [3322.44, 3520.00], "symbol": "♭"},
+    "A7": {"frequency": 3520.00, "color": [255, 194, 176], "range": [3520.00, 3729.31], "symbol": "𝅗𝅥"},
+    "A#7/Bb7": {"frequency": 3729.31, "color": [255, 234, 198], "range": [3729.31, 3951.07], "symbol": "♯"},
+    "B7": {"frequency": 3951.07, "color": [255, 255, 204], "range": [3951.07, 4186.01], "symbol": "𝅘𝅥"},
+    "C8": {"frequency": 4186.01, "color": [144, 238, 144], "range": [4186.01, 4434.92], "symbol": "♩"},
+}
+
+# 🔹 Color-to-frequency mapping functions
+def hue_to_note_name(hue):
+    index = int((hue % 360) / 30)
+    return note_names[index]
+
+def brightness_to_octave(brightness):
+    return int(3 + brightness * 3)
+
+def color_to_frequency(r, g, b):
+    h, s, v = rgb_to_hsv(r / 255, g / 255, b / 255)
+    hue_deg = h * 360
+    note_name = hue_to_note_name(hue_deg)
+    octave = brightness_to_octave(v)
+    midi_note = 12 + octave * 12 + NOTE_TO_SEMITONE[note_name]
+    return 440 * 2 ** ((midi_note - 69) / 12)
+
+def get_quickly_frequency_by_color(r, g, b):
+    target = [r, g, b]
+    for note, props in freq_symbols.items():
+        if props["color"] == target:
+            return props["frequency"]
+    return None
+
+def get_frequency_from_color(r, g, b, threshold=10000):
+    closest_freq = None
+    closest_dist = float('inf')
+    for info in freq_symbols.items():
+        rgb = info[1].get("color")
+        if tuple(rgb) == (r, g, b):
+            return info[1]["frequency"]
+        if rgb:
+            dist = color_distance((r, g, b), tuple(rgb))
+            if dist < closest_dist:
+                closest_dist = dist
+                closest_freq = info[1]["frequency"]
+    return closest_freq
+
+def color_distance(c1, c2):
+    return sum((a - b) ** 2 for a, b in zip(c1, c2)) ** 0.5
+
+# 🔹 Tone generation function
+def generate_tone(frequencies, brush, duration=DURATION_PER_STEP):
+    valid_brushes = {"spray", "star", "cross", "square", "triangle", "sawtooth", "round", "line"}
+    if brush.lower() not in valid_brushes:
+        raise ValueError(f"Invalid brush type: {brush}. Valid options are {valid_brushes}")
+
+    t = np.linspace(0, duration, int(SAMPLE_RATE * duration), False)
+    
+    if frequencies == 0:
+        return np.zeros_like(t)
+
+    if not isinstance(frequencies, (list, np.ndarray)) or len(frequencies) == 0:
+        return np.zeros_like(t)
+
+    frequencies = np.clip(frequencies, 20, 20000)
+    waveform = np.zeros_like(t)
+
+    for freq in frequencies:
+        phase = 2 * np.pi * freq * t
+        if brush.lower() == "spray":
+            mod_ratio = 1.7 + 0.3 * np.sin(2 * np.pi * 0.2 * t)
+            carrier = np.sin(phase + 3 * np.sin(mod_ratio * phase))
+            tone = carrier * (0.6 + 0.4 * np.sin(2 * np.pi * 5 * t))
+            noise = 0.15 * np.random.normal(0, 1, len(t))
+            noise = signal.lfilter(*signal.butter(4, 1000/(SAMPLE_RATE/2)), noise)
+            tone = tone * (0.7 + 0.3 * np.sin(2 * np.pi * 3 * t)) + noise
+        elif brush.lower() == "star":
+            harmonics = [(1, 0.6), (2, 0.4), (3, 0.3), (5, 0.2)]
+            tone = sum(np.sin(h * phase) * amp for h, amp in harmonics)
+            detune = 1 + 0.001 * np.sin(2 * np.pi * 0.1 * t)
+            tone = tone * detune
+        elif brush.lower() == "cross":
+            distorted_phase = phase + 0.8 * np.sin(phase)
+            tone = np.sin(distorted_phase) * np.sin(2 * distorted_phase)
+        elif brush.lower() == "square":
+            pw = 0.5 + 0.3 * np.sin(2 * np.pi * 0.5 * t)
+            tone = signal.square(phase, duty=pw)
+        elif brush.lower() == "triangle":
+            tone = signal.sawtooth(phase, width=0.5)
+            tone -= 0.25 * signal.sawtooth(2 * phase, width=0.5)
+        elif brush.lower() == "sawtooth":
+            detune = [0.99, 1.0, 1.01]
+            tone = sum(0.4 * np.sin(2 * np.pi * d * freq * t) for d in detune)
+        else:  # round or line
+            vibrato = 0.1 * np.sin(2 * np.pi * 6 * t)
+            tone = 0.9 * np.sin(phase + vibrato) + 0.1 * np.sin(3 * phase)
+        
+        waveform += tone
+
+    envelope = np.ones_like(t)
+    attack_len = int(0.1 * len(t))
+    attack_len = max(1, attack_len)
+    envelope[:attack_len] = np.linspace(0, 1, attack_len)
+    envelope[attack_len:] = np.exp(-5 * np.linspace(0, 1, len(t) - attack_len))
+    waveform *= envelope
+
+    max_val = np.max(np.abs(waveform))
+    if max_val > 0:
+        waveform /= max_val
+
+    return waveform
+
+# 🔹 SendGrid email notification
+def send_support_email(ticket_id, title, user_email):
+    if not SENDGRID_API_KEY:
+        logger.warning("SendGrid API key not configured, skipping email")
+        return
+
+    message = Mail(
+        from_email='support@synesthetica.com',
+        to_emails='admin@synesthetica.com',
+        subject=f'New Support Ticket #{ticket_id}: {title}',
+        html_content=f'<strong>New support ticket created</strong><br>Ticket ID: {ticket_id}<br>Title: {title}<br>User: {user_email or "Guest"}'
+    )
+    try:
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        response = sg.send(message)
+        logger.info(f"Support email sent for ticket #{ticket_id}, status: {response.status_code}")
+    except Exception as e:
+        logger.error(f"Failed to send support email for ticket #{ticket_id}: {str(e)}")
+
+# 🔹 Security headers
+@app.after_request
+def after_request(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
+@app.route('/webhook', methods=['POST'])
+def marketplace_webhook():
+    logger.info("Received webhook request from Azure Marketplace")
+    try:
+        # Get the JSON payload
+        payload = request.get_json()
+        if not payload:
+            logger.error("No JSON payload provided in webhook request")
+            return jsonify({"error": "No payload provided"}), 400
+
+        # Log the payload for debugging
+        logger.info(f"Webhook payload: {payload}")
+
+        # Extract relevant fields (adjust based on Azure Marketplace webhook schema)
+        operation_id = payload.get('operationId')
+        action = payload.get('action')  # e.g., Subscribed, Unsubscribed, Suspended
+        subscription_id = payload.get('subscriptionId')
+        plan_id = payload.get('planId')
+
+        if not all([operation_id, action, subscription_id]):
+            logger.error("Missing required fields in webhook payload")
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # Connect to the database
+        connection = get_db_connection()
+        if not connection:
+            logger.error("Database connection failed")
+            return jsonify({"error": "Database connection failed"}), 500
+
+        try:
+            cursor = connection.cursor()
+            # Example: Store webhook event in the database
+            insert_query = """
+                INSERT INTO marketplace_events (operation_id, action, subscription_id, plan_id, event_timestamp)
+                VALUES (?, ?, ?, ?, ?)
+            """
+            cursor.execute(insert_query, (
+                operation_id,
+                action,
+                subscription_id,
+                plan_id,
+                datetime.now()
+            ))
+            connection.commit()
+            logger.info(f"Stored webhook event: {action} for subscription {subscription_id}")
+        except pyodbc.Error as e:
+            logger.error(f"Database error: {str(e)}")
+            return jsonify({"error": "Failed to store webhook event"}), 500
+        finally:
+            cursor.close()
+            connection.close()
+            logger.info("Database connection closed")
+
+        # Respond based on the action (optional: call Azure APIs for resolution)
+        if action == "Subscribed":
+            # Handle subscription activation (e.g., call Azure API to resolve subscription)
+            logger.info(f"Processing subscription activation for {subscription_id}")
+            # Add logic to call Azure Marketplace APIs if needed
+        elif action == "Unsubscribed":
+            logger.info(f"Processing subscription cancellation for {subscription_id}")
+            # Add logic to deactivate user access
+        else:
+            logger.warning(f"Unhandled action: {action}")
+
+        return jsonify({"status": "success", "operationId": operation_id}), 200
+
+    except Exception as e:
+        logger.error(f"Error processing webhook: {str(e)}")
+        return jsonify({"error": f"Webhook processing failed: {str(e)}"}), 500
+
+def resolve_subscription(operation_id):
+    try:
+        # Acquire token for Marketplace API
+        marketplace_scope = ["https://marketplaceapi.microsoft.com/.default"]
+        token_result = msal_client.acquire_token_for_client(scopes=marketplace_scope)
+        if "access_token" not in token_result:
+            logger.error(f"Failed to acquire token for Marketplace API: {token_result.get('error')}")
+            return False
+
+        headers = {"Authorization": f"Bearer {token_result['access_token']}"}
+        resolve_url = f"https://marketplaceapi.microsoft.com/api/saas/subscriptions/resolve?api-version=2018-08-31"
+        response = requests.post(resolve_url, headers=headers, json={"operationId": operation_id})
+        
+        if response.status_code == 200:
+            logger.info(f"Subscription resolved: {response.json()}")
+            return True
+        else:
+            logger.error(f"Failed to resolve subscription: {response.status_code}, {response.text}")
+            return False
+    except Exception as e:
+        logger.error(f"Error resolving subscription: {str(e)}")
+        return False
+
+# 🔹 Support ticket endpoints
+@app.route('/api/support', methods=['POST'])
+def create_ticket():
+    logger.info("Creating new support ticket")
+    data = request.get_json()
+    if not data:
+        logger.error("No JSON payload provided")
+        return jsonify({"error": "No payload provided"}), 400
+
+    title = data.get('title')
+    description = data.get('description')
+    category = data.get('category')
+    attachment = data.get('attachment')  # Base64-encoded file or NULL
+
+    if not all([title, description, category]):
+        logger.error("Missing required fields in ticket payload")
+        return jsonify({"error": "Missing required fields: title, description, category"}), 400
+
+    user_id = session.get('user', {}).get('email') or None
+
+    connection = get_db_connection()
+    if not connection:
+        logger.error("Database connection failed")
+        return jsonify({"error": "Database connection failed"}), 500
+
+    try:
+        cursor = connection.cursor()
+        insert_query = """
+            INSERT INTO SupportTickets (user_id, title, description, category, attachment, status, priority, created_at, updated_at)
+            OUTPUT INSERTED.ticket_id
+            VALUES (?, ?, ?, ?, ?, 'Open', 'Normal', GETDATE(), GETDATE())
+        """
+        cursor.execute(insert_query, (user_id, title, description, category, attachment))
+        ticket_id = cursor.fetchone()[0]
+        connection.commit()
+        logger.info(f"Ticket #{ticket_id} created for user {user_id or 'Guest'}")
+
+        # Send email notification
+        send_support_email(ticket_id, title, user_id)
+
+        return jsonify({"message": "Ticket created successfully", "ticket_id": ticket_id}), 201
+    except pyodbc.Error as e:
+        logger.error(f"Database error creating ticket: {str(e)}")
+        return jsonify({"error": "Failed to create ticket"}), 500
+    finally:
+        cursor.close()
+        connection.close()
+        logger.info("Database connection closed")
+
+@app.route('/api/support', methods=['GET'])
+def get_tickets():
+    logger.info("Retrieving support tickets")
+    user_id = session.get('user', {}).get('email') or None
+    if not user_id:
+        logger.warning("Unauthenticated user attempted to retrieve tickets")
+        return jsonify({"error": "Authentication required to view tickets"}), 403
+
+    connection = get_db_connection()
+    if not connection:
+        logger.error("Database connection failed")
+        return jsonify({"error": "Database connection failed"}), 500
+
+    try:
+        cursor = connection.cursor()
+        query = """
+            SELECT ticket_id, title, description, category, status, priority, created_at, updated_at
+            FROM SupportTickets
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+        """
+        cursor.execute(query, (user_id,))
+        tickets = []
+        for row in cursor.fetchall():
+            tickets.append({
+                "ticket_id": row.ticket_id,
+                "title": row.title,
+                "description": row.description,
+                "category": row.category,
+                "status": row.status,
+                "priority": row.priority,
+                "created_at": row.created_at.isoformat(),
+                "updated_at": row.updated_at.isoformat() if row.updated_at else None
+            })
+        logger.info(f"Retrieved {len(tickets)} tickets for user {user_id}")
+        return jsonify({"tickets": tickets})
+    except pyodbc.Error as e:
+        logger.error(f"Database error retrieving tickets: {str(e)}")
+        return jsonify({"error": "Failed to retrieve tickets"}), 500
+    finally:
+        cursor.close()
+        connection.close()
+        logger.info("Database connection closed")
+
+# 🔹 Routes
+@app.route("/")
+def home():
+    logger.info("Rendering front page")
+    user = session.get('user')
+    return render_template("index.html", user=user)
+
+@app.route("/login")
+def login():
+    logger.info(f"Generating auth URL for login with redirect_uri: {REDIRECT_URI}")
+    auth_url = msal_client.get_authorization_request_url(
+        SCOPE,
+        redirect_uri=REDIRECT_URI,
+        response_type="code"
+    )
+    logger.info(f"Login auth URL: {auth_url}")
+    return redirect(auth_url)
+
+@app.route("/signup")
+def signup():
+    logger.info(f"Generating auth URL for signup with redirect_uri: {REDIRECT_URI}")
+    auth_url = msal_client.get_authorization_request_url(
+        SCOPE,
+        redirect_uri=REDIRECT_URI,
+        response_type="code"
+    )
+    logger.info(f"Signup auth URL: {auth_url}")
+    return redirect(auth_url)
+
+@app.route("/getAToken")
+def authorized():
+    logger.info(f"Received callback: {request.url}")
+    code = request.args.get('code')
+    logger.info(f"Received auth code: {code}")
+    if not code:
+        logger.error("No code provided in callback")
+        return jsonify({"error": "Authentication failed: No code provided"}), 400
+
+    try:
+        logger.info(f"Attempting token acquisition with redirect_uri: {REDIRECT_URI}, scopes: {SCOPE}")
+        token_result = msal_client.acquire_token_by_authorization_code(
+            code,
+            scopes=SCOPE,
+            redirect_uri=REDIRECT_URI
+        )
+        if "error" in token_result:
+            logger.error(f"Auth error: {token_result['error']}, Description: {token_result.get('error_description')}")
+            return jsonify({"error": f"Authentication failed: {token_result['error']} - {token_result.get('error_description')}"}), 400
+
+        session['access_token'] = token_result['access_token']
+        logger.info("Token acquired successfully")
+
+        graph_endpoint = "https://graph.microsoft.com/v1.0/me"
+        headers = {"Authorization": f"Bearer {session['access_token']}"}
+        logger.info("Fetching user profile from Microsoft Graph")
+        user_response = requests.get(graph_endpoint, headers=headers)
+        if user_response.status_code == 200:
+            user_data = user_response.json()
+            session['user'] = {
+                'name': user_data.get('displayName'),
+                'email': user_data.get('mail') or user_data.get('userPrincipalName')
+            }
+            logger.info(f"User logged in: {session['user']['name']}")
+        else:
+            logger.error(f"Failed to fetch user profile: {user_response.status_code}, {user_response.text}")
+            return jsonify({"error": "Failed to fetch user profile"}), 400
+
+        return redirect(url_for('home'))
+    except Exception as e:
+        logger.error(f"Unexpected error in auth: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Authentication failed: {str(e)}"}), 500
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    logger.info("User logged out")
+    return redirect(url_for('home'))
+
+@app.route("/submit", methods=['POST'])
+def submit():
+    connection = get_db_connection()
+    if not connection:
+        logger.error("Database connection failed")
+        return jsonify({"error": "Database connection failed"}), 500
+
+    try:
+        cursor = connection.cursor()
+
+        # Get submission key (user email or IP address)
+        today = datetime.now().strftime('%Y-%m-%d')
+        submission_key = request.remote_addr
+        if 'user' in session:
+            submission_key = session['user']['email']
+
+        # Count submissions for the day
+        query = """
+            SELECT COUNT(*) as count
+            FROM submissions
+            WHERE CAST(submission_date AS DATE) = ?
+            AND (user_email = ? OR ip_address = ?)
+        """
+        cursor.execute(query, (today, submission_key if 'user' in session else None, submission_key if 'user' not in session else None))
+        submission_count = cursor.fetchone()[0]
+
+        # Define limits
+        UNAUTHENTICATED_LIMIT = 5
+        AUTHENTICATED_LIMIT = 10
+        SUBSCRIBE_URL = os.getenv('SUBSCRIBE_URL', 'https://portal.azure.com/#create/1700007431.synesthetica')
+
+        # Check submission limits
+        if 'user' not in session and submission_count >= UNAUTHENTICATED_LIMIT:
+            logger.warning(f"Submission limit exceeded for unauthenticated user (IP: {request.remote_addr})")
+            return jsonify({
+                "error": "You've reached your limit today. Try again after 24 hours or log in to continue."
+            }), 403
+        elif 'user' in session and submission_count >= AUTHENTICATED_LIMIT:
+            logger.warning(f"Submission limit exceeded for authenticated user: {session['user']['email']}")
+            return jsonify({
+                "error": "You've reached your submission limit for today. Subscribe to continue.",
+                "subscribe": True,
+                "subscribe_url": SUBSCRIBE_URL
+            }), 403
+
+        data = request.json
+        if 'image' not in data:
+            logger.error("No image provided in request")
+            return jsonify({"error": "No image provided"}), 400
+
+        brush = data.get('brush', 'round')
+        image_data = data['image'].split(',')[1]
+        try:
+            img = Image.open(BytesIO(base64.b64decode(image_data))).convert('RGBA')
+        except Exception as e:
+            logger.error(f"Invalid image data: {str(e)}")
+            return jsonify({"error": f"Invalid image data: {str(e)}"}), 400
+
+        width, height = img.size
+        logger.info(f"Received image size: {width}x{height}")
+
+        timeline = {}
+        colors_found = set()
+
+        for x in range(width):
+            freqs = []
+            for y in range(height):
+                r, g, b, a = img.load()[x, y]
+                if not (r == 0 and g == 0 and b == 0) and a > 200:
+                    freq = get_quickly_frequency_by_color(r, g, b)
+                    if freq is None:
+                        freq = get_frequency_from_color(r, g, b)
+                    if freq:
+                        freqs.append(freq)
+                        colors_found.add((r, g, b))
+            if freqs:
+                timeline[x] = list(np.unique(freqs))
+
+        non_silent_columns = {x: freqs for x, freqs in timeline.items() if freqs}
+        logger.info(f"Processed {len(non_silent_columns)} non-silent columns")
+        logger.info(f"Colors detected: {colors_found}")
+
+        stop = max((x for x, freqs in timeline.items() if freqs), default=0)
+        timeline = {x: freqs if freqs else 0 for x in range(stop + 1)}
+
+        if not non_silent_columns:
+            logger.warning("No valid colors detected in image")
+            return jsonify({"error": "No valid colors detected"}), 400
+
+        audio_segments = []
+        for x in range(stop + 1):
+            segment = generate_tone(timeline.get(x, 0), brush)
+            audio_segments.append(segment)
+        
+        audio = np.concatenate(audio_segments)
+        audio = audio / np.max(np.abs(audio))
+        audio_int16 = np.int16(audio * 32767)
+
+        filename = f"sound_{int(time.time() * 1000)}.wav"
+        filepath = os.path.join(OUTPUT_DIR, filename)
+        write_wav(filepath, SAMPLE_RATE, audio_int16)
+        logger.info(f"Generated audio file: {filename}")
+
+        # Store submission in database
+        insert_query = """
+            INSERT INTO submissions (user_email, submission_date, image_data, audio_path, brush_type, ip_address)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        cursor.execute(insert_query, (
+            session['user']['email'] if 'user' in session else None,
+            datetime.now(),
+            image_data,
+            filename,
+            brush,
+            request.remote_addr
+        ))
+        connection.commit()
+        logger.info(f"Submission stored in database for {submission_key}")
+
+        return jsonify({"url": f"/static/audio/{filename}"})
+    except Exception as e:
+        logger.error(f"Error processing submission: {str(e)}")
+        return jsonify({"error": f"Failed to process submission: {str(e)}"}), 500
+    finally:
+        if connection:
+            cursor.close()
+            connection.close()
+            logger.info("Database connection closed")
+
+@app.route('/static/audio/<path:filename>')
+def serve_audio(filename):
+    logger.info(f"Serving audio file: {filename}")
+    return send_from_directory(OUTPUT_DIR, filename)
+
+@app.route("/privacy")
+def privacy():
+    logger.info("Rendering Privacy Policy page")
+    return render_template("privacy.html")
+
+@app.route("/support")
+def support():
+    logger.info("Rendering Support page")
+    user = session.get('user')
+    return render_template("support.html", user=user)
+
+if __name__ == "__main__":
+    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    port = int(os.getenv('PORT', 8000))
+    app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
+else:
+    application = app  # For Gunicorn
