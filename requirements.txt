@@ -1,0 +1,14 @@
+flask
+msal
+gunicorn
+numpy
+scipy
+Pillow
+python-dotenv
+flask-session
+redis
+pyodbc
+sendgrid
+
+
+
