@@ -14,8 +14,10 @@ Cross
 Colors are mapped to musical tones
 Brush size controls amplitude (volume)
 Brush shape influences waveform harmonics
+
 🧪 Eyedropper Tool to pick and sonify existing colors on canvas
 🔁 Waveform Visualization for selected tones
+
 🎧 Color to Sound Mapping
 Color	Tone Frequency
 Red	440 Hz (A4)
@@ -32,3 +34,4 @@ Map brush stroke speed to pitch
 Compose full musical paintings
 🖼️ + 🎵 = 🧠💡
 This app explores synesthetic creativity, where sound and vision merge. Great for artists, educators, and curious minds alike!
+
