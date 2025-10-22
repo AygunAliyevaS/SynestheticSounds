@@ -32,9 +32,9 @@ logging.basicConfig(
     ]
 )
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
-# Production-ready Session Configuration
+# Session Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(24).hex())
 app.config['SESSION_TYPE'] = os.getenv('SESSION_TYPE', 'filesystem')
 app.config['SESSION_PERMANENT'] = False
@@ -59,22 +59,15 @@ SUBSCRIBE_URL = os.getenv('SUBSCRIBE_URL', 'https://portal.azure.com/#create/170
 
 Session(app)
 
-def get_db_connection():
-    try:
-        connection_string = f"DRIVER={app.config['DB_DRIVER']};SERVER={app.config['DB_SERVER']};DATABASE={app.config['DB_NAME']};UID={app.config['DB_USER']};PWD={app.config['DB_PASSWORD']}"
-        connection = pyodbc.connect(connection_string)
-        logger.info("Successfully connected to SQL Server database")
-        return connection
-    except pyodbc.Error as e:
-        logger.error(f"Error connecting to SQL Server: {e}")
-        return None
-
 # Microsoft Auth Configuration
 CLIENT_ID = os.getenv('CLIENT_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 AUTHORITY = os.getenv('AUTHORITY')
 REDIRECT_URI = os.getenv('REDIRECT_URI')
-SCOPE = [os.getenv('SCOPE')]
+SCOPE = ["User.Read"]  # Simplified scope for user profile access
+
+# Log environment variables for debugging
+logger.info(f"Environment variables - CLIENT_ID: {CLIENT_ID}, AUTHORITY: {AUTHORITY}, REDIRECT_URI: {REDIRECT_URI}")
 
 # Build MSAL client
 msal_client = msal.ConfidentialClientApplication(
@@ -83,7 +76,7 @@ msal_client = msal.ConfidentialClientApplication(
     client_credential=CLIENT_SECRET
 )
 
-# Configuration for audio generation
+# Audio generation configuration
 OUTPUT_DIR = "static/audio"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 SAMPLE_RATE = 44100
@@ -97,7 +90,7 @@ NOTE_TO_SEMITONE = {
 }
 note_names = list(NOTE_TO_SEMITONE.keys())
 
-# 🔹 Frequency-to-color mapping
+# Frequency-to-color mapping
 freq_symbols = {
     "A0": {"frequency": 27.50, "color": [139, 0, 0], "range": [27.50, 29.14], "symbol": "♩"},
     "A#0/Bb0": {"frequency": 29.14, "color": [255, 69, 0], "range": [29.14, 30.87], "symbol": "♯"},
@@ -189,7 +182,7 @@ freq_symbols = {
     "C8": {"frequency": 4186.01, "color": [144, 238, 144], "range": [4186.01, 4434.92], "symbol": "♩"},
 }
 
-# 🔹 Color-to-frequency mapping functions
+# Color-to-frequency mapping functions
 def hue_to_note_name(hue):
     index = int((hue % 360) / 30)
     return note_names[index]
@@ -229,7 +222,7 @@ def get_frequency_from_color(r, g, b, threshold=10000):
 def color_distance(c1, c2):
     return sum((a - b) ** 2 for a, b in zip(c1, c2)) ** 0.5
 
-# 🔹 Tone generation function
+# Tone generation function
 def generate_tone(frequencies, brush, duration=DURATION_PER_STEP):
     valid_brushes = {"spray", "star", "cross", "square", "triangle", "sawtooth", "round", "line"}
     if brush.lower() not in valid_brushes:
@@ -291,7 +284,7 @@ def generate_tone(frequencies, brush, duration=DURATION_PER_STEP):
 
     return waveform
 
-# 🔹 SendGrid email notification
+# SendGrid email notification
 def send_support_email(ticket_id, title, user_email):
     if not SENDGRID_API_KEY:
         logger.warning("SendGrid API key not configured, skipping email")
@@ -310,7 +303,7 @@ def send_support_email(ticket_id, title, user_email):
     except Exception as e:
         logger.error(f"Failed to send support email for ticket #{ticket_id}: {str(e)}")
 
-# 🔹 Azure Marketplace Metered Billing
+# Azure Marketplace Metered Billing
 def report_metered_usage(subscription_id, quantity):
     try:
         marketplace_scope = ["https://marketplaceapi.microsoft.com/.default"]
@@ -342,7 +335,18 @@ def report_metered_usage(subscription_id, quantity):
         logger.error(f"Error reporting metered usage: {str(e)}")
         return False
 
-# 🔹 Security headers
+# Database connection
+def get_db_connection():
+    try:
+        connection_string = f"DRIVER={app.config['DB_DRIVER']};SERVER={app.config['DB_SERVER']};DATABASE={app.config['DB_NAME']};UID={app.config['DB_USER']};PWD={app.config['DB_PASSWORD']}"
+        connection = pyodbc.connect(connection_string)
+        logger.info("Successfully connected to SQL Server database")
+        return connection
+    except pyodbc.Error as e:
+        logger.error(f"Error connecting to SQL Server: {e}")
+        return None
+
+# Security headers
 @app.after_request
 def after_request(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -351,6 +355,7 @@ def after_request(response):
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     return response
 
+# Webhook for Azure Marketplace
 @app.route('/webhook', methods=['POST'])
 def marketplace_webhook():
     logger.info("Received webhook request from Azure Marketplace")
@@ -411,6 +416,7 @@ def marketplace_webhook():
         logger.error(f"Error processing webhook: {str(e)}")
         return jsonify({"error": f"Webhook processing failed: {str(e)}"}), 500
 
+# Resolve Azure Marketplace subscription
 def resolve_subscription(operation_id):
     try:
         marketplace_scope = ["https://marketplaceapi.microsoft.com/.default"]
@@ -433,15 +439,96 @@ def resolve_subscription(operation_id):
         logger.error(f"Error resolving subscription: {str(e)}")
         return False
 
-# 🔹 Pricing Route
+# Routes
+@app.route("/")
+def home():
+    logger.info("Rendering front page")
+    user = session.get('user')
+    return render_template("index.html", user=user)
+
+@app.route("/auth")
+def auth():
+    logger.info(f"Generating auth URL with redirect_uri: {REDIRECT_URI}")
+    try:
+        auth_url = msal_client.get_authorization_request_url(
+            SCOPE,
+            redirect_uri=REDIRECT_URI,
+            response_type="code"
+        )
+        logger.info(f"Auth URL: {auth_url}")
+        return redirect(auth_url)
+    except Exception as e:
+        logger.error(f"Error generating auth URL: {str(e)}")
+        return jsonify({"error": f"Failed to initiate authentication: {str(e)}"}), 500
+
+@app.route("/getAToken")
+def authorized():
+    logger.info(f"Received callback: {request.url}")
+    code = request.args.get('code')
+    logger.info(f"Received auth code: {'present' if code else 'missing'}")
+    if not code:
+        logger.error("No code provided in callback")
+        return jsonify({"error": "Authentication failed: No code provided"}), 400
+
+    try:
+        logger.info(f"Attempting token acquisition with redirect_uri: {REDIRECT_URI}, scopes: {SCOPE}")
+        token_result = msal_client.acquire_token_by_authorization_code(
+            code,
+            scopes=SCOPE,
+            redirect_uri=REDIRECT_URI
+        )
+        logger.info(f"Token result: {token_result}")
+        if "error" in token_result:
+            logger.error(f"Auth error: {token_result['error']}, Description: {token_result.get('error_description')}")
+            return jsonify({"error": f"Authentication failed: {token_result['error']} - {token_result.get('error_description')}"}), 400
+
+        session['access_token'] = token_result['access_token']
+        logger.info("Token acquired successfully")
+
+        graph_endpoint = "https://graph.microsoft.com/v1.0/me"
+        headers = {"Authorization": f"Bearer {session['access_token']}"}
+        logger.info("Fetching user profile from Microsoft Graph")
+        user_response = requests.get(graph_endpoint, headers=headers)
+        if user_response.status_code == 200:
+            user_data = user_response.json()
+            session['user'] = {
+                'name': user_data.get('displayName'),
+                'email': user_data.get('mail') or user_data.get('userPrincipalName')
+            }
+            logger.info(f"User logged in: {session['user']['name']}")
+        else:
+            logger.error(f"Failed to fetch user profile: {user_response.status_code}, {user_response.text}")
+            return jsonify({"error": "Failed to fetch user profile"}), 400
+
+        return redirect(url_for('home'))
+    except Exception as e:
+        logger.error(f"Unexpected error in auth: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Authentication failed: {str(e)}"}), 500
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    logger.info("User logged out")
+    return redirect(url_for('home'))
+
 @app.route("/pricing")
 def pricing():
     logger.info("Rendering Pricing page")
     user = session.get('user')
     return render_template("pricing.html", user=user)
 
-# 🔹 Support ticket endpoints
-@app.route('/api/support', methods=['POST'])
+@app.route("/privacy")
+def privacy():
+    logger.info("Rendering Privacy Policy page")
+    return render_template("privacy.html")
+
+@app.route("/support")
+def support():
+    logger.info("Rendering Support page")
+    user = session.get('user')
+    return render_template("support.html", user=user)
+
+@app.route("/api/support", methods=['POST'])
 def create_ticket():
     logger.info("Creating new support ticket")
     data = request.get_json()
@@ -530,51 +617,6 @@ def get_tickets():
         cursor.close()
         connection.close()
         logger.info("Database connection closed")
-
-# 🔹 Routes
-@app.route("/")
-def home():
-    logger.info("Rendering front page")
-    user = session.get('user')
-    return render_template("index.html", user=user)
-
-@app.route("/login")
-def login():
-    logger.info(f"Generating auth URL for login with redirect_uri: {REDIRECT_URI}")
-    auth_url = msal_client.get_authorization_request_url(
-        SCOPE,
-        redirect_uri=REDIRECT_URI,
-        response_type="code"
-    )
-    logger.info(f"Login auth URL: {auth_url}")
-    return redirect(auth_url)
-
-@app.route("/signup")
-def signup():
-    logger.info(f"Generating auth URL for signup with redirect_uri: {REDIRECT_URI}")
-    auth_url = msal_client.get_authorization_request_url(
-        SCOPE,
-        redirect_uri=REDIRECT_URI,
-        response_type="code"
-    )
-    logger.info(f"Signup auth URL: {auth_url}")
-    return redirect(auth_url)
-
-@app.route("/getAToken")
-def authorized():
-    logger.info(f"Received callback: {request.url}")
-    code = request.args.get('code')
-    logger.info(f"Received auth code: {code}")
-    if not code:
-        logger.error("No code provided in callback")
-        return jsonify({"error": "Authentication failed: No code provided"}), 400
-    # ... (rest of the authentication logic)
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    logger.info("User logged out")
-    return redirect(url_for('home'))
 
 @app.route("/submit", methods=['POST'])
 def submit():
@@ -746,21 +788,9 @@ def serve_audio(filename):
     logger.info(f"Serving audio file: {filename}")
     return send_from_directory(OUTPUT_DIR, filename)
 
-@app.route("/privacy")
-def privacy():
-    logger.info("Rendering Privacy Policy page")
-    return render_template("privacy.html")
-
-@app.route("/support")
-def support():
-    logger.info("Rendering Support page")
-    user = session.get('user')
-    return render_template("support.html", user=user)
-
 if __name__ == "__main__":
     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.getenv('PORT', 8000))
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
-
