@@ -25,6 +25,8 @@
       header {
         font-family: "Inter", Arial, sans-serif;
         align-items: flex-start;
+        position: sticky;
+    top: 0;
       }
       header > div:first-child {
         margin-top: -0.3rem; /* lifts logo a bit */
@@ -162,15 +164,16 @@
         cursor: pointer;
         font-size: 20px;
       }
-      #brushPreviewSection {
-        display: none;
-        max-width: 1000px;
-        margin: 0 auto;
-        padding: 0 10px;
-      }
-      #brushPreviewSection.visible {
-        display: block;
-      }
+#brushPreviewSection {
+    display: none;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 10px;
+}
+#brushPreviewSection.visible {
+    display: block;
+    margin-top: 20px;
+}
       #seeMoreLink {
         color: #1a73e8;
         cursor: pointer;
@@ -348,38 +351,38 @@
   </head>
   <body class="min-h-screen flex flex-col font-sans" style="background-color: #ffffff;">
     <!-- Header -->
-    <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between">
-      <div class="sm:mt-[-6px] flex items-center">
+<header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between sticky top-0 z-[1000]">
+    <div class="sm:mt-[-6px] flex items-center">
         <img src="/static/logo.png" alt="Synesthetica Logo" class="logo-img" />
         <a href="#" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
-          Synesthetica
+            Synesthetica
         </a>
-      </div>
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
+    </div>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
         <nav class="flex gap-3 flex-wrap justify-end">
-          <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            About us
-          </a>
-          <a href="#" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1" onclick="toggleDrawingSection()">
-            🎨 Start <span>Drawing</span>
-          </a>
-          <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            Pricing
-          </a>
-          <a href="/support" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            Help
-          </a>
+            <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+                About us
+            </a>
+            <a href="#" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1" onclick="toggleDrawingSection()">
+                🎨 Start <span>Drawing</span>
+            </a>
+            <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+                Pricing
+            </a>
+            <a href="/support" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+                Help
+            </a>
         </nav>
         <div class="flex gap-3 flex-wrap justify-end">
-          <a href="/login" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-            🔒 Login with Microsoft
-          </a>
-          <a href="/signup" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-            📄 Sign Up with Microsoft
-          </a>
+            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+                🔒 Login with Microsoft
+            </a>
+            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+                📄 Sign Up with Microsoft
+            </a>
         </div>
-      </div>
-    </header>
+    </div>
+</header>
 
     <!-- Toast Notifications -->
     <div class="toast-container position-fixed top-0 end-0 p-3">
@@ -412,56 +415,32 @@
       </div>
     </div>
 
-    <!-- Main Content -->
-    <section class="max-w-4xl mx-auto py-12 px-4 flex flex-col items-center justify-center h-[calc(100vh-200px)]">
-      <h2 class="text-3xl font-semibold mb-8 text-black text-center">
+  <section class="max-w-4xl mx-auto py-12 px-4 flex flex-col items-center">
+    <h2 class="text-3xl font-semibold mb-8 text-black text-center">
         Create Art That Sings
-      </h2>
-      <p class="text-lg mb-12 text-black text-center">
+    </h2>
+    <p class="text-lg mb-12 text-black text-center">
         Synesthetica transforms your brush strokes into musical tones. Choose
         from unique brush shapes, adjust sizes, and pick colors that generate
         real-time piano-like
         <span id="seeMoreLink" onclick="toggleBrushPreview()">see more</span>
-      </p>
-      <div id="brushPreviewSection" class="text-center">
+    </p>
+    <div id="brushPreviewSection" class="text-center">
         <p class="text-lg mb-12 text-black">
-          sounds. Experience creativity like never before!
+            sounds. Experience creativity like never before!
         </p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
-            <h3 class="text-xl font-semibold mb-2 text-black">Round Brush</h3>
-            <p class="text-sm text-black">Pure sine wave for a clean, smooth tone.</p>
-          </div>
-          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
-            <h3 class="text-xl font-semibold mb-2 text-black">Square Brush</h3>
-            <p class="text-sm text-black">Harsh, digital square wave sound.</p>
-          </div>
-          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
-            <h3 class="text-xl font-semibold mb-2 text-black">Star Brush</h3>
-            <p class="text-sm text-black">Rich harmonics at twice the frequency.</p>
-          </div>
-          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
-            <h3 class="text-xl font-semibold mb-2 text-black">Triangle Brush</h3>
-            <p class="text-sm text-black">Soft, mellow triangle wave tone.</p>
-          </div>
-          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
-            <h3 class="text-xl font-semibold mb-2 text-black">Cross Brush</h3>
-            <p class="text-sm text-black">Detuned frequency for a beating effect.</p>
-          </div>
-          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
-            <h3 class="text-xl font-semibold mb-2 text-black">Sawtooth Brush</h3>
-            <p class="text-sm text-black">Bright, buzzy sawtooth wave.</p>
-          </div>
-          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
-            <h3 class="text-xl font-semibold mb-2 text-black">Spray Brush</h3>
-            <p class="text-sm text-black">Complex, textured rounded saw tone.</p>
-          </div>
+            <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
+                <h3 class="text-xl font-semibold mb-2 text-black">Round Brush</h3>
+                <p class="text-sm text-black">Pure sine wave for a clean, smooth tone.</p>
+            </div>
+            <!-- Other brush previews -->
         </div>
-      </div>
-      <button class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300" onclick="toggleDrawingSection()">
+    </div>
+    <button class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300" onclick="toggleDrawingSection()">
         🎨 Try Drawing
-      </button>
-    </section>
+    </button>
+</section>
 
     <!-- Drawing App -->
     <section id="drawing-app" class="max-w-5xl mx-auto p-4 mb-12">
@@ -629,13 +608,15 @@
         }
       }
 
-      // Toggle Brush Preview Section
-      function toggleBrushPreview() {
-        const brushPreviewSection = document.getElementById("brushPreviewSection");
-        const seeMoreLink = document.getElementById("seeMoreLink");
-        brushPreviewSection.classList.toggle("visible");
-        seeMoreLink.textContent = brushPreviewSection.classList.contains("visible") ? "see less" : "see more";
-      }
+function toggleBrushPreview() {
+    const brushPreviewSection = document.getElementById("brushPreviewSection");
+    const seeMoreLink = document.getElementById("seeMoreLink");
+    brushPreviewSection.classList.toggle("visible");
+    seeMoreLink.textContent = brushPreviewSection.classList.contains("visible") ? "see less" : "see more";
+    if (brushPreviewSection.classList.contains("visible")) {
+        brushPreviewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
 
       // Chat Functions
       function toggleChat() {
@@ -1047,3 +1028,4 @@
     </script>
   </body>
 </html>
+
