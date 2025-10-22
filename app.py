@@ -568,40 +568,7 @@ def authorized():
     if not code:
         logger.error("No code provided in callback")
         return jsonify({"error": "Authentication failed: No code provided"}), 400
-
-    try:
-        logger.info(f"Attempting token acquisition with redirect_uri: {REDIRECT_URI}, scopes: {SCOPE}")
-        token_result = msal_client.acquire_token_by_authorization_code(
-            code,
-            scopes=SCOPE,
-            redirect_uri=REDIRECT_URI
-        )
-        if "error" in token_result:
-            logger.error(f"Auth error: {token_result['error']}, Description: {token_result.get('error_description')}")
-            return jsonify({"error": f"Authentication failed: {token_result['error']} - {token_result.get('error_description')}"}), 400
-
-        session['access_token'] = token_result['access_token']
-        logger.info("Token acquired successfully")
-
-        graph_endpoint = "https://graph.microsoft.com/v1.0/me"
-        headers = {"Authorization": f"Bearer {session['access_token']}"}
-        logger.info("Fetching user profile from Microsoft Graph")
-        user_response = requests.get(graph_endpoint, headers=headers)
-        if user_response.status_code == 200:
-            user_data = user_response.json()
-            session['user'] = {
-                'name': user_data.get('displayName'),
-                'email': user_data.get('mail') or user_data.get('userPrincipalName')
-            }
-            logger.info(f"User logged in: {session['user']['name']}")
-        else:
-            logger.error(f"Failed to fetch user profile: {user_response.status_code}, {user_response.text}")
-            return jsonify({"error": "Failed to fetch user profile"}), 400
-
-        return redirect(url_for('home'))
-    except Exception as e:
-        logger.error(f"Unexpected error in auth: {str(e)}", exc_info=True)
-        return jsonify({"error": f"Authentication failed: {str(e)}"}), 500
+    # ... (rest of the authentication logic)
 
 @app.route("/logout")
 def logout():
@@ -796,3 +763,4 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
