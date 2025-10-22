@@ -336,35 +336,35 @@
     </div>
 
     <!-- Header -->
-<header class="text-center py-20">
-  <h1 class="text-4xl md:text-5xl font-bold mb-4 text-black">
-    SynestheticSounds
-  </h1>
-  <h2 class="text-xl md:text-2xl mb-8 text-black">
-    Where Art Meets Music
-  </h2>
-  <div class="space-x-4">
-    {% if user %}
-    <span class="text-black">Welcome, {{ user.name }}!</span>
-    <a href="/logout" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
-      🔓 Logout
-    </a>
-    {% else %}
-    <a href="/login" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
-      🔐 Login with Microsoft
-    </a>
-    <a href="/signup" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
-      📝 Sign Up with Microsoft
-    </a>
-    {% endif %}
-    <a href="/pricing" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
-      💳 Pricing
-    </a>
-    <button class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300" onclick="toggleDrawingSection()">
-      🎨 Try Drawing
-    </button>
-  </div>
-</header>
+    <header class="text-center py-20">
+      <h1 class="text-4xl md:text-5xl font-bold mb-4 text-black">
+        SynestheticSounds
+      </h1>
+      <h2 class="text-xl md:text-2xl mb-8 text-black">
+        Where Art Meets Music
+      </h2>
+      <div class="space-x-4">
+        {% if user %}
+        <span class="text-black">Welcome, {{ user.name }}!</span>
+        <a href="/logout" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
+          🔓 Logout
+        </a>
+        {% else %}
+        <a href="/login" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
+          🔐 Login with Microsoft
+        </a>
+        <a href="/signup" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
+          📝 Sign Up with Microsoft
+        </a>
+        {% endif %}
+        <a href="/pricing" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
+          💳 Pricing
+        </a>
+        <button class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300" onclick="toggleDrawingSection()">
+          🎨 Try Drawing
+        </button>
+      </div>
+    </header>
 
     <!-- Toast Notifications -->
     <div class="toast-container position-fixed top-0 end-0 p-3">
@@ -392,7 +392,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
         <div class="toast-body">
-          You've reached the submission limit for today. <a href="#" id="subscribeLink" class="text-primary">Subscribe</a> to continue.
+          You've reached the submission limit for this month. <a href="/pricing" id="subscribeLink" class="text-primary">View Pricing</a> to continue.
         </div>
       </div>
     </div>
@@ -592,10 +592,10 @@
     <!-- Footer -->
     <footer class="py-6 text-center">
       <p class="text-sm text-black">© 2025 Synesthetica. All rights reserved.</p>
-<p class="text-sm text-black">
-    <a href="/privacy" class="text-blue-600 hover:text-blue-800">Privacy Policy</a> |
-    <a href="/support" class="text-blue-600 hover:text-blue-800">Support</a>
-</p>
+      <p class="text-sm text-black">
+        <a href="/privacy" class="text-blue-600 hover:text-blue-800">Privacy Policy</a> |
+        <a href="/support" class="text-blue-600 hover:text-blue-800">Support</a>
+      </p>
     </footer>
 
     <!-- JavaScript -->
@@ -668,7 +668,7 @@
         } else if (lowerQuestion.includes("submit") || lowerQuestion.includes("limit")) {
           return "If you can't submit, you've likely hit the daily limit (5 for guests, 10 for logged-in users). Log in or sign up for more, or subscribe for unlimited. Ensure your drawing has colors!";
         } else if (lowerQuestion.includes("subscribe")) {
-          return "Click the 'Subscribe' button that appears after your limit, or visit our subscription page to upgrade and get unlimited submissions.";
+          return "Click the 'Pricing' link or visit our pricing page to subscribe to the Basic Usage-Based plan and get unlimited submissions.";
         } else if (lowerQuestion.includes("color") || lowerQuestion.includes("sound")) {
           return "Colors represent musical notes: e.g., green is C4. Brush types affect sound texture (round for smooth, sawtooth for buzzy). Submit to hear your artwork!";
         } else if (lowerQuestion.includes("login") || lowerQuestion.includes("microsoft")) {
@@ -676,7 +676,7 @@
         } else if (lowerQuestion.includes("signup") || lowerQuestion.includes("sign up")) {
           return "Sign up with Microsoft using the 'Sign Up with Microsoft' button. You'll be prompted to create a Microsoft account if you don't have one, then get access to more submissions!";
         } else if (lowerQuestion.includes("help") || lowerQuestion.includes("support")) {
-          return "I'm here for quick help! For advanced issues, email support@synesthetica.com. What specific question do you have?";
+          return "I'm here for quick help! For advanced issues, email support@synesthetica.com or visit our Support page. What specific question do you have?";
         } else {
           return "That's an interesting question! For now, try asking about drawing, submitting, subscriptions, signing up, or colors. If you need more help, email support@synesthetica.com.";
         }
@@ -735,7 +735,7 @@
       let tool = toolSelect.value;
       let undoStack = [];
       let redoStack = [];
-      let subscribeUrl = "";
+      let subscribeUrl = "/pricing";
 
       function resizeCanvas() {
         const width = window.innerWidth < 1024 ? window.innerWidth - 40 : 1000;
@@ -935,9 +935,7 @@
       }
 
       function subscribe() {
-        if (subscribeUrl) {
-          window.location.href = subscribeUrl;
-        }
+        window.location.href = "/pricing";
       }
 
       async function submitDrawing() {
@@ -957,7 +955,7 @@
           if (data.error) {
             if (data.error.includes("submission limit")) {
               if (data.subscribe) {
-                subscribeUrl = data.subscribe_url;
+                subscribeUrl = "/pricing";
                 document.getElementById("subscribeButton").style.display = "block";
                 document.getElementById("subscribeLink").href = subscribeUrl;
                 const toast = new bootstrap.Toast(document.getElementById("subscribeToast"));
@@ -1031,5 +1029,3 @@
     </script>
   </body>
 </html>
-
-
