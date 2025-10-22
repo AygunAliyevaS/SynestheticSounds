@@ -339,12 +339,18 @@
         background: #ccc;
         margin: 0.5rem 0 0 0;
       }
+      .logo-img {
+        height: 40px; /* Adjust size as needed */
+        vertical-align: middle;
+        margin-right: 8px;
+      }
     </style>
   </head>
   <body class="min-h-screen flex flex-col font-sans" style="background-color: #ffffff;">
     <!-- Header -->
     <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between">
-      <div class="sm:mt-[-6px]">
+      <div class="sm:mt-[-6px] flex items-center">
+        <img src="/static/logo.png" alt="Synesthetica Logo" class="logo-img" />
         <a href="#" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
           Synesthetica
         </a>
@@ -461,7 +467,7 @@
     <section id="drawing-app" class="max-w-5xl mx-auto p-4 mb-12">
       <div id="bb">
         <h1 class="text-2xl md:text-3xl font-bold text-center mb-4 text-black">
-          <img src="{{ url_for('static', filename='logo2.png') }}" alt="SynestheticSounds Logo" style="height: 50px; vertical-align: middle" />
+          <img src="/static/logo2.png" alt="SynestheticSounds Logo" style="height: 50px; vertical-align: middle" />
           Welcome to Synesthetic Sounds
         </h1>
 
@@ -1040,3 +1046,4 @@
       });
     </script>
   </body>
+</html>
