@@ -335,11 +335,11 @@
         border-bottom: 1px solid #ccc;
       }
       .nav-item {
-        margin-left: 0.5rem;
+        margin-left: 1.5rem; /* Increased space between logo and menu items */
         text-decoration: none;
-        font-size: 1rem;
+        font-size: 0.9rem; /* Smaller font size */
         font-weight: bold;
-        padding: 0.5rem 1rem;
+        padding: 0.3rem 0.8rem; /* Smaller padding for smaller boxes */
         border-radius: 1rem;
         border: 1px solid #ccc;
         background-color: #ffffff;
@@ -351,7 +351,10 @@
         background-color: #f0f0f0;
       }
       .nav-item span.logo {
-        margin-right: 0.5rem;
+        margin-right: 0.3rem; /* Adjusted logo spacing */
+      }
+      .nav-item.red {
+        color: #ff0000;
       }
     </style>
   </head>
@@ -359,10 +362,10 @@
     <!-- Header -->
     <header class="header-nav">
       <a href="/" class="nav-item logo">Synesthetica</a>
-      <a href="/about" class="nav-item"><span class="logo">ℹ️</span>About Us</a>
+      <a href="/about" class="nav-item red"><span class="logo">ℹ️</span>About Us</a>
       <a href="#" class="nav-item" onclick="toggleDrawingSection()"><span class="logo">🎨</span><span style="color: #ff0000;">Start</span> <span style="color: #000000;">Drawing</span></a>
-      <a href="/pricing" class="nav-item"><span class="logo">💳</span>Pricing</a>
-      <a href="/support" class="nav-item"><span class="logo">❓</span>Help</a>
+      <a href="/pricing" class="nav-item red"><span class="logo">💳</span>Pricing</a>
+      <a href="/support" class="nav-item red"><span class="logo">❓</span>Help</a>
       <a href="/login" class="nav-item"><span class="logo">🔐</span>Login with Microsoft</a>
       <a href="/signup" class="nav-item"><span class="logo">📝</span>Sign Up with Microsoft</a>
     </header>
@@ -399,17 +402,17 @@
     </div>
 
     <!-- Main Content -->
-    <section class="max-w-4xl mx-auto py-12 px-4">
-      <h2 class="text-3xl font-semibold mb-8 text-black">
+    <section class="max-w-4xl mx-auto py-12 px-4 flex flex-col items-center justify-center h-[calc(100vh-200px)]">
+      <h2 class="text-3xl font-semibold mb-8 text-black text-center">
         Create Art That Sings
       </h2>
-      <p class="text-lg mb-12 text-black">
+      <p class="text-lg mb-12 text-black text-center">
         Synesthetica transforms your brush strokes into musical tones. Choose
         from unique brush shapes, adjust sizes, and pick colors that generate
         real-time piano-like
         <span id="seeMoreLink" onclick="toggleBrushPreview()">see more</span>
       </p>
-      <div id="brushPreviewSection">
+      <div id="brushPreviewSection" class="text-center">
         <p class="text-lg mb-12 text-black">
           sounds. Experience creativity like never before!
         </p>
@@ -445,7 +448,7 @@
         </div>
       </div>
       <button class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300" onclick="toggleDrawingSection()">
-        🎨 Start Drawing
+        🎨 Try Drawing
       </button>
     </section>
 
@@ -668,7 +671,7 @@
         if (lowerQuestion.includes("hello") || lowerQuestion.includes("hi")) {
           return "Hello! Welcome to Synesthetica Support. How can I assist you with drawing, sounds, subscriptions, or signing up today?";
         } else if (lowerQuestion.includes("draw") || lowerQuestion.includes("start")) {
-          return "To start drawing, click 'Start Drawing' on the homepage or header. Select a brush, color, and paint on the canvas. The more you use a color, the louder its note in the sound!";
+          return "To start drawing, click 'Try Drawing' on the homepage or header. Select a brush, color, and paint on the canvas. The more you use a color, the louder its note in the sound!";
         } else if (lowerQuestion.includes("submit") || lowerQuestion.includes("limit")) {
           return "If you can't submit, you've likely hit the daily limit (5 for guests, 10 for logged-in users). Log in or sign up for more, or subscribe for unlimited. Ensure your drawing has colors!";
         } else if (lowerQuestion.includes("subscribe")) {
