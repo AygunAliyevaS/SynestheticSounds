@@ -52,6 +52,11 @@ app.config['DB_DRIVER'] = os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server'
 # SendGrid Configuration
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 
+# Subscription and Billing Configuration
+FREE_SUBMISSION_LIMIT = 10
+ADDITIONAL_SUBMISSION_COST = 0.01  # $0.01 per additional submission
+SUBSCRIBE_URL = os.getenv('SUBSCRIBE_URL', 'https://portal.azure.com/#create/1700007431.synesthetica')
+
 Session(app)
 
 def get_db_connection():
@@ -305,6 +310,38 @@ def send_support_email(ticket_id, title, user_email):
     except Exception as e:
         logger.error(f"Failed to send support email for ticket #{ticket_id}: {str(e)}")
 
+# 🔹 Azure Marketplace Metered Billing
+def report_metered_usage(subscription_id, quantity):
+    try:
+        marketplace_scope = ["https://marketplaceapi.microsoft.com/.default"]
+        token_result = msal_client.acquire_token_for_client(scopes=marketplace_scope)
+        if "access_token" not in token_result:
+            logger.error(f"Failed to acquire token for Marketplace API: {token_result.get('error')}")
+            return False
+
+        headers = {
+            "Authorization": f"Bearer {token_result['access_token']}",
+            "Content-Type": "application/json"
+        }
+        metering_url = f"https://marketplaceapi.microsoft.com/api/usageEvent?api-version=2018-08-31"
+        payload = {
+            "resourceUri": f"/subscriptions/{subscription_id}",
+            "quantity": quantity,
+            "dimension": "additional_submission",
+            "effectiveStartTime": datetime.utcnow().isoformat(),
+            "planId": "basic-usage-based"
+        }
+        response = requests.post(metering_url, headers=headers, json=payload)
+        if response.status_code == 200:
+            logger.info(f"Reported metered usage: {quantity} submissions for {subscription_id}")
+            return True
+        else:
+            logger.error(f"Failed to report metered usage: {response.status_code}, {response.text}")
+            return False
+    except Exception as e:
+        logger.error(f"Error reporting metered usage: {str(e)}")
+        return False
+
 # 🔹 Security headers
 @app.after_request
 def after_request(response):
@@ -318,18 +355,14 @@ def after_request(response):
 def marketplace_webhook():
     logger.info("Received webhook request from Azure Marketplace")
     try:
-        # Get the JSON payload
         payload = request.get_json()
         if not payload:
             logger.error("No JSON payload provided in webhook request")
             return jsonify({"error": "No payload provided"}), 400
 
-        # Log the payload for debugging
         logger.info(f"Webhook payload: {payload}")
-
-        # Extract relevant fields (adjust based on Azure Marketplace webhook schema)
         operation_id = payload.get('operationId')
-        action = payload.get('action')  # e.g., Subscribed, Unsubscribed, Suspended
+        action = payload.get('action')
         subscription_id = payload.get('subscriptionId')
         plan_id = payload.get('planId')
 
@@ -337,7 +370,6 @@ def marketplace_webhook():
             logger.error("Missing required fields in webhook payload")
             return jsonify({"error": "Missing required fields"}), 400
 
-        # Connect to the database
         connection = get_db_connection()
         if not connection:
             logger.error("Database connection failed")
@@ -345,7 +377,6 @@ def marketplace_webhook():
 
         try:
             cursor = connection.cursor()
-            # Example: Store webhook event in the database
             insert_query = """
                 INSERT INTO marketplace_events (operation_id, action, subscription_id, plan_id, event_timestamp)
                 VALUES (?, ?, ?, ?, ?)
@@ -367,26 +398,21 @@ def marketplace_webhook():
             connection.close()
             logger.info("Database connection closed")
 
-        # Respond based on the action (optional: call Azure APIs for resolution)
         if action == "Subscribed":
-            # Handle subscription activation (e.g., call Azure API to resolve subscription)
             logger.info(f"Processing subscription activation for {subscription_id}")
-            # Add logic to call Azure Marketplace APIs if needed
+            # Optionally resolve subscription here
         elif action == "Unsubscribed":
             logger.info(f"Processing subscription cancellation for {subscription_id}")
-            # Add logic to deactivate user access
         else:
             logger.warning(f"Unhandled action: {action}")
 
         return jsonify({"status": "success", "operationId": operation_id}), 200
-
     except Exception as e:
         logger.error(f"Error processing webhook: {str(e)}")
         return jsonify({"error": f"Webhook processing failed: {str(e)}"}), 500
 
 def resolve_subscription(operation_id):
     try:
-        # Acquire token for Marketplace API
         marketplace_scope = ["https://marketplaceapi.microsoft.com/.default"]
         token_result = msal_client.acquire_token_for_client(scopes=marketplace_scope)
         if "access_token" not in token_result:
@@ -407,6 +433,13 @@ def resolve_subscription(operation_id):
         logger.error(f"Error resolving subscription: {str(e)}")
         return False
 
+# 🔹 Pricing Route
+@app.route("/pricing")
+def pricing():
+    logger.info("Rendering Pricing page")
+    user = session.get('user')
+    return render_template("pricing.html", user=user)
+
 # 🔹 Support ticket endpoints
 @app.route('/api/support', methods=['POST'])
 def create_ticket():
@@ -419,7 +452,7 @@ def create_ticket():
     title = data.get('title')
     description = data.get('description')
     category = data.get('category')
-    attachment = data.get('attachment')  # Base64-encoded file or NULL
+    attachment = data.get('attachment')
 
     if not all([title, description, category]):
         logger.error("Missing required fields in ticket payload")
@@ -444,9 +477,7 @@ def create_ticket():
         connection.commit()
         logger.info(f"Ticket #{ticket_id} created for user {user_id or 'Guest'}")
 
-        # Send email notification
         send_support_email(ticket_id, title, user_id)
-
         return jsonify({"message": "Ticket created successfully", "ticket_id": ticket_id}), 201
     except pyodbc.Error as e:
         logger.error(f"Database error creating ticket: {str(e)}")
@@ -591,7 +622,8 @@ def submit():
         # Get submission key (user email or IP address)
         today = datetime.now().strftime('%Y-%m-%d')
         submission_key = request.remote_addr
-        if 'user' in session:
+        is_authenticated = 'user' in session
+        if is_authenticated:
             submission_key = session['user']['email']
 
         # Count submissions for the day
@@ -601,27 +633,50 @@ def submit():
             WHERE CAST(submission_date AS DATE) = ?
             AND (user_email = ? OR ip_address = ?)
         """
-        cursor.execute(query, (today, submission_key if 'user' in session else None, submission_key if 'user' not in session else None))
+        cursor.execute(query, (today, submission_key if is_authenticated else None, submission_key if not is_authenticated else None))
         submission_count = cursor.fetchone()[0]
+
+        # Check subscription status
+        is_subscribed = False
+        subscription_id = None
+        if is_authenticated:
+            cursor.execute("""
+                SELECT subscription_id
+                FROM subscriptions
+                WHERE user_email = ? AND status = 'active' AND expiry_date > GETDATE()
+            """, (submission_key,))
+            result = cursor.fetchone()
+            if result:
+                is_subscribed = True
+                subscription_id = result[0]
 
         # Define limits
         UNAUTHENTICATED_LIMIT = 5
         AUTHENTICATED_LIMIT = 10
-        SUBSCRIBE_URL = os.getenv('SUBSCRIBE_URL', 'https://portal.azure.com/#create/1700007431.synesthetica')
 
         # Check submission limits
-        if 'user' not in session and submission_count >= UNAUTHENTICATED_LIMIT:
+        if not is_authenticated and submission_count >= UNAUTHENTICATED_LIMIT:
             logger.warning(f"Submission limit exceeded for unauthenticated user (IP: {request.remote_addr})")
             return jsonify({
                 "error": "You've reached your limit today. Try again after 24 hours or log in to continue."
             }), 403
-        elif 'user' in session and submission_count >= AUTHENTICATED_LIMIT:
-            logger.warning(f"Submission limit exceeded for authenticated user: {session['user']['email']}")
+        elif is_authenticated and not is_subscribed and submission_count >= AUTHENTICATED_LIMIT:
+            logger.warning(f"Submission limit exceeded for authenticated user: {submission_key}")
             return jsonify({
                 "error": "You've reached your submission limit for today. Subscribe to continue.",
                 "subscribe": True,
                 "subscribe_url": SUBSCRIBE_URL
             }), 403
+        elif is_authenticated and is_subscribed and submission_count >= FREE_SUBMISSION_LIMIT:
+            # Metered billing for additional submissions
+            additional_submissions = submission_count - FREE_SUBMISSION_LIMIT + 1
+            cost = additional_submissions * ADDITIONAL_SUBMISSION_COST
+            cursor.execute("""
+                INSERT INTO billing_records (subscription_id, user_email, submission_id, amount, created_at)
+                VALUES (?, ?, ?, ?, GETDATE())
+            """, (subscription_id, submission_key, None, ADDITIONAL_SUBMISSION_COST))
+            logger.info(f"Charged ${ADDITIONAL_SUBMISSION_COST} for additional submission {submission_count + 1} by {submission_key}")
+            report_metered_usage(subscription_id, 1)  # Report 1 additional submission
 
         data = request.json
         if 'image' not in data:
@@ -684,18 +739,30 @@ def submit():
         # Store submission in database
         insert_query = """
             INSERT INTO submissions (user_email, submission_date, image_data, audio_path, brush_type, ip_address)
+            OUTPUT INSERTED.submission_id
             VALUES (?, ?, ?, ?, ?, ?)
         """
         cursor.execute(insert_query, (
-            session['user']['email'] if 'user' in session else None,
+            session['user']['email'] if is_authenticated else None,
             datetime.now(),
             image_data,
             filename,
             brush,
             request.remote_addr
         ))
+        submission_id = cursor.fetchone()[0]
         connection.commit()
-        logger.info(f"Submission stored in database for {submission_key}")
+        logger.info(f"Submission {submission_id} stored in database for {submission_key}")
+
+        # Update billing record with submission_id if applicable
+        if is_authenticated and is_subscribed and submission_count >= FREE_SUBMISSION_LIMIT:
+            cursor.execute("""
+                UPDATE billing_records
+                SET submission_id = ?
+                WHERE submission_id IS NULL AND user_email = ? AND created_at = (SELECT MAX(created_at) FROM billing_records WHERE user_email = ?)
+            """, (submission_id, submission_key, submission_key))
+            connection.commit()
+            logger.info(f"Updated billing record with submission_id {submission_id} for {submission_key}")
 
         return jsonify({"url": f"/static/audio/{filename}"})
     except Exception as e:
