@@ -328,19 +328,27 @@
       }
       .header-nav {
         display: flex;
-        align-items: center;
-        justify-content: flex-start;
+        flex-direction: column;
+        align-items: flex-start;
         padding: 1rem;
         background-color: #ffffff;
         border-bottom: 1px solid #ccc;
       }
+      .nav-logo {
+        margin-bottom: 0.5rem; /* Space between logo and menu items */
+      }
+      .nav-items {
+        display: flex;
+        align-items: center;
+        margin-top: 0.3rem; /* Slight offset below logo */
+      }
       .nav-item {
-        margin-left: 1.5rem; /* Increased space between logo and menu items */
+        margin-left: 1rem; /* Space between menu items */
         text-decoration: none;
-        font-size: 0.9rem; /* Smaller font size */
+        font-size: 0.75rem; /* Even smaller font size */
         font-weight: bold;
-        padding: 0.3rem 0.8rem; /* Smaller padding for smaller boxes */
-        border-radius: 1rem;
+        padding: 0.2rem 0.5rem; /* Smaller padding for even smaller boxes */
+        border-radius: 0.8rem; /* Slightly reduced border radius */
         border: 1px solid #ccc;
         background-color: #ffffff;
         display: flex;
@@ -351,7 +359,7 @@
         background-color: #f0f0f0;
       }
       .nav-item span.logo {
-        margin-right: 0.3rem; /* Adjusted logo spacing */
+        margin-right: 0.2rem; /* Adjusted logo spacing */
       }
       .nav-item.red {
         color: #ff0000;
@@ -361,13 +369,17 @@
   <body class="min-h-screen flex flex-col font-sans" style="background-color: #ffffff;">
     <!-- Header -->
     <header class="header-nav">
-      <a href="/" class="nav-item logo">Synesthetica</a>
-      <a href="/about" class="nav-item red"><span class="logo">ℹ️</span>About Us</a>
-      <a href="#" class="nav-item" onclick="toggleDrawingSection()"><span class="logo">🎨</span><span style="color: #ff0000;">Start</span> <span style="color: #000000;">Drawing</span></a>
-      <a href="/pricing" class="nav-item red"><span class="logo">💳</span>Pricing</a>
-      <a href="/support" class="nav-item red"><span class="logo">❓</span>Help</a>
-      <a href="/login" class="nav-item"><span class="logo">🔐</span>Login with Microsoft</a>
-      <a href="/signup" class="nav-item"><span class="logo">📝</span>Sign Up with Microsoft</a>
+      <div class="nav-logo">
+        <a href="/" class="nav-item logo">Synesthetica</a>
+      </div>
+      <div class="nav-items">
+        <a href="/about" class="nav-item red"><span class="logo">ℹ️</span>About Us</a>
+        <a href="#" class="nav-item" onclick="toggleDrawingSection()"><span class="logo">🎨</span><span style="color: #ff0000;">Start</span> <span style="color: #000000;">Drawing</span></a>
+        <a href="/pricing" class="nav-item red"><span class="logo">💳</span>Pricing</a>
+        <a href="/support" class="nav-item red"><span class="logo">❓</span>Help</a>
+        <a href="/login" class="nav-item"><span class="logo">🔐</span>Login with Microsoft</a>
+        <a href="/signup" class="nav-item"><span class="logo">📝</span>Sign Up with Microsoft</a>
+      </div>
     </header>
 
     <!-- Toast Notifications -->
