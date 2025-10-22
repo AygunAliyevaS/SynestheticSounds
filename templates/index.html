@@ -312,10 +312,11 @@
         text-align: left;
       }
       .logo {
-        font-size: 2rem;
+        font-size: 2.5rem; /* Slightly larger logo */
         font-weight: bold;
         color: #1a73e8;
         text-decoration: none;
+        border: none; /* Remove border from logo */
       }
       .logo:hover {
         color: #1557b0;
@@ -340,15 +341,17 @@
       .nav-items {
         display: flex;
         align-items: center;
+        justify-content: flex-end; /* Move menu items to the right */
         margin-top: 0.3rem; /* Slight offset below logo */
+        width: 100%; /* Ensure full width for right alignment */
       }
       .nav-item {
-        margin-left: 1rem; /* Space between menu items */
+        margin-left: 0.5rem; /* Reduced space between menu items */
         text-decoration: none;
-        font-size: 0.75rem; /* Even smaller font size */
+        font-size: 0.65rem; /* Even smaller font size */
         font-weight: bold;
-        padding: 0.2rem 0.5rem; /* Smaller padding for even smaller boxes */
-        border-radius: 0.8rem; /* Slightly reduced border radius */
+        padding: 0.15rem 0.3rem; /* Tighter padding for snug fit */
+        border-radius: 0.6rem; /* Slightly reduced border radius */
         border: 1px solid #ccc;
         background-color: #ffffff;
         display: flex;
@@ -359,7 +362,7 @@
         background-color: #f0f0f0;
       }
       .nav-item span.logo {
-        margin-right: 0.2rem; /* Adjusted logo spacing */
+        margin-right: 0.15rem; /* Adjusted logo spacing */
       }
       .nav-item.red {
         color: #ff0000;
