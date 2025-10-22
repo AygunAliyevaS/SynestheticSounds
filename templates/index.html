@@ -336,32 +336,35 @@
     </div>
 
     <!-- Header -->
-    <header class="text-center py-20">
-      <h1 class="text-4xl md:text-5xl font-bold mb-4 text-black">
-        SynestheticSounds
-      </h1>
-      <h2 class="text-xl md:text-2xl mb-8 text-black">
-        Where Art Meets Music
-      </h2>
-      <div class="space-x-4">
-        {% if user %}
-        <span class="text-black">Welcome, {{ user.name }}!</span>
-        <a href="/logout" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
-          🔓 Logout
-        </a>
-        {% else %}
-        <a href="/login" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
-          🔐 Login with Microsoft
-        </a>
-        <a href="/signup" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
-          📝 Sign Up with Microsoft
-        </a>
-        {% endif %}
-        <button class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300" onclick="toggleDrawingSection()">
-          🎨 Try Drawing
-        </button>
-      </div>
-    </header>
+<header class="text-center py-20">
+  <h1 class="text-4xl md:text-5xl font-bold mb-4 text-black">
+    SynestheticSounds
+  </h1>
+  <h2 class="text-xl md:text-2xl mb-8 text-black">
+    Where Art Meets Music
+  </h2>
+  <div class="space-x-4">
+    {% if user %}
+    <span class="text-black">Welcome, {{ user.name }}!</span>
+    <a href="/logout" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
+      🔓 Logout
+    </a>
+    {% else %}
+    <a href="/login" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
+      🔐 Login with Microsoft
+    </a>
+    <a href="/signup" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
+      📝 Sign Up with Microsoft
+    </a>
+    {% endif %}
+    <a href="/pricing" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
+      💳 Pricing
+    </a>
+    <button class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300" onclick="toggleDrawingSection()">
+      🎨 Try Drawing
+    </button>
+  </div>
+</header>
 
     <!-- Toast Notifications -->
     <div class="toast-container position-fixed top-0 end-0 p-3">
@@ -1028,4 +1031,5 @@
     </script>
   </body>
 </html>
+
 
