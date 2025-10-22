@@ -22,6 +22,32 @@
     ></script>
 
     <style>
+      header {
+        font-family: "Inter", Arial, sans-serif;
+        align-items: flex-start;
+      }
+      header > div:first-child {
+        margin-top: -0.3rem; /* lifts logo a bit */
+      }
+      header nav a,
+      header div a {
+        transition: all 0.2s ease-in-out;
+      }
+      header nav a:hover,
+      header div a:hover {
+        background-color: #f3f4f6;
+        transform: translateY(-1px);
+      }
+      @media (max-width: 768px) {
+        header {
+          flex-direction: column;
+          align-items: center;
+        }
+        header nav,
+        header div {
+          justify-content: center;
+        }
+      }
       .brush-preview {
         transition: transform 0.3s ease, box-shadow 0.3s ease;
       }
@@ -307,81 +333,45 @@
         color: #666;
         font-size: 14px;
       }
-      .top-logo {
-        padding: 1rem;
-        text-align: left;
-      }
-      .logo {
-        font-size: 2.5rem; /* Slightly larger logo */
-        font-weight: bold;
-        color: #1a73e8;
-        text-decoration: none;
-        border: none; /* Remove border from logo */
-      }
-      .logo:hover {
-        color: #1557b0;
-      }
       hr {
         border: 0;
         height: 1px;
         background: #ccc;
         margin: 0.5rem 0 0 0;
       }
-      .header-nav {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 1rem;
-        background-color: #ffffff;
-        border-bottom: 1px solid #ccc;
-      }
-      .nav-logo {
-        margin-bottom: 0.5rem; /* Space between logo and menu items */
-      }
-      .nav-items {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end; /* Move menu items to the right */
-        margin-top: 0.3rem; /* Slight offset below logo */
-        width: 100%; /* Ensure full width for right alignment */
-      }
-      .nav-item {
-        margin-left: 0.5rem; /* Reduced space between menu items */
-        text-decoration: none;
-        font-size: 0.65rem; /* Even smaller font size */
-        font-weight: bold;
-        padding: 0.15rem 0.3rem; /* Tighter padding for snug fit */
-        border-radius: 0.6rem; /* Slightly reduced border radius */
-        border: 1px solid #ccc;
-        background-color: #ffffff;
-        display: flex;
-        align-items: center;
-        transition: background-color 0.3s ease;
-      }
-      .nav-item:hover {
-        background-color: #f0f0f0;
-      }
-      .nav-item span.logo {
-        margin-right: 0.15rem; /* Adjusted logo spacing */
-      }
-      .nav-item.red {
-        color: #ff0000;
-      }
     </style>
   </head>
   <body class="min-h-screen flex flex-col font-sans" style="background-color: #ffffff;">
     <!-- Header -->
-    <header class="header-nav">
-      <div class="nav-logo">
-        <a href="/" class="nav-item logo">Synesthetica</a>
+    <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between">
+      <div class="sm:mt-[-6px]">
+        <a href="#" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
+          Synesthetica
+        </a>
       </div>
-      <div class="nav-items">
-        <a href="/about" class="nav-item red"><span class="logo">ℹ️</span>About Us</a>
-        <a href="#" class="nav-item" onclick="toggleDrawingSection()"><span class="logo">🎨</span><span style="color: #ff0000;">Start</span> <span style="color: #000000;">Drawing</span></a>
-        <a href="/pricing" class="nav-item red"><span class="logo">💳</span>Pricing</a>
-        <a href="/support" class="nav-item red"><span class="logo">❓</span>Help</a>
-        <a href="/login" class="nav-item"><span class="logo">🔐</span>Login with Microsoft</a>
-        <a href="/signup" class="nav-item"><span class="logo">📝</span>Sign Up with Microsoft</a>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
+        <nav class="flex gap-3 flex-wrap justify-end">
+          <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+            About us
+          </a>
+          <a href="#" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1" onclick="toggleDrawingSection()">
+            🎨 Start <span>Drawing</span>
+          </a>
+          <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+            Pricing
+          </a>
+          <a href="/support" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+            Help
+          </a>
+        </nav>
+        <div class="flex gap-3 flex-wrap justify-end">
+          <a href="/login" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+            🔒 Login with Microsoft
+          </a>
+          <a href="/signup" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+            📄 Sign Up with Microsoft
+          </a>
+        </div>
       </div>
     </header>
 
