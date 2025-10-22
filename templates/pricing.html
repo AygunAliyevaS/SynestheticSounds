@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synesthetic Sounds: Choose Your Plan</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f7f9fc;
+            color: #333;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            font-weight: 300;
+            color: #1a1a1a;
+            margin-bottom: 5px;
+        }
+        h2 {
+            font-weight: 200;
+            color: #666;
+            margin-top: 0;
+            margin-bottom: 40px;
+            font-size: 1.2em;
+        }
+        .pricing-grid {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        .plan-card {
+            background: #ffffff;
+            border: 1px solid #e0e6ed;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 350px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-align: left;
+        }
+        .plan-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        .plan-header {
+            border-bottom: 1px solid #f0f4f8;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .plan-header h3 {
+            margin: 0;
+            font-size: 1.8em;
+            color: #007bff;
+            font-weight: 600;
+        }
+        .price {
+            font-size: 3em;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 10px 0;
+            display: block;
+        }
+        .price small {
+            font-size: 0.4em;
+            font-weight: 400;
+            color: #999;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0 30px;
+        }
+        li {
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+            font-size: 1em;
+            color: #444;
+        }
+        .check-icon {
+            color: #28a745;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .cta-button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            text-align: center;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-decoration: none;
+        }
+        .cta-button:hover {
+            background-color: #0056b3;
+        }
+        .footer-note {
+            margin-top: 40px;
+            font-size: 0.9em;
+            color: #999;
+        }
+        .usage-rate {
+            font-size: 1.1em;
+            font-weight: 500;
+            color: #555;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #e0e6ed;
+        }
+        .usage-rate strong {
+            color: #007bff;
+        }
+        .top-logo {
+            padding: 1rem;
+            text-align: left;
+            width: 100%;
+            max-width: 800px;
+        }
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1a73e8;
+            text-decoration: none;
+        }
+        .logo:hover {
+            color: #1557b0;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ccc;
+            margin: 0.5rem 0 0 0;
+        }
+        footer {
+            padding: 1.5rem;
+            text-align: center;
+            color: #333;
+            margin-top: auto;
+        }
+        footer a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        footer a:hover {
+            color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-logo">
+        <a href="/" class="logo">Synesthetica</a>
+        <hr>
+    </div>
+
+    <div class="container">
+        <h1>Synesthetic Sounds</h1>
+        <h2>Unlock cross-modal composition with flexible usage.</h2>
+
+        <div class="pricing-grid">
+            <div class="plan-card">
+                <div class="plan-header">
+                    <h3>Basic Usage-Based</h3>
+                    <span class="price">$0.00<small>/month</small></span>
+                </div>
+
+                <p style="margin: 0; color: #777;">Flat Rate Billing</p>
+
+                <ul>
+                    <li><span class="check-icon">✓</span> Free to start, no commitment</li>
+                    <li><span class="check-icon">✓</span> <strong>10 Free Audio Generations</strong> (Submissions) per month</li>
+                    <li><span class="check-icon">✓</span> Real-time tone generation via Color Picker [1]</li>
+                    <li><span class="check-icon">✓</span> Professional-grade ADSR and Anti-Aliasing [1]</li>
+                    <li><span class="check-icon">✓</span> Access to 7 distinct waveform timbres [1]</li>
+                </ul>
+
+                <div class="usage-rate">
+                    Beyond the free tier, usage is <strong>metered</strong>:
+                    <br>
+                    <strong>$0.01 USD</strong> per additional Audio Generation
+                </div>
+
+                <a href="/subscribe" class="cta-button">Select Basic Plan</a>
+            </div>
+        </div>
+
+        <p class="footer-note">
+            The Basic Usage-Based plan includes 10 free submissions monthly. Usage is metered only for submissions beyond this free allowance.
+        </p>
+    </div>
+     <footer>
+        <p>© 2025 Synesthetica. All rights reserved.</p>
+        <p>
+            <a href="/privacy">Privacy Policy</a> | 
+            <a href="/support">Support</a>
+        </p>
+    </footer>
+</body>
+</html>
