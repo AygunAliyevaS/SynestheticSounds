@@ -326,44 +326,45 @@
         background: #ccc;
         margin: 0.5rem 0 0 0;
       }
+      .header-nav {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 1rem;
+        background-color: #ffffff;
+        border-bottom: 1px solid #ccc;
+      }
+      .nav-item {
+        margin-left: 0.5rem;
+        text-decoration: none;
+        font-size: 1rem;
+        font-weight: bold;
+        padding: 0.5rem 1rem;
+        border-radius: 1rem;
+        border: 1px solid #ccc;
+        background-color: #ffffff;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.3s ease;
+      }
+      .nav-item:hover {
+        background-color: #f0f0f0;
+      }
+      .nav-item span.logo {
+        margin-right: 0.5rem;
+      }
     </style>
   </head>
   <body class="min-h-screen flex flex-col font-sans" style="background-color: #ffffff;">
-    <!-- Top Logo -->
-    <div class="top-logo">
-      <a href="/" class="logo">Synesthetica</a>
-      <hr>
-    </div>
-
     <!-- Header -->
-    <header class="text-center py-20">
-      <h1 class="text-4xl md:text-5xl font-bold mb-4 text-black">
-        SynestheticSounds
-      </h1>
-      <h2 class="text-xl md:text-2xl mb-8 text-black">
-        Where Art Meets Music
-      </h2>
-      <div class="space-x-4">
-        {% if user %}
-        <span class="text-black">Welcome, {{ user.name }}!</span>
-        <a href="/logout" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
-          🔓 Logout
-        </a>
-        {% else %}
-        <a href="/login" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
-          🔐 Login with Microsoft
-        </a>
-        <a href="/signup" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
-          📝 Sign Up with Microsoft
-        </a>
-        {% endif %}
-        <a href="/pricing" class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300">
-          💳 Pricing
-        </a>
-        <button class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300" onclick="toggleDrawingSection()">
-          🎨 Try Drawing
-        </button>
-      </div>
+    <header class="header-nav">
+      <a href="/" class="nav-item logo">Synesthetica</a>
+      <a href="/about" class="nav-item"><span class="logo">ℹ️</span>About Us</a>
+      <a href="#" class="nav-item" onclick="toggleDrawingSection()"><span class="logo">🎨</span><span style="color: #ff0000;">Start</span> <span style="color: #000000;">Drawing</span></a>
+      <a href="/pricing" class="nav-item"><span class="logo">💳</span>Pricing</a>
+      <a href="/support" class="nav-item"><span class="logo">❓</span>Help</a>
+      <a href="/login" class="nav-item"><span class="logo">🔐</span>Login with Microsoft</a>
+      <a href="/signup" class="nav-item"><span class="logo">📝</span>Sign Up with Microsoft</a>
     </header>
 
     <!-- Toast Notifications -->
@@ -443,6 +444,9 @@
           </div>
         </div>
       </div>
+      <button class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300" onclick="toggleDrawingSection()">
+        🎨 Start Drawing
+      </button>
     </section>
 
     <!-- Drawing App -->
@@ -664,17 +668,17 @@
         if (lowerQuestion.includes("hello") || lowerQuestion.includes("hi")) {
           return "Hello! Welcome to Synesthetica Support. How can I assist you with drawing, sounds, subscriptions, or signing up today?";
         } else if (lowerQuestion.includes("draw") || lowerQuestion.includes("start")) {
-          return "To start drawing, click 'Try Drawing' on the homepage. Select a brush, color, and paint on the canvas. The more you use a color, the louder its note in the sound!";
+          return "To start drawing, click 'Start Drawing' on the homepage or header. Select a brush, color, and paint on the canvas. The more you use a color, the louder its note in the sound!";
         } else if (lowerQuestion.includes("submit") || lowerQuestion.includes("limit")) {
           return "If you can't submit, you've likely hit the daily limit (5 for guests, 10 for logged-in users). Log in or sign up for more, or subscribe for unlimited. Ensure your drawing has colors!";
         } else if (lowerQuestion.includes("subscribe")) {
-          return "Click the 'Pricing' link or visit our pricing page to subscribe to the Basic Usage-Based plan and get unlimited submissions.";
+          return "Click the 'Pricing' link in the header or visit our pricing page to subscribe to the Basic Usage-Based plan and get unlimited submissions.";
         } else if (lowerQuestion.includes("color") || lowerQuestion.includes("sound")) {
           return "Colors represent musical notes: e.g., green is C4. Brush types affect sound texture (round for smooth, sawtooth for buzzy). Submit to hear your artwork!";
         } else if (lowerQuestion.includes("login") || lowerQuestion.includes("microsoft")) {
-          return "Log in with Microsoft via the 'Login with Microsoft' button. This unlocks more submissions and personalized features.";
+          return "Log in with Microsoft via the 'Login with Microsoft' link in the header. This unlocks more submissions and personalized features.";
         } else if (lowerQuestion.includes("signup") || lowerQuestion.includes("sign up")) {
-          return "Sign up with Microsoft using the 'Sign Up with Microsoft' button. You'll be prompted to create a Microsoft account if you don't have one, then get access to more submissions!";
+          return "Sign up with Microsoft using the 'Sign Up with Microsoft' link in the header. You'll be prompted to create a Microsoft account if you don't have one, then get access to more submissions!";
         } else if (lowerQuestion.includes("help") || lowerQuestion.includes("support")) {
           return "I'm here for quick help! For advanced issues, email support@synesthetica.com or visit our Support page. What specific question do you have?";
         } else {
@@ -1028,4 +1032,3 @@
       });
     </script>
   </body>
-</html>
