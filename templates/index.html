@@ -367,6 +367,14 @@
         vertical-align: middle;
         margin-right: 6px;
       }
+      #welcomeMessage {
+        display: none;
+        font-size: 14px;
+        color: #000;
+        margin-top: 8px;
+        text-align: center;
+        width: 100%;
+      }
 
       /* Hamburger Menu Icon */
       .hamburger {
@@ -397,11 +405,11 @@
           display: block;
         }
         header nav,
-        header div:not(:first-child) {
+        #authContainer {
           display: none;
         }
         header nav.active,
-        header div.active:not(:first-child) {
+        #authContainer.active {
           display: flex;
           flex-direction: column;
           position: absolute;
@@ -415,7 +423,7 @@
           box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         header nav.active a,
-        header div.active a {
+        #authContainer.active a {
           font-size: 14px;
           padding: 10px;
           text-align: left;
@@ -425,13 +433,19 @@
           border-bottom: 1px solid #eee;
         }
         header nav.active a:last-child,
-        header div.active a:last-child {
+        #authContainer.active a:last-child {
           border-bottom: none;
         }
         header nav a,
-        header div a {
+        #authContainer a {
           font-size: 12px;
           padding: 6px 10px;
+        }
+        #welcomeMessage.active {
+          display: block;
+          padding: 10px;
+          background-color: #f0f0f0;
+          border-bottom: 1px solid #ccc;
         }
         section {
           padding: 8px;
@@ -544,11 +558,14 @@
           font-size: 11px;
           padding: 6px 10px;
         }
+        #welcomeMessage {
+          font-size: 12px;
+        }
       }
 
       @media (max-width: 480px) {
         header nav.active a,
-        header div.active a {
+        #authContainer.active a {
           font-size: 12px;
           padding: 8px;
         }
@@ -597,6 +614,9 @@
           height: 300px;
           max-width: 280px;
         }
+        #welcomeMessage {
+          font-size: 11px;
+        }
       }
     </style>
   </head>
@@ -611,7 +631,7 @@
           </a>
         </div>
         <button class="hamburger" onclick="toggleNav()">☰</button>
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
+        <div id="authContainer" class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
           <nav class="flex gap-3 flex-wrap justify-end">
             <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
               About us
@@ -626,26 +646,33 @@
               Help
             </a>
           </nav>
-          <div class="flex gap-3 flex-wrap justify-end">
-            {% if user %}
-            <a href="/logout" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-              🔓 Logout
-            </a>
-            {% else %}
-            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+          <div id="authButtons" class="flex gap-3 flex-wrap justify-end">
+            <a id="loginButton" href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
               🔒 Login with Microsoft
             </a>
-            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+            <a id="signupButton" href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
               📄 Sign Up with Microsoft
             </a>
-            {% endif %}
+            <a id="logoutButton" href="/logout" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition" style="display: none;">
+              🔓 Logout
+            </a>
           </div>
         </div>
+        <div id="welcomeMessage"></div>
       </header>
 
       <!-- Toast Notifications -->
       <div class="toast-container position-fixed top-0 end-0 p-3">
-        <div id="drawingToast" class="toast" role="alert" aria-live="assertive" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+        <div id="welcomeToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
+          <div class="toast-header">
+            <strong class="me-auto">Welcome to Synesthetica</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+          <div class="toast-body">
+            Welcome back! Start creating your musical artwork now.
+          </div>
+        </div>
+        <div id="drawingToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
           <div class="toast-header">
             <strong class="me-auto">Synesthetica</strong>
             <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
@@ -906,6 +933,8 @@
         const accounts = msalInstance.getAllAccounts();
         if (accounts.length > 0) {
           updateUI(accounts[0]);
+          const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
+          toast.show();
         }
       };
 
@@ -917,22 +946,24 @@
           };
           const loginResponse = await msalInstance.loginPopup(loginRequest);
           updateUI(loginResponse.account);
+          const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
+          toast.show();
         } catch (error) {
           console.error("Login error:", error);
           alert("Login failed. Please try again.");
         }
       }
 
-      // Signup function (same flow as login; Entra ID handles account creation if enabled)
+      // Signup function
       async function signup() {
         try {
           const signupRequest = {
             scopes: ["User.Read"],
-            // Optional: If using B2C signup policy, uncomment and update
-            // authority: "https://login.microsoftonline.com/YOUR_TENANT_ID/b2c_1_signup",
           };
           const signupResponse = await msalInstance.loginPopup(signupRequest);
           updateUI(signupResponse.account);
+          const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
+          toast.show();
         } catch (error) {
           console.error("Signup error:", error);
           alert("Signup failed. Please try again or contact your admin.");
@@ -975,9 +1006,13 @@
       // Toggle Navigation Menu for Mobile
       function toggleNav() {
         const nav = document.querySelector("header nav");
-        const authDiv = document.querySelector("#authContainer");
+        const authContainer = document.querySelector("#authContainer");
+        const welcomeMessage = document.querySelector("#welcomeMessage");
         nav.classList.toggle("active");
-        authDiv.classList.toggle("active");
+        authContainer.classList.toggle("active");
+        if (welcomeMessage.style.display === "block") {
+          welcomeMessage.classList.toggle("active");
+        }
         const hamburger = document.querySelector(".hamburger");
         hamburger.textContent = nav.classList.contains("active") ? "✕" : "☰";
       }
