@@ -21,6 +21,9 @@
       crossorigin="anonymous"
     ></script>
 
+    <!-- MSAL.js for Microsoft Entra ID -->
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+
     <style>
       body {
         display: flex;
@@ -367,7 +370,6 @@
         vertical-align: middle;
         margin-right: 6px;
       }
-
       /* Hamburger Menu Icon */
       .hamburger {
         display: none;
@@ -378,7 +380,14 @@
         cursor: pointer;
         padding: 8px;
       }
-
+      /* Welcome Message */
+      .welcome-message {
+        display: none;
+        font-size: 0.9rem;
+        color: #1a73e8;
+        margin-left: 1rem;
+        font-weight: bold;
+      }
       /* Mobile-Specific Styles */
       @media (max-width: 768px) {
         header {
@@ -421,7 +430,6 @@
           text-align: left;
           width: 100%;
           border: none;
-          border-radius: 0;
           border-bottom: 1px solid #eee;
         }
         header nav.active a:last-child,
@@ -432,6 +440,25 @@
         header div a {
           font-size: 12px;
           padding: 6px 10px;
+        }
+        .welcome-message {
+          font-size: 0.8rem;
+          margin-left: 0;
+          padding: 10px;
+          width: 100%;
+          text-align: left;
+          border-bottom: 1px solid #eee;
+        }
+        #logoutButton {
+          background-color: #d83b01; /* Red for visibility on mobile */
+          color: white;
+          border: none;
+          padding: 10px;
+          font-size: 14px;
+        }
+        #logoutButton:hover,
+        #logoutButton:active {
+          background-color: #b32d00;
         }
         section {
           padding: 8px;
@@ -545,10 +572,17 @@
           padding: 6px 10px;
         }
       }
-
       @media (max-width: 480px) {
         header nav.active a,
         header div.active a {
+          font-size: 12px;
+          padding: 8px;
+        }
+        .welcome-message {
+          font-size: 0.7rem;
+          padding: 8px;
+        }
+        #logoutButton {
           font-size: 12px;
           padding: 8px;
         }
@@ -611,7 +645,7 @@
           </a>
         </div>
         <button class="hamburger" onclick="toggleNav()">☰</button>
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
+        <div id="authContainer" class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
           <nav class="flex gap-3 flex-wrap justify-end">
             <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
               About us
@@ -626,19 +660,17 @@
               Help
             </a>
           </nav>
-          <div class="flex gap-3 flex-wrap justify-end">
-            {% if user %}
-            <a href="/logout" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-              🔓 Logout
-            </a>
-            {% else %}
-            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+          <div id="authButtons" class="flex gap-3 flex-wrap justify-end">
+            <span id="welcomeMessage" class="welcome-message"></span>
+            <a id="loginButton" href="#" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition" onclick="login()">
               🔒 Login with Microsoft
             </a>
-            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+            <a id="signupButton" href="#" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition" onclick="signup()">
               📄 Sign Up with Microsoft
             </a>
-            {% endif %}
+            <a id="logoutButton" href="#" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition" onclick="logout()" style="display: none;">
+              🔓 Logout
+            </a>
           </div>
         </div>
       </header>
@@ -660,7 +692,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
           </div>
           <div class="toast-body">
-            You've reached the submission limit. Please <a href="/login" class="text-primary">log in</a> or <a href="/signup" class="text-primary">sign up</a> to submit more.
+            You've reached the submission limit. Please <a href="#" class="text-primary" onclick="login()">log in</a> or <a href="#" class="text-primary" onclick="signup()">sign up</a> to submit more.
           </div>
         </div>
         <div id="subscribeToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
@@ -884,10 +916,98 @@
 
     <!-- JavaScript -->
     <script>
+      // MSAL Configuration
+      const msalConfig = {
+        auth: {
+          clientId: "YOUR_CLIENT_ID", // Replace with your Entra ID app's Client ID
+          authority: "https://login.microsoftonline.com/YOUR_TENANT_ID", // Replace with your Tenant ID
+          redirectUri: "http://localhost:3000", // Adjust if hosted elsewhere
+        },
+        cache: {
+          cacheLocation: "sessionStorage",
+          storeAuthStateInCookie: false,
+        },
+      };
+
+      // Initialize MSAL
+      const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+      // Check for existing login on page load
+      window.onload = async () => {
+        await msalInstance.initialize();
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+          updateUI(accounts[0]);
+        }
+      };
+
+      // Login function
+      async function login() {
+        try {
+          const loginRequest = {
+            scopes: ["User.Read"],
+          };
+          const loginResponse = await msalInstance.loginPopup(loginRequest);
+          updateUI(loginResponse.account);
+        } catch (error) {
+          console.error("Login error:", error);
+          alert("Login failed. Please try again.");
+        }
+      }
+
+      // Signup function (same flow as login; Entra ID handles account creation if enabled)
+      async function signup() {
+        try {
+          const signupRequest = {
+            scopes: ["User.Read"],
+            // Optional: If using B2C signup policy, uncomment and update
+            // authority: "https://login.microsoftonline.com/YOUR_TENANT_ID/b2c_1_signup",
+          };
+          const signupResponse = await msalInstance.loginPopup(signupRequest);
+          updateUI(signupResponse.account);
+        } catch (error) {
+          console.error("Signup error:", error);
+          alert("Signup failed. Please try again or contact your admin.");
+        }
+      }
+
+      // Logout function
+      async function logout() {
+        try {
+          await msalInstance.logoutPopup();
+          updateUI(null);
+        } catch (error) {
+          console.error("Logout error:", error);
+          alert("Logout failed. Please try again.");
+        }
+      }
+
+      // Update UI based on login state
+      function updateUI(account) {
+        const loginButton = document.getElementById("loginButton");
+        const signupButton = document.getElementById("signupButton");
+        const logoutButton = document.getElementById("logoutButton");
+        const welcomeMessage = document.getElementById("welcomeMessage");
+
+        if (account) {
+          loginButton.style.display = "none";
+          signupButton.style.display = "none";
+          logoutButton.style.display = "inline-flex";
+          welcomeMessage.style.display = "block";
+          welcomeMessage.textContent = `Welcome, ${account.name || account.username}!`;
+        } else {
+          loginButton.style.display = "inline-flex";
+          signupButton.style.display = "inline-flex";
+          logoutButton.style.display = "none";
+          welcomeMessage.style.display = "none";
+          welcomeMessage.textContent = "";
+        }
+      }
+
       // Toggle Navigation Menu for Mobile
       function toggleNav() {
         const nav = document.querySelector("header nav");
-        const authDiv = document.querySelector("header div:not(:first-child)");
+        const authDiv = document.querySelector("#authContainer");
         nav.classList.toggle("active");
         authDiv.classList.toggle("active");
         const hamburger = document.querySelector(".hamburger");
@@ -914,12 +1034,6 @@
         const brushPreviewSection = document.getElementById("brushPreviewSection");
         const seeMoreLink = document.getElementById("seeMoreLink");
         const seeLessLink = document.getElementById("seeLessLink");
-
-        // Debugging logs
-        console.log("toggleBrushPreview called");
-        console.log("brushPreviewSection:", brushPreviewSection);
-        console.log("seeMoreLink:", seeMoreLink);
-        console.log("seeLessLink:", seeLessLink);
 
         if (!brushPreviewSection || !seeMoreLink || !seeLessLink) {
           console.error("One or more elements not found!");
