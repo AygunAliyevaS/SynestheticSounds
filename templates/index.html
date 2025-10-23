@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Synesthetica - Paint with Sound</title>
 
+    <!-- MSAL Library -->
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+
     <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -424,10 +427,11 @@
         }
         header nav.active a,
         #authContainer.active a {
-          font-size: 14px;
-          padding: 10px;
-          text-align: left;
+          display: inline-flex;
           width: 100%;
+          justify-content: center;
+          padding: 10px;
+          font-size: 14px;
           border: none;
           border-radius: 0;
           border-bottom: 1px solid #eee;
@@ -442,10 +446,11 @@
           padding: 6px 10px;
         }
         #welcomeMessage.active {
-          display: block;
+          display: block !important;
           padding: 10px;
           background-color: #f0f0f0;
           border-bottom: 1px solid #ccc;
+          text-align: center;
         }
         section {
           padding: 8px;
@@ -647,18 +652,20 @@
             </a>
           </nav>
           <div id="authButtons" class="flex gap-3 flex-wrap justify-end">
-            <a id="loginButton" href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+            <a id="loginButton" href="#" onclick="login()" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
               🔒 Login with Microsoft
             </a>
-            <a id="signupButton" href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+            <a id="signupButton" href="#" onclick="signup()" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
               📄 Sign Up with Microsoft
             </a>
-            <a id="logoutButton" href="/logout" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition" style="display: none;">
+            <a id="logoutButton" href="#" onclick="logout()" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition" style="display: none;">
               🔓 Logout
             </a>
           </div>
         </div>
-        <div id="welcomeMessage"></div>
+        <div id="welcomeMessage" {% if user %}class="active"{% endif %} style="{% if not user %}display: none;{% endif %}">
+          {% if user %}Welcome, {{ user.name }}!{% endif %}
+        </div>
       </header>
 
       <!-- Toast Notifications -->
@@ -914,43 +921,69 @@
       // MSAL Configuration
       const msalConfig = {
         auth: {
-          clientId: "YOUR_CLIENT_ID", // Replace with your Entra ID app's Client ID
-          authority: "https://login.microsoftonline.com/YOUR_TENANT_ID", // Replace with your Tenant ID
-          redirectUri: "http://localhost:3000", // Adjust if hosted elsewhere
+          clientId: "YOUR_ACTUAL_CLIENT_ID", // Replace with your Azure Entra ID Client ID
+          authority: "https://login.microsoftonline.com/YOUR_ACTUAL_TENANT_ID", // Replace with your Tenant ID
+          redirectUri: "http://localhost:3000" // Match REDIRECT_URI in app.py
         },
         cache: {
           cacheLocation: "sessionStorage",
-          storeAuthStateInCookie: false,
-        },
+          storeAuthStateInCookie: false
+        }
       };
 
       // Initialize MSAL
       const msalInstance = new msal.PublicClientApplication(msalConfig);
 
       // Check for existing login on page load
-      window.onload = async () => {
-        await msalInstance.initialize();
-        const accounts = msalInstance.getAllAccounts();
-        if (accounts.length > 0) {
-          updateUI(accounts[0]);
-          const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
-          toast.show();
+      document.addEventListener("DOMContentLoaded", async () => {
+        try {
+          await msalInstance.initialize();
+          const accounts = msalInstance.getAllAccounts();
+          if (accounts.length > 0) {
+            updateUI(accounts[0]);
+            const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
+            toast.show();
+          }
+          // Check backend session
+          fetch('/check-session')
+            .then(response => response.json())
+            .then(data => {
+              if (data.user) {
+                updateUI({ name: data.user.name, username: data.user.email });
+                const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
+                toast.show();
+              }
+            })
+            .catch(error => console.error("Session check error:", error));
+        } catch (error) {
+          console.error("MSAL initialization error:", error);
+          alert("Authentication initialization failed. Please refresh the page.");
         }
-      };
+        // Initialize tooltips and onboarding modal
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipTriggerList.forEach((el) => new bootstrap.Tooltip(el));
+        const modal = new bootstrap.Modal(document.getElementById("onboardingModal"));
+        if (!sessionStorage.getItem("onboardingSeen")) {
+          modal.show();
+          sessionStorage.setItem("onboardingSeen", "true");
+        }
+      });
 
       // Login function
       async function login() {
         try {
           const loginRequest = {
             scopes: ["User.Read"],
+            prompt: "select_account"
           };
           const loginResponse = await msalInstance.loginPopup(loginRequest);
+          await fetch('/auth', { method: 'GET' }); // Trigger backend auth flow
           updateUI(loginResponse.account);
           const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
           toast.show();
         } catch (error) {
           console.error("Login error:", error);
-          alert("Login failed. Please try again.");
+          alert(`Login failed: ${error.message || "Please try again."}`);
         }
       }
 
@@ -959,14 +992,16 @@
         try {
           const signupRequest = {
             scopes: ["User.Read"],
+            prompt: "select_account"
           };
           const signupResponse = await msalInstance.loginPopup(signupRequest);
+          await fetch('/auth', { method: 'GET' }); // Trigger backend auth flow
           updateUI(signupResponse.account);
           const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
           toast.show();
         } catch (error) {
           console.error("Signup error:", error);
-          alert("Signup failed. Please try again or contact your admin.");
+          alert(`Signup failed: ${error.message || "Please try again or contact your admin."}`);
         }
       }
 
@@ -974,10 +1009,11 @@
       async function logout() {
         try {
           await msalInstance.logoutPopup();
+          await fetch('/logout', { method: 'GET' });
           updateUI(null);
         } catch (error) {
           console.error("Logout error:", error);
-          alert("Logout failed. Please try again.");
+          alert(`Logout failed: ${error.message || "Please try again."}`);
         }
       }
 
@@ -994,12 +1030,14 @@
           logoutButton.style.display = "inline-flex";
           welcomeMessage.style.display = "block";
           welcomeMessage.textContent = `Welcome, ${account.name || account.username}!`;
+          welcomeMessage.classList.add("active");
         } else {
           loginButton.style.display = "inline-flex";
           signupButton.style.display = "inline-flex";
           logoutButton.style.display = "none";
           welcomeMessage.style.display = "none";
           welcomeMessage.textContent = "";
+          welcomeMessage.classList.remove("active");
         }
       }
 
@@ -1459,17 +1497,6 @@
 
       // Initial state
       saveState();
-
-      // Bootstrap init
-      document.addEventListener("DOMContentLoaded", () => {
-        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        tooltipTriggerList.forEach((el) => new bootstrap.Tooltip(el));
-        const modal = new bootstrap.Modal(document.getElementById("onboardingModal"));
-        if (!sessionStorage.getItem("onboardingSeen")) {
-          modal.show();
-          sessionStorage.setItem("onboardingSeen", "true");
-        }
-      });
     </script>
   </body>
 </html>
