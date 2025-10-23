@@ -21,9 +21,6 @@
       crossorigin="anonymous"
     ></script>
 
-    <!-- MSAL.js for Microsoft Entra ID -->
-    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
-
     <style>
       body {
         display: flex;
@@ -370,6 +367,7 @@
         vertical-align: middle;
         margin-right: 6px;
       }
+
       /* Hamburger Menu Icon */
       .hamburger {
         display: none;
@@ -380,14 +378,7 @@
         cursor: pointer;
         padding: 8px;
       }
-      /* Welcome Message */
-      .welcome-message {
-        display: none;
-        font-size: 0.9rem;
-        color: #1a73e8;
-        margin-left: 1rem;
-        font-weight: bold;
-      }
+
       /* Mobile-Specific Styles */
       @media (max-width: 768px) {
         header {
@@ -430,6 +421,7 @@
           text-align: left;
           width: 100%;
           border: none;
+          border-radius: 0;
           border-bottom: 1px solid #eee;
         }
         header nav.active a:last-child,
@@ -440,25 +432,6 @@
         header div a {
           font-size: 12px;
           padding: 6px 10px;
-        }
-        .welcome-message {
-          font-size: 0.8rem;
-          margin-left: 0;
-          padding: 10px;
-          width: 100%;
-          text-align: left;
-          border-bottom: 1px solid #eee;
-        }
-        #logoutButton {
-          background-color: #d83b01; /* Red for visibility on mobile */
-          color: white;
-          border: none;
-          padding: 10px;
-          font-size: 14px;
-        }
-        #logoutButton:hover,
-        #logoutButton:active {
-          background-color: #b32d00;
         }
         section {
           padding: 8px;
@@ -572,17 +545,10 @@
           padding: 6px 10px;
         }
       }
+
       @media (max-width: 480px) {
         header nav.active a,
         header div.active a {
-          font-size: 12px;
-          padding: 8px;
-        }
-        .welcome-message {
-          font-size: 0.7rem;
-          padding: 8px;
-        }
-        #logoutButton {
           font-size: 12px;
           padding: 8px;
         }
@@ -645,7 +611,7 @@
           </a>
         </div>
         <button class="hamburger" onclick="toggleNav()">☰</button>
-        <div id="authContainer" class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
           <nav class="flex gap-3 flex-wrap justify-end">
             <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
               About us
@@ -660,24 +626,26 @@
               Help
             </a>
           </nav>
-          <div id="authButtons" class="flex gap-3 flex-wrap justify-end">
-            <span id="welcomeMessage" class="welcome-message"></span>
-            <a id="loginButton" href="#" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition" onclick="login()">
-              🔒 Login with Microsoft
-            </a>
-            <a id="signupButton" href="#" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition" onclick="signup()">
-              📄 Sign Up with Microsoft
-            </a>
-            <a id="logoutButton" href="#" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition" onclick="logout()" style="display: none;">
+          <div class="flex gap-3 flex-wrap justify-end">
+            {% if user %}
+            <a href="/logout" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
               🔓 Logout
             </a>
+            {% else %}
+            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+              🔒 Login with Microsoft
+            </a>
+            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+              📄 Sign Up with Microsoft
+            </a>
+            {% endif %}
           </div>
         </div>
       </header>
 
       <!-- Toast Notifications -->
       <div class="toast-container position-fixed top-0 end-0 p-3">
-        <div id="drawingToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+        <div id="drawingToast" class="toast" role="alert" aria-live="assertive" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
           <div class="toast-header">
             <strong class="me-auto">Synesthetica</strong>
             <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
