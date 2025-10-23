@@ -36,11 +36,13 @@ app = Flask(__name__, static_folder='static')
 
 # Session Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(24).hex())
-app.config['SESSION_TYPE'] = os.getenv('SESSION_TYPE', 'filesystem')
+app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
-app.config['SESSION_KEY_PREFIX'] = 'synesthetica:'
-app.config['SESSION_FILE_DIR'] = os.getenv('SESSION_FILE_DIR', '/tmp/flask_session')
+app.config['SESSION_FILE_DIR'] = os.getenv('SESSION_FILE_DIR', '/home/site/wwwroot/sessions')  # Azure-friendly path
+app.config['SESSION_COOKIE_SECURE'] = True  # Ensure cookies are sent over HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access to cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Mitigate CSRF
 
 # SQL Server Database Configuration
 app.config['DB_SERVER'] = os.getenv('DB_SERVER')
@@ -462,7 +464,7 @@ def auth():
         return redirect(auth_url)
     except Exception as e:
         logger.error(f"Error generating auth URL: {str(e)}")
-        return jsonify({"error": f"Failed to initiate authentication: {str(e)}"}), 500
+        return render_template("error.html", error=f"Failed to initiate authentication: {str(e)}"), 500
 
 @app.route("/getAToken")
 def authorized():
@@ -471,7 +473,7 @@ def authorized():
     logger.info(f"Received auth code: {'present' if code else 'missing'}")
     if not code:
         logger.error("No code provided in callback")
-        return jsonify({"error": "Authentication failed: No code provided"}), 400
+        return render_template("error.html", error="Authentication failed: No code provided"), 400
 
     try:
         logger.info(f"Attempting token acquisition with redirect_uri: {REDIRECT_URI}, scopes: {SCOPE}")
@@ -483,7 +485,7 @@ def authorized():
         logger.info(f"Token result: {token_result}")
         if "error" in token_result:
             logger.error(f"Auth error: {token_result['error']}, Description: {token_result.get('error_description')}")
-            return jsonify({"error": f"Authentication failed: {token_result['error']} - {token_result.get('error_description')}"}), 400
+            return render_template("error.html", error=f"Authentication failed: {token_result['error']} - {token_result.get('error_description')}"), 400
 
         session['access_token'] = token_result['access_token']
         logger.info("Token acquired successfully")
@@ -495,23 +497,26 @@ def authorized():
         if user_response.status_code == 200:
             user_data = user_response.json()
             session['user'] = {
-                'name': user_data.get('displayName'),
-                'email': user_data.get('mail') or user_data.get('userPrincipalName')
+                'name': user_data.get('displayName', 'Unknown User'),
+                'email': user_data.get('mail') or user_data.get('userPrincipalName', 'Unknown Email')
             }
-            session['show_welcome'] = True  # Set flag to show welcome message
-            logger.info(f"User logged in: {session['user']['name']}")
+            session['show_welcome'] = True
+            logger.info(f"User logged in: {session['user']['name']} ({session['user']['email']})")
         else:
             logger.error(f"Failed to fetch user profile: {user_response.status_code}, {user_response.text}")
-            return jsonify({"error": "Failed to fetch user profile"}), 400
+            session.pop('access_token', None)  # Clear token on failure
+            return render_template("error.html", error="Failed to fetch user profile"), 400
 
+        session.modified = True  # Ensure session is marked as modified
         return redirect(url_for('home'))
     except Exception as e:
         logger.error(f"Unexpected error in auth: {str(e)}", exc_info=True)
-        return jsonify({"error": f"Authentication failed: {str(e)}"}), 500
+        return render_template("error.html", error=f"Authentication failed: {str(e)}"), 500
 
 @app.route("/logout")
 def logout():
     session.clear()
+    session['show_welcome'] = False
     logger.info("User logged out")
     return redirect(url_for('home'))
 
