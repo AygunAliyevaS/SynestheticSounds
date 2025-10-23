@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Synesthetica - Paint with Sound</title>
 
-    <!-- MSAL Library -->
-    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
-
     <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -370,14 +367,6 @@
         vertical-align: middle;
         margin-right: 6px;
       }
-      #welcomeMessage {
-        display: none;
-        font-size: 14px;
-        color: #000;
-        margin-top: 8px;
-        text-align: center;
-        width: 100%;
-      }
 
       /* Hamburger Menu Icon */
       .hamburger {
@@ -408,11 +397,11 @@
           display: block;
         }
         header nav,
-        #authContainer {
+        header div:not(:first-child) {
           display: none;
         }
         header nav.active,
-        #authContainer.active {
+        header div.active:not(:first-child) {
           display: flex;
           flex-direction: column;
           position: absolute;
@@ -426,31 +415,23 @@
           box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         header nav.active a,
-        #authContainer.active a {
-          display: inline-flex;
-          width: 100%;
-          justify-content: center;
-          padding: 10px;
+        header div.active a {
           font-size: 14px;
+          padding: 10px;
+          text-align: left;
+          width: 100%;
           border: none;
           border-radius: 0;
           border-bottom: 1px solid #eee;
         }
         header nav.active a:last-child,
-        #authContainer.active a:last-child {
+        header div.active a:last-child {
           border-bottom: none;
         }
         header nav a,
-        #authContainer a {
+        header div a {
           font-size: 12px;
           padding: 6px 10px;
-        }
-        #welcomeMessage.active {
-          display: block !important;
-          padding: 10px;
-          background-color: #f0f0f0;
-          border-bottom: 1px solid #ccc;
-          text-align: center;
         }
         section {
           padding: 8px;
@@ -563,14 +544,11 @@
           font-size: 11px;
           padding: 6px 10px;
         }
-        #welcomeMessage {
-          font-size: 12px;
-        }
       }
 
       @media (max-width: 480px) {
         header nav.active a,
-        #authContainer.active a {
+        header div.active a {
           font-size: 12px;
           padding: 8px;
         }
@@ -619,9 +597,6 @@
           height: 300px;
           max-width: 280px;
         }
-        #welcomeMessage {
-          font-size: 11px;
-        }
       }
     </style>
   </head>
@@ -636,7 +611,7 @@
           </a>
         </div>
         <button class="hamburger" onclick="toggleNav()">☰</button>
-        <div id="authContainer" class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
           <nav class="flex gap-3 flex-wrap justify-end">
             <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
               About us
@@ -651,35 +626,26 @@
               Help
             </a>
           </nav>
-          <div id="authButtons" class="flex gap-3 flex-wrap justify-end">
-            <a id="loginButton" href="#" onclick="login()" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-              🔒 Login with Microsoft
-            </a>
-            <a id="signupButton" href="#" onclick="signup()" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-              📄 Sign Up with Microsoft
-            </a>
-            <a id="logoutButton" href="#" onclick="logout()" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition" style="display: none;">
+          <div class="flex gap-3 flex-wrap justify-end">
+            {% if user %}
+            <a href="/logout" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
               🔓 Logout
             </a>
+            {% else %}
+            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+              🔒 Login with Microsoft
+            </a>
+            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+              📄 Sign Up with Microsoft
+            </a>
+            {% endif %}
           </div>
-        </div>
-        <div id="welcomeMessage" {% if user %}class="active"{% endif %} style="{% if not user %}display: none;{% endif %}">
-          {% if user %}Welcome, {{ user.name }}!{% endif %}
         </div>
       </header>
 
       <!-- Toast Notifications -->
       <div class="toast-container position-fixed top-0 end-0 p-3">
-        <div id="welcomeToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
-          <div class="toast-header">
-            <strong class="me-auto">Welcome to Synesthetica</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-          </div>
-          <div class="toast-body">
-            Welcome back! Start creating your musical artwork now.
-          </div>
-        </div>
-        <div id="drawingToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+        <div id="drawingToast" class="toast" role="alert" aria-live="assertive" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
           <div class="toast-header">
             <strong class="me-auto">Synesthetica</strong>
             <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
@@ -921,87 +887,55 @@
       // MSAL Configuration
       const msalConfig = {
         auth: {
-          clientId: "YOUR_ACTUAL_CLIENT_ID", // Replace with your Azure Entra ID Client ID
-          authority: "https://login.microsoftonline.com/YOUR_ACTUAL_TENANT_ID", // Replace with your Tenant ID
-          redirectUri: "http://localhost:3000" // Match REDIRECT_URI in app.py
+          clientId: "YOUR_CLIENT_ID", // Replace with your Entra ID app's Client ID
+          authority: "https://login.microsoftonline.com/YOUR_TENANT_ID", // Replace with your Tenant ID
+          redirectUri: "http://localhost:3000", // Adjust if hosted elsewhere
         },
         cache: {
           cacheLocation: "sessionStorage",
-          storeAuthStateInCookie: false
-        }
+          storeAuthStateInCookie: false,
+        },
       };
 
       // Initialize MSAL
       const msalInstance = new msal.PublicClientApplication(msalConfig);
 
       // Check for existing login on page load
-      document.addEventListener("DOMContentLoaded", async () => {
-        try {
-          await msalInstance.initialize();
-          const accounts = msalInstance.getAllAccounts();
-          if (accounts.length > 0) {
-            updateUI(accounts[0]);
-            const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
-            toast.show();
-          }
-          // Check backend session
-          fetch('/check-session')
-            .then(response => response.json())
-            .then(data => {
-              if (data.user) {
-                updateUI({ name: data.user.name, username: data.user.email });
-                const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
-                toast.show();
-              }
-            })
-            .catch(error => console.error("Session check error:", error));
-        } catch (error) {
-          console.error("MSAL initialization error:", error);
-          alert("Authentication initialization failed. Please refresh the page.");
+      window.onload = async () => {
+        await msalInstance.initialize();
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+          updateUI(accounts[0]);
         }
-        // Initialize tooltips and onboarding modal
-        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        tooltipTriggerList.forEach((el) => new bootstrap.Tooltip(el));
-        const modal = new bootstrap.Modal(document.getElementById("onboardingModal"));
-        if (!sessionStorage.getItem("onboardingSeen")) {
-          modal.show();
-          sessionStorage.setItem("onboardingSeen", "true");
-        }
-      });
+      };
 
       // Login function
       async function login() {
         try {
           const loginRequest = {
             scopes: ["User.Read"],
-            prompt: "select_account"
           };
           const loginResponse = await msalInstance.loginPopup(loginRequest);
-          await fetch('/auth', { method: 'GET' }); // Trigger backend auth flow
           updateUI(loginResponse.account);
-          const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
-          toast.show();
         } catch (error) {
           console.error("Login error:", error);
-          alert(`Login failed: ${error.message || "Please try again."}`);
+          alert("Login failed. Please try again.");
         }
       }
 
-      // Signup function
+      // Signup function (same flow as login; Entra ID handles account creation if enabled)
       async function signup() {
         try {
           const signupRequest = {
             scopes: ["User.Read"],
-            prompt: "select_account"
+            // Optional: If using B2C signup policy, uncomment and update
+            // authority: "https://login.microsoftonline.com/YOUR_TENANT_ID/b2c_1_signup",
           };
           const signupResponse = await msalInstance.loginPopup(signupRequest);
-          await fetch('/auth', { method: 'GET' }); // Trigger backend auth flow
           updateUI(signupResponse.account);
-          const toast = new bootstrap.Toast(document.getElementById("welcomeToast"));
-          toast.show();
         } catch (error) {
           console.error("Signup error:", error);
-          alert(`Signup failed: ${error.message || "Please try again or contact your admin."}`);
+          alert("Signup failed. Please try again or contact your admin.");
         }
       }
 
@@ -1009,11 +943,10 @@
       async function logout() {
         try {
           await msalInstance.logoutPopup();
-          await fetch('/logout', { method: 'GET' });
           updateUI(null);
         } catch (error) {
           console.error("Logout error:", error);
-          alert(`Logout failed: ${error.message || "Please try again."}`);
+          alert("Logout failed. Please try again.");
         }
       }
 
@@ -1030,27 +963,21 @@
           logoutButton.style.display = "inline-flex";
           welcomeMessage.style.display = "block";
           welcomeMessage.textContent = `Welcome, ${account.name || account.username}!`;
-          welcomeMessage.classList.add("active");
         } else {
           loginButton.style.display = "inline-flex";
           signupButton.style.display = "inline-flex";
           logoutButton.style.display = "none";
           welcomeMessage.style.display = "none";
           welcomeMessage.textContent = "";
-          welcomeMessage.classList.remove("active");
         }
       }
 
       // Toggle Navigation Menu for Mobile
       function toggleNav() {
         const nav = document.querySelector("header nav");
-        const authContainer = document.querySelector("#authContainer");
-        const welcomeMessage = document.querySelector("#welcomeMessage");
+        const authDiv = document.querySelector("#authContainer");
         nav.classList.toggle("active");
-        authContainer.classList.toggle("active");
-        if (welcomeMessage.style.display === "block") {
-          welcomeMessage.classList.toggle("active");
-        }
+        authDiv.classList.toggle("active");
         const hamburger = document.querySelector(".hamburger");
         hamburger.textContent = nav.classList.contains("active") ? "✕" : "☰";
       }
@@ -1497,6 +1424,17 @@
 
       // Initial state
       saveState();
+
+      // Bootstrap init
+      document.addEventListener("DOMContentLoaded", () => {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipTriggerList.forEach((el) => new bootstrap.Tooltip(el));
+        const modal = new bootstrap.Modal(document.getElementById("onboardingModal"));
+        if (!sessionStorage.getItem("onboardingSeen")) {
+          modal.show();
+          sessionStorage.setItem("onboardingSeen", "true");
+        }
+      });
     </script>
   </body>
 </html>
