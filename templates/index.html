@@ -22,6 +22,17 @@
     ></script>
 
     <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      main {
+        flex: 1 0 auto;
+      }
+      footer {
+        flex-shrink: 0;
+      }
       header {
         font-family: "Inter", Arial, sans-serif;
         align-items: flex-start;
@@ -164,21 +175,29 @@
       }
       #brushPreviewSection {
         display: none;
+        width: 100%;
         max-width: 100%;
         margin: 0 auto;
         padding: 0 10px;
+        transition: opacity 0.3s ease;
+        opacity: 0;
       }
-      #brushPreviewSection.visible {
+      #brushPreviewSection:not(.hidden) {
         display: block;
         margin-top: 10px;
+        padding-bottom: 3rem;
+        opacity: 1;
       }
-      #seeMoreLink {
+      #seeMoreLink,
+      #seeLessLink {
         color: #1a73e8;
         cursor: pointer;
         text-decoration: underline;
       }
       #seeMoreLink:hover,
-      #seeMoreLink:active {
+      #seeMoreLink:active,
+      #seeLessLink:hover,
+      #seeLessLink:active {
         color: #1557b0;
       }
       #drawing-app {
@@ -582,85 +601,94 @@
     </style>
   </head>
   <body class="min-h-screen flex flex-col font-sans" style="background-color: #ffffff;">
-    <!-- Header -->
-    <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between sticky top-0 z-[1000]">
-      <div class="sm:mt-[-6px] flex items-center">
-        <img src="/static/logo.png" alt="Synesthetica Logo" class="logo-img" />
-        <a href="#" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
-          Synesthetica
-        </a>
-      </div>
-      <button class="hamburger" onclick="toggleNav()">☰</button>
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
-        <nav class="flex gap-3 flex-wrap justify-end">
-          <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            About us
-          </a>
-          <a href="#" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1" onclick="toggleDrawingSection()">
-            🎨 Start <span>Drawing</span>
-          </a>
-          <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            Pricing
-          </a>
-          <a href="/support" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            Help
-          </a>
-        </nav>
-        <div class="flex gap-3 flex-wrap justify-end">
-          <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-            🔒 Login with Microsoft
-          </a>
-          <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-            📄 Sign Up with Microsoft
+    <main>
+      <!-- Header -->
+      <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between sticky top-0 z-[1000]">
+        <div class="sm:mt-[-6px] flex items-center">
+          <img src="/static/logo.png" alt="Synesthetica Logo" class="logo-img" />
+          <a href="#" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
+            Synesthetica
           </a>
         </div>
-      </div>
-    </header>
+        <button class="hamburger" onclick="toggleNav()">☰</button>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
+          <nav class="flex gap-3 flex-wrap justify-end">
+            <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              About us
+            </a>
+            <a href="#" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1" onclick="toggleDrawingSection()">
+              🎨 Start <span>Drawing</span>
+            </a>
+            <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              Pricing
+            </a>
+            <a href="/support" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              Help
+            </a>
+          </nav>
+          <div class="flex gap-3 flex-wrap justify-end">
+            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+              🔒 Login with Microsoft
+            </a>
+            <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+              📄 Sign Up with Microsoft
+            </a>
+          </div>
+        </div>
+      </header>
 
-    <!-- Toast Notifications -->
-    <div class="toast-container position-fixed top-0 end-0 p-3">
-      <div id="drawingToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
-        <div class="toast-header">
-          <strong class="me-auto">Synesthetica</strong>
-          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      <!-- Toast Notifications -->
+      <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="drawingToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+          <div class="toast-header">
+            <strong class="me-auto">Synesthetica</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+          <div class="toast-body">
+            The drawing section is now open! Start creating your artwork.
+          </div>
         </div>
-        <div class="toast-body">
-          The drawing section is now open! Start creating your artwork.
+        <div id="limitToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
+          <div class="toast-header">
+            <strong class="me-auto">Submission Limit Reached</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+          <div class="toast-body">
+            You've reached the submission limit. Please <a href="/login" class="text-primary">log in</a> or <a href="/signup" class="text-primary">sign up</a> to submit more.
+          </div>
+        </div>
+        <div id="subscribeToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
+          <div class="toast-header">
+            <strong class="me-auto">Subscription Required</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+          <div class="toast-body">
+            You've reached the submission limit for this month. <a href="/pricing" id="subscribeLink" class="text-primary">View Pricing</a> to continue.
+          </div>
         </div>
       </div>
-      <div id="limitToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
-        <div class="toast-header">
-          <strong class="me-auto">Submission Limit Reached</strong>
-          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-        <div class="toast-body">
-          You've reached the submission limit. Please <a href="/login" class="text-primary">log in</a> or <a href="/signup" class="text-primary">sign up</a> to submit more.
-        </div>
-      </div>
-      <div id="subscribeToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
-        <div class="toast-header">
-          <strong class="me-auto">Subscription Required</strong>
-          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-        <div class="toast-body">
-          You've reached the submission limit for this month. <a href="/pricing" id="subscribeLink" class="text-primary">View Pricing</a> to continue.
-        </div>
-      </div>
-    </div>
 
-    <section class="max-w-4xl mx-auto py-12 px-4 flex flex-col items-center justify-center h-[calc(100vh-200px)]">
-      <h2 class="text-3xl font-semibold mb-8 text-black text-center">
-        Create Art That Sings
-      </h2>
-      <p class="text-lg mb-12 text-black text-center">
-        Synesthetica transforms your brush strokes into musical tones. Choose
-        from unique brush shapes, adjust sizes, and pick colors that generate
-        real-time piano-like
-        <span id="seeMoreLink" onclick="toggleBrushPreview()">see more</span>
-      </p>
-      <div id="brushPreviewSection" class="text-center">
-        <p class="text-lg mb-12 text-black">
+      <!-- Create Art Section -->
+      <section id="createArtSection" class="max-w-4xl mx-auto py-12 px-4 flex flex-col items-center justify-center">
+        <button class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300 mb-8" onclick="toggleDrawingSection()">
+          🎨 Try Drawing
+        </button>
+        <h2 class="text-3xl font-semibold mb-8 text-black text-center">
+          Create Art That Sings
+        </h2>
+        <p class="text-lg mb-12 text-black text-center">
+          Synesthetica transforms your brush strokes into musical tones. Choose
+          from unique brush shapes, adjust sizes, and pick colors that generate
+          real-time piano-like
+          <span id="seeMoreLink" onclick="toggleBrushPreview()" role="button" aria-expanded="false" aria-controls="brushPreviewSection">see more</span>
+        </p>
+      </section>
+
+      <!-- Brush Preview Section -->
+      <section id="brushPreviewSection" class="max-w-4xl mx-auto px-4 pb-12 hidden">
+        <p class="text-lg mb-12 text-black text-center">
           sounds. Experience creativity like never before!
+          <span id="seeLessLink" class="text-blue-600 cursor-pointer underline hover:text-blue-800 hidden" onclick="toggleBrushPreview()" role="button" aria-expanded="true" aria-controls="brushPreviewSection">see less</span>
         </p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
@@ -692,112 +720,109 @@
             <p class="text-sm text-black">Complex, textured rounded saw tone.</p>
           </div>
         </div>
-      </div>
-      <button class="inline-block bg-white text-black font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition duration-300 border border-gray-300" onclick="toggleDrawingSection()">
-        🎨 Try Drawing
-      </button>
-    </section>
+      </section>
 
-    <!-- Drawing App -->
-    <section id="drawing-app" class="max-w-5xl mx-auto p-4 mb-12">
-      <div id="bb">
-        <h1 class="text-2xl md:text-3xl font-bold text-center mb-4 text-black">
-          <img src="/static/logo2.png" alt="SynestheticSounds Logo" style="height: 50px; vertical-align: middle" />
-          Welcome to Synesthetic Sounds
-        </h1>
+      <!-- Drawing App -->
+      <section id="drawing-app" class="max-w-5xl mx-auto p-4 mb-12">
+        <div id="bb">
+          <h1 class="text-2xl md:text-3xl font-bold text-center mb-4 text-black">
+            <img src="/static/logo2.png" alt="SynestheticSounds Logo" style="height: 50px; vertical-align: middle" />
+            Welcome to Synesthetic Sounds
+          </h1>
 
-        <!-- Toolbar -->
-        <div id="toolSections">
-          <div class="tool-box">
-            <button onclick="undo()">↩️ Undo</button>
-            <button onclick="redo()">↪️ Redo</button>
-            <button onclick="saveImage()">💾 Save</button>
-            <button onclick="clearCanvas()">🗑️ Clear</button>
-          </div>
-          <div class="tool-box" title="Multiple Brush Shapes | Affects waveform harmonics">
-            <label title="Adjustable Brush Size (4px to 64px) controls amplitude">
-              Brush Size: <br />
-              <input type="range" id="brushSizeSlider" min="4" max="64" value="16" />
-            </label>
-            <label>
-              Brush Type: <br />
-              <select id="toolSelect" data-bs-toggle="tooltip" title="Select a waveform shape to affect how sound is blended.">
-                <option value="line" title="Basic sawtooth wave">Line</option>
-                <option value="square" title="Square wave with strong harmonics">Square</option>
-                <option value="cross" title="Complex FM synthesis tones">Cross</option>
-                <option value="round" title="Smooth sine wave tones">Round</option>
-                <option value="star" title="Bell-like harmonic overtones">Star</option>
-                <option value="spray" title="Noise-based texture sounds">Spray</option>
-                <option value="triangle" title="Clean triangle wave">Triangle</option>
-                <option value="sawtooth" title="Rich harmonic content">Sawtooth</option>
-              </select>
-            </label>
-          </div>
-          <div class="tool-box">
-            <div id="colorButtons">
-              <div><button style="background-color: #80e000" onclick="setColor('#80E000')"></button><br /><span>C4</span></div>
-              <div><button style="background-color: #006073" onclick="setColor('#006073')"></button><br /><span>D4</span></div>
-              <div><button style="background-color: #7e00d9" onclick="setColor('#7e00d9')"></button><br /><span>E4</span></div>
-              <div><button style="background-color: #9f1aec" onclick="setColor('#9F1AEC')"></button><br /><span>F4</span></div>
-              <div><button style="background-color: #d91a80" onclick="setColor('#D91A80')"></button><br /><span>G4</span></div>
-              <div><button style="background-color: #f95700" onclick="setColor('#F95700')"></button><br /><span>A4</span></div>
-              <div><button style="background-color: #ffff33" onclick="setColor('#ffff33')"></button><br /><span>B4</span></div>
-              <div><button style="background-color: #3399cc" onclick="setColor('#3399CC')"></button><br /><span>C5</span></div>
+          <!-- Toolbar -->
+          <div id="toolSections">
+            <div class="tool-box">
+              <button onclick="undo()">↩️ Undo</button>
+              <button onclick="redo()">↪️ Redo</button>
+              <button onclick="saveImage()">💾 Save</button>
+              <button onclick="clearCanvas()">🗑️ Clear</button>
             </div>
-            Color Picker: <input type="color" id="colorPicker" value="#ff0000" data-bs-toggle="tooltip" title="Pick a color to assign a musical note." />
-          </div>
-        </div>
-
-        <!-- Instructions and Info Button -->
-        <div style="font-size: 14px; padding: 10px">
-          <p style="text-align: center; font-weight: bold">
-            SynestheticSounds is a creative painting application that not only
-            lets you draw with various artistic brushes, but also generates
-            sound based on the colors and shapes you use. It's a unique way to
-            visualize and sonify your creativity.
-          </p>
-          <div id="infoBox">
-            <span>ℹ️</span>
-            <div id="infoContent">
-              <strong>🎨 How to Use This App</strong><br /><br />
-              <ul class="list-unstyled">
-                <li><b>🎨 Color = Note & Frequency:</b> Each color corresponds to a specific musical note and its frequency. Try different hues to hear different pitches.</li>
-                <li><b>🖌️ Brush Type = Blend:</b> The brush type controls how tones blend. Choose shapes like round, triangle, or sawtooth to alter the sound character.</li>
-                <li><b>🖼️ Canvas Area = Sound Weight:</b> The more you paint with a specific color, the louder and more prominent that note becomes in the final mix.</li>
-                <li><b>▶️ Submit Drawing:</b> Click this to generate and play back your audio composition based on your visual artwork.</li>
-              </ul>
-              <p class="mb-0 text-muted" style="font-size: 0.85em">
-                Tip: Mix brush types and colors to compose rich soundscapes visually!
-              </p>
+            <div class="tool-box" title="Multiple Brush Shapes | Affects waveform harmonics">
+              <label title="Adjustable Brush Size (4px to 64px) controls amplitude">
+                Brush Size: <br />
+                <input type="range" id="brushSizeSlider" min="4" max="64" value="16" />
+              </label>
+              <label>
+                Brush Type: <br />
+                <select id="toolSelect" data-bs-toggle="tooltip" title="Select a waveform shape to affect how sound is blended.">
+                  <option value="line" title="Basic sawtooth wave">Line</option>
+                  <option value="square" title="Square wave with strong harmonics">Square</option>
+                  <option value="cross" title="Complex FM synthesis tones">Cross</option>
+                  <option value="round" title="Smooth sine wave tones">Round</option>
+                  <option value="star" title="Bell-like harmonic overtones">Star</option>
+                  <option value="spray" title="Noise-based texture sounds">Spray</option>
+                  <option value="triangle" title="Clean triangle wave">Triangle</option>
+                  <option value="sawtooth" title="Rich harmonic content">Sawtooth</option>
+                </select>
+              </label>
+            </div>
+            <div class="tool-box">
+              <div id="colorButtons">
+                <div><button style="background-color: #80e000" onclick="setColor('#80E000')"></button><br /><span>C4</span></div>
+                <div><button style="background-color: #006073" onclick="setColor('#006073')"></button><br /><span>D4</span></div>
+                <div><button style="background-color: #7e00d9" onclick="setColor('#7e00d9')"></button><br /><span>E4</span></div>
+                <div><button style="background-color: #9f1aec" onclick="setColor('#9F1AEC')"></button><br /><span>F4</span></div>
+                <div><button style="background-color: #d91a80" onclick="setColor('#D91A80')"></button><br /><span>G4</span></div>
+                <div><button style="background-color: #f95700" onclick="setColor('#F95700')"></button><br /><span>A4</span></div>
+                <div><button style="background-color: #ffff33" onclick="setColor('#ffff33')"></button><br /><span>B4</span></div>
+                <div><button style="background-color: #3399cc" onclick="setColor('#3399CC')"></button><br /><span>C5</span></div>
+              </div>
+              Color Picker: <input type="color" id="colorPicker" value="#ff0000" data-bs-toggle="tooltip" title="Pick a color to assign a musical note." />
             </div>
           </div>
-        </div>
 
-        <!-- Canvas -->
-        <div id="canvasContainer">
-          <canvas id="canvas" width="1000" height="500"></canvas>
-        </div>
-        <div style="text-align: center">
-          <span style="position: relative; display: inline-flex; justify-content: center;">Time (sec)</span>
-        </div>
+          <!-- Instructions and Info Button -->
+          <div style="font-size: 14px; padding: 10px">
+            <p style="text-align: center; font-weight: bold">
+              SynestheticSounds is a creative painting application that not only
+              lets you draw with various artistic brushes, but also generates
+              sound based on the colors and shapes you use. It's a unique way to
+              visualize and sonify your creativity.
+            </p>
+            <div id="infoBox">
+              <span>ℹ️</span>
+              <div id="infoContent">
+                <strong>🎨 How to Use This App</strong><br /><br />
+                <ul class="list-unstyled">
+                  <li><b>🎨 Color = Note & Frequency:</b> Each color corresponds to a specific musical note and its frequency. Try different hues to hear different pitches.</li>
+                  <li><b>🖌️ Brush Type = Blend:</b> The brush type controls how tones blend. Choose shapes like round, triangle, or sawtooth to alter the sound character.</li>
+                  <li><b>🖼️ Canvas Area = Sound Weight:</b> The more you paint with a specific color, the louder and more prominent that note becomes in the final mix.</li>
+                  <li><b>▶️ Submit Drawing:</b> Click this to generate and play back your audio composition based on your visual artwork.</li>
+                </ul>
+                <p class="mb-0 text-muted" style="font-size: 0.85em">
+                  Tip: Mix brush types and colors to compose rich soundscapes visually!
+                </p>
+              </div>
+            </div>
+          </div>
 
-        <!-- Action Buttons -->
-        <div id="actionButtons">
-          <button onclick="submitDrawing()" data-bs-toggle="tooltip" title="Click to generate sound from your drawing.">
-            🎼 Submit Drawing
-          </button>
-          <button onclick="downloadAudio()" data-bs-toggle="tooltip" title="Save your generated audio as a WAV file.">
-            🔊 Download Audio
-          </button>
-          <button id="subscribeButton" style="display: none;" onclick="subscribe()" data-bs-toggle="tooltip" title="Subscribe to continue using Synesthetica.">
-            💳 Subscribe
-          </button>
-        </div>
+          <!-- Canvas -->
+          <div id="canvasContainer">
+            <canvas id="canvas" width="1000" height="500"></canvas>
+          </div>
+          <div style="text-align: center">
+            <span style="position: relative; display: inline-flex; justify-content: center;">Time (sec)</span>
+          </div>
 
-        <br />
-        <audio id="player" controls></audio>
-      </div>
-    </section>
+          <!-- Action Buttons -->
+          <div id="actionButtons">
+            <button onclick="submitDrawing()" data-bs-toggle="tooltip" title="Click to generate sound from your drawing.">
+              🎼 Submit Drawing
+            </button>
+            <button onclick="downloadAudio()" data-bs-toggle="tooltip" title="Save your generated audio as a WAV file.">
+              🔊 Download Audio
+            </button>
+            <button id="subscribeButton" style="display: none;" onclick="subscribe()" data-bs-toggle="tooltip" title="Subscribe to continue using Synesthetica.">
+              💳 Subscribe
+            </button>
+          </div>
+
+          <br />
+          <audio id="player" controls></audio>
+        </div>
+      </section>
+    </main>
 
     <!-- Onboarding Modal -->
     <div class="modal fade" id="onboardingModal" tabindex="-1" aria-labelledby="onboardingLabel" aria-hidden="true">
@@ -874,14 +899,42 @@
         }
       }
 
+      // Toggle Brush Preview with Debounce and ARIA
+      let isToggling = false;
       function toggleBrushPreview() {
+        if (isToggling) return;
+        isToggling = true;
+        
         const brushPreviewSection = document.getElementById("brushPreviewSection");
         const seeMoreLink = document.getElementById("seeMoreLink");
-        brushPreviewSection.classList.toggle("visible");
-        seeMoreLink.textContent = brushPreviewSection.classList.contains("visible") ? "see less" : "see more";
-        if (brushPreviewSection.classList.contains("visible")) {
-          brushPreviewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const seeLessLink = document.getElementById("seeLessLink");
+
+        // Debugging logs
+        console.log("toggleBrushPreview called");
+        console.log("brushPreviewSection:", brushPreviewSection);
+        console.log("seeMoreLink:", seeMoreLink);
+        console.log("seeLessLink:", seeLessLink);
+
+        if (!brushPreviewSection || !seeMoreLink || !seeLessLink) {
+          console.error("One or more elements not found!");
+          isToggling = false;
+          return;
         }
+
+        const isHidden = brushPreviewSection.classList.contains("hidden");
+        brushPreviewSection.classList.toggle("hidden");
+        seeMoreLink.classList.toggle("hidden");
+        seeLessLink.classList.toggle("hidden");
+        seeMoreLink.setAttribute("aria-expanded", isHidden ? "true" : "false");
+        seeLessLink.setAttribute("aria-expanded", isHidden ? "true" : "false");
+
+        if (!brushPreviewSection.classList.contains("hidden")) {
+          brushPreviewSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        setTimeout(() => {
+          isToggling = false;
+        }, 300);
       }
 
       // Chat Functions
