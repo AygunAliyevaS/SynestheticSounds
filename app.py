@@ -444,7 +444,10 @@ def resolve_subscription(operation_id):
 def home():
     logger.info("Rendering front page")
     user = session.get('user')
-    return render_template("index.html", user=user)
+    show_welcome = session.get('show_welcome', False)
+    if show_welcome:
+        session.pop('show_welcome')  # Clear the flag after rendering
+    return render_template("index.html", user=user, show_welcome=show_welcome)
 
 @app.route("/auth")
 def auth():
@@ -495,6 +498,7 @@ def authorized():
                 'name': user_data.get('displayName'),
                 'email': user_data.get('mail') or user_data.get('userPrincipalName')
             }
+            session['show_welcome'] = True  # Set flag to show welcome message
             logger.info(f"User logged in: {session['user']['name']}")
         else:
             logger.error(f"Failed to fetch user profile: {user_response.status_code}, {user_response.text}")
@@ -520,7 +524,8 @@ def pricing():
 @app.route("/privacy")
 def privacy():
     logger.info("Rendering Privacy Policy page")
-    return render_template("privacy.html")
+    user = session.get('user')
+    return render_template("privacy.html", user=user)
 
 @app.route("/support")
 def support():
