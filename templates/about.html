@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Synesthetica - About Us</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Bootstrap 5 -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65"
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4"
+      crossorigin="anonymous"
+    ></script>
+
+    <style>
+      body {
+        font-family: "Inter", Arial, sans-serif;
+        background-color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      main {
+        flex: 1 0 auto;
+      }
+      footer {
+        flex-shrink: 0;
+      }
+      header {
+        font-family: "Inter", Arial, sans-serif;
+        align-items: flex-start;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+      }
+      header > div:first-child {
+        margin-top: -0.3rem;
+      }
+      header nav a,
+      header div a {
+        transition: all 0.2s ease-in-out;
+      }
+      header nav a:hover,
+      header div a:active {
+        background-color: #f3f4f6;
+        transform: translateY(-1px);
+      }
+      .logo-img {
+        height: 30px;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      /* Hamburger Menu Icon */
+      .hamburger {
+        display: none;
+        font-size: 24px;
+        background: none;
+        border: none;
+        color: #000;
+        cursor: pointer;
+        padding: 8px;
+      }
+      /* About Section Styles */
+      .about-section {
+        background: linear-gradient(180deg, #f0f0f0 0%, #ffffff 100%);
+        padding: 2rem 1rem;
+      }
+      .about-content {
+        max-width: 800px;
+        margin: 0 auto;
+        text-align: center;
+      }
+      .about-content h1 {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #1a73e8;
+        margin-bottom: 1.5rem;
+      }
+      .about-content h2 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #333;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+      .about-content p {
+        font-size: 1rem;
+        color: #333;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+      }
+      .about-content ul {
+        list-style-type: disc;
+        text-align: left;
+        margin: 0 auto 1.5rem;
+        padding-left: 1.5rem;
+        max-width: 600px;
+      }
+      .about-content ul li {
+        font-size: 1rem;
+        color: #333;
+        margin-bottom: 0.75rem;
+      }
+      /* Mobile-Specific Styles */
+      @media (max-width: 768px) {
+        header {
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
+          padding: 8px 12px;
+        }
+        header > div:first-child {
+          margin-top: 0;
+        }
+        .logo-img {
+          height: 24px;
+        }
+        .hamburger {
+          display: block;
+        }
+        header .navigation {
+          display: none;
+        }
+        header .navigation.active {
+          display: flex;
+          flex-direction: column;
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background-color: #fff;
+          border-bottom: 1px solid #ccc;
+          padding: 12px;
+          z-index: 999;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        header .navigation.active nav,
+        header .navigation.active div {
+          display: flex;
+          flex-direction: column;
+        }
+        header .navigation nav a,
+        header .navigation div a,
+        header .navigation div span {
+          font-size: 14px;
+          padding: 10px;
+          text-align: left;
+          width: 100%;
+          border: none;
+          border-radius: 0;
+          border-bottom: 1px solid #eee;
+        }
+        header .navigation nav a:last-child,
+        header .navigation div a:last-child,
+        header .navigation div span:last-child {
+          border-bottom: none;
+        }
+        .about-content h1 {
+          font-size: 2rem;
+        }
+        .about-content h2 {
+          font-size: 1.5rem;
+        }
+        .about-content p,
+        .about-content ul li {
+          font-size: 0.9rem;
+        }
+      }
+      @media (max-width: 480px) {
+        header .navigation.active nav a,
+        header .navigation.active div a,
+        header .navigation.active div span {
+          font-size: 12px;
+          padding: 8px;
+        }
+        .about-content h1 {
+          font-size: 1.5rem;
+        }
+        .about-content h2 {
+          font-size: 1.25rem;
+        }
+        .about-content p,
+        .about-content ul li {
+          font-size: 0.85rem;
+        }
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col font-sans" style="background-color: #ffffff;">
+    <main>
+      <!-- Header -->
+      <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between sticky top-0 z-[1000]">
+        <div class="sm:mt-[-6px] flex items-center">
+          <img src="/static/logo.png" alt="Synesthetica Logo" class="logo-img" />
+          <a href="/" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
+            Synesthetica
+          </a>
+        </div>
+        <button class="hamburger" onclick="toggleNav()">☰</button>
+        <div class="navigation flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
+          <nav class="flex gap-3 flex-wrap justify-end">
+            <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              About us
+            </a>
+            <a href="/" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1" onclick="toggleDrawingSection()">
+              🎨 Start <span>Drawing</span>
+            </a>
+            <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              Pricing
+            </a>
+            <a href="/support" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              Help
+            </a>
+          </nav>
+          <div class="flex gap-3 flex-wrap justify-end">
+            {% if user %}
+              <span class="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                Welcome, {{ user.name }}
+              </span>
+              <a href="/logout" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+                🔓 Logout
+              </a>
+            {% else %}
+              <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+                🔒 Login with Microsoft
+              </a>
+              <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+                📄 Sign Up with Microsoft
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      </header>
+
+      <!-- About Section -->
+      <section class="about-section">
+        <div class="about-content">
+          <h1>About Synesthetica</h1>
+          <p>
+            Discover the fusion of visual and auditory perception with Synesthetica, a creative painting app that instantly transforms visual works into meticulously crafted sound compositions. The platform operates on the principle of synesthetic creativity, where the fusion of sound and visual perception opens up unique possibilities for self-expression. Every brushstroke is a note, every color is a frequency, and every canvas is a complete musical score waiting to be heard.
+          </p>
+          <p>
+            Synesthetica is designed specifically for educators, experimental artists, and sound designers seeking sophisticated, new creative interfaces. It’s not just a tool—it’s a path to independence and inclusion.
+          </p>
+          <h2>Our Unique Features</h2>
+          <p>
+            Synesthetica stands out thanks to its unique combination of accessibility, innovation, and inclusivity, tailored to users with cognitive and sensory disabilities. Here’s how:
+          </p>
+          <ul>
+            <li><strong>Multi-sensory interaction</strong> – Converts images into sound, reads musical frequencies, and supports alternative learning methods unavailable in traditional tools.</li>
+            <li><strong>Inclusive design</strong> – Accommodates individuals with hearing, vision, speech, and cognitive impairments, integrating diverse needs into a single platform.</li>
+            <li><strong>Simple and intuitive interface</strong> – Unlike complex assistive technologies, our interface is easy to use even for users with minimal experience.</li>
+            <li><strong>Accessible and scalable</strong> – Our low cost makes the solution accessible to individuals, schools, and institutions worldwide.</li>
+            <li><strong>AI-powered features</strong> – Personalize learning and improve its effectiveness, offering a modern alternative to outdated solutions.</li>
+          </ul>
+          <p>
+            Synesthetica is a creative painting app that not only allows you to create images using a variety of artistic brushes but also generates sound based on the colors and shapes you use. It’s a unique way to visualize and give voice to your creativity.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-6 text-center">
+      <p class="text-sm text-black">© 2025 Synesthetica. All rights reserved.</p>
+      <p class="text-sm text-black">
+        <a href="/privacy" class="text-blue-600 hover:text-blue-800">Privacy Policy</a> |
+        <a href="/support" class="text-blue-600 hover:text-blue-800">Support</a>
+      </p>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+      // Toggle Navigation Menu for Mobile
+      function toggleNav() {
+        const navigation = document.querySelector(".navigation");
+        const hamburger = document.querySelector(".hamburger");
+        navigation.classList.toggle("active");
+        hamburger.textContent = navigation.classList.contains("active") ? "✕" : "☰";
+      }
+
+      // Placeholder for toggleDrawingSection (used in header link)
+      function toggleDrawingSection() {
+        window.location.href = "/"; // Redirect to homepage for drawing
+      }
+
+      // Bootstrap init
+      document.addEventListener("DOMContentLoaded", () => {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipTriggerList.forEach((el) => new bootstrap.Tooltip(el));
+      });
+    </script>
+  </body>
+</html>
