@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Synesthetica - Support</title>
 
     <!-- Tailwind CDN -->
@@ -22,115 +22,255 @@
     ></script>
 
     <style>
+      body {
+        font-family: "Inter", Arial, sans-serif;
+        background-color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      main {
+        flex: 1 0 auto;
+      }
+      footer {
+        flex-shrink: 0;
+      }
       header {
         font-family: "Inter", Arial, sans-serif;
         align-items: flex-start;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
       }
       header > div:first-child {
-        margin-top: -0.3rem; /* lifts logo a bit */
+        margin-top: -0.3rem;
       }
       header nav a,
       header div a {
         transition: all 0.2s ease-in-out;
       }
       header nav a:hover,
-      header div a:hover {
+      header div a:active {
         background-color: #f3f4f6;
         transform: translateY(-1px);
       }
+      .logo-img {
+        height: 30px;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      /* Hamburger Menu Icon */
+      .hamburger {
+        display: none;
+        font-size: 24px;
+        background: none;
+        border: none;
+        color: #000;
+        cursor: pointer;
+        padding: 8px;
+      }
+      /* Support Section Styles (retained from original) */
+      .support-section {
+        max-width: 4xl;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+      }
+      /* Mobile-Specific Styles */
       @media (max-width: 768px) {
         header {
-          flex-direction: column;
+          flex-direction: row;
           align-items: center;
+          justify-content: space-between;
+          padding: 8px 12px;
         }
-        header nav,
-        header div {
-          justify-content: center;
+        header > div:first-child {
+          margin-top: 0;
+        }
+        .logo-img {
+          height: 24px;
+        }
+        .hamburger {
+          display: block;
+        }
+        header .navigation {
+          display: none;
+        }
+        header .navigation.active {
+          display: flex;
+          flex-direction: column;
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background-color: #fff;
+          border-bottom: 1px solid #ccc;
+          padding: 12px;
+          z-index: 999;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        header .navigation.active nav,
+        header .navigation.active div {
+          display: flex;
+          flex-direction: column;
+        }
+        header .navigation nav a,
+        header .navigation div a,
+        header .navigation div span {
+          font-size: 14px;
+          padding: 10px;
+          text-align: left;
+          width: 100%;
+          border: none;
+          border-radius: 0;
+          border-bottom: 1px solid #eee;
+        }
+        header .navigation nav a:last-child,
+        header .navigation div a:last-child,
+        header .navigation div span:last-child {
+          border-bottom: none;
+        }
+        .support-section {
+          padding: 1.5rem 0.5rem;
+        }
+        .support-section h2 {
+          font-size: 1.5rem;
+        }
+        .support-section p {
+          font-size: 0.9rem;
+        }
+        .support-section .bg-white h3 {
+          font-size: 1.25rem;
+        }
+        .support-section .bg-white p,
+        .support-section .bg-white ul li,
+        .support-section .bg-white label,
+        .support-section .bg-white input,
+        .support-section .bg-white textarea,
+        .support-section .bg-white select {
+          font-size: 0.9rem;
+        }
+      }
+      @media (max-width: 480px) {
+        header .navigation.active nav a,
+        header .navigation.active div a,
+        header .navigation.active div span {
+          font-size: 12px;
+          padding: 8px;
+        }
+        .support-section h2 {
+          font-size: 1.25rem;
+        }
+        .support-section p {
+          font-size: 0.85rem;
+        }
+        .support-section .bg-white h3 {
+          font-size: 1.125rem;
+        }
+        .support-section .bg-white p,
+        .support-section .bg-white ul li,
+        .support-section .bg-white label,
+        .support-section .bg-white input,
+        .support-section .bg-white textarea,
+        .support-section .bg-white select {
+          font-size: 0.85rem;
         }
       }
     </style>
   </head>
   <body class="min-h-screen flex flex-col font-sans" style="background-color: #ffffff;">
-    <!-- Header -->
-    <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between">
-      <div class="sm:mt-[-6px]">
-        <a href="/" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
-          Synesthetica
-        </a>
-      </div>
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
-        <nav class="flex gap-3 flex-wrap justify-end">
-          <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            About us
-          </a>
-          <a href="/" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1" onclick="window.location.href='/'">
-            🎨 Start <span>Drawing</span>
-          </a>
-          <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            Pricing
-          </a>
-          <a href="/support" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            Help
-          </a>
-        </nav>
-        <div class="flex gap-3 flex-wrap justify-end">
-          <a href="/login" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-            🔒 Login with Microsoft
-          </a>
-          <a href="/signup" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-            📄 Sign Up with Microsoft
+    <main>
+      <!-- Header -->
+      <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between sticky top-0 z-[1000]">
+        <div class="sm:mt-[-6px] flex items-center">
+          <img src="/static/logo.png" alt="Synesthetica Logo" class="logo-img" />
+          <a href="/" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
+            Synesthetica
           </a>
         </div>
-      </div>
-    </header>
-
-    <!-- Main Content -->
-    <section class="max-w-4xl mx-auto py-12 px-4">
-      <h2 class="text-3xl font-semibold mb-8 text-black">
-        Get Help
-      </h2>
-      <p class="text-lg mb-12 text-black">
-        Need assistance? Submit a ticket or explore our resources.
-      </p>
-
-      <!-- Contact Form -->
-      <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-        <h3 class="text-xl font-semibold mb-4 text-black">Submit a Support Ticket</h3>
-        <form id="supportForm" class="space-y-4">
-          <div>
-            <label for="title" class="block text-sm font-medium text-black">Title</label>
-            <input type="text" id="title" name="title" required class="mt-1 block w-full p-2 border rounded-md">
+        <button class="hamburger" onclick="toggleNav()">☰</button>
+        <div class="navigation flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
+          <nav class="flex gap-3 flex-wrap justify-end">
+            <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              About us
+            </a>
+            <a href="/" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1" onclick="toggleDrawingSection()">
+              🎨 Start <span>Drawing</span>
+            </a>
+            <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              Pricing
+            </a>
+            <a href="/support" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              Help
+            </a>
+          </nav>
+          <div class="flex gap-3 flex-wrap justify-end">
+            {% if user %}
+              <span class="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                Welcome, {{ user.name }}
+              </span>
+              <a href="/logout" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+                🔓 Logout
+              </a>
+            {% else %}
+              <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+                🔒 Login with Microsoft
+              </a>
+              <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+                📄 Sign Up with Microsoft
+              </a>
+            {% endif %}
           </div>
-          <div>
-            <label for="description" class="block text-sm font-medium text-black">Description</label>
-            <textarea id="description" name="description" required class="mt-1 block w-full p-2 border rounded-md" rows="4"></textarea>
-          </div>
-          <div>
-            <label for="category" class="block text-sm font-medium text-black">Category</label>
-            <select id="category" name="category" required class="mt-1 block w-full p-2 border rounded-md">
-              <option value="technical">Technical Issue</option>
-              <option value="billing">Billing Question</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <button type="submit" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-blue-700 transition duration-300">
-            Submit Ticket
-          </button>
-        </form>
-        <div id="formResult" class="mt-4 text-black"></div>
-      </div>
+        </div>
+      </header>
 
-      <!-- Support Resources -->
-      <div class="bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-semibold mb-4 text-black">Resources</h3>
-        <ul class="list-disc list-inside text-black">
-          <li><a href="/privacy" class="text-blue-600 hover:text-blue-800">Privacy Policy</a></li>
-          <li>Email us at: <a href="mailto:support@synesthetica.com" class="text-blue-600 hover:text-blue-800">support@synesthetica.com</a></li>
-        </ul>
-      </div>
-    </section>
+      <!-- Main Content (unchanged) -->
+      <section class="support-section">
+        <h2 class="text-3xl font-semibold mb-8 text-black">
+          Get Help
+        </h2>
+        <p class="text-lg mb-12 text-black">
+          Need assistance? Submit a ticket or explore our resources.
+        </p>
 
-    <!-- Footer -->
+        <!-- Contact Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+          <h3 class="text-xl font-semibold mb-4 text-black">Submit a Support Ticket</h3>
+          <form id="supportForm" class="space-y-4">
+            <div>
+              <label for="title" class="block text-sm font-medium text-black">Title</label>
+              <input type="text" id="title" name="title" required class="mt-1 block w-full p-2 border rounded-md">
+            </div>
+            <div>
+              <label for="description" class="block text-sm font-medium text-black">Description</label>
+              <textarea id="description" name="description" required class="mt-1 block w-full p-2 border rounded-md" rows="4"></textarea>
+            </div>
+            <div>
+              <label for="category" class="block text-sm font-medium text-black">Category</label>
+              <select id="category" name="category" required class="mt-1 block w-full p-2 border rounded-md">
+                <option value="technical">Technical Issue</option>
+                <option value="billing">Billing Question</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <button type="submit" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-blue-700 transition duration-300">
+              Submit Ticket
+            </button>
+          </form>
+          <div id="formResult" class="mt-4 text-black"></div>
+        </div>
+
+        <!-- Support Resources -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+          <h3 class="text-xl font-semibold mb-4 text-black">Resources</h3>
+          <ul class="list-disc list-inside text-black">
+            <li><a href="/privacy" class="text-blue-600 hover:text-blue-800">Privacy Policy</a></li>
+            <li>Email us at: <a href="mailto:support@synesthetica.com" class="text-blue-600 hover:text-blue-800">support@synesthetica.com</a></li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer (unchanged) -->
     <footer class="py-6 text-center">
       <p class="text-sm text-black">© 2025 Synesthetica. All rights reserved.</p>
       <p class="text-sm text-black">
@@ -139,7 +279,22 @@
       </p>
     </footer>
 
+    <!-- JavaScript -->
     <script>
+      // Toggle Navigation Menu for Mobile
+      function toggleNav() {
+        const navigation = document.querySelector(".navigation");
+        const hamburger = document.querySelector(".hamburger");
+        navigation.classList.toggle("active");
+        hamburger.textContent = navigation.classList.contains("active") ? "✕" : "☰";
+      }
+
+      // Placeholder for toggleDrawingSection (used in header link)
+      function toggleDrawingSection() {
+        window.location.href = "/"; // Redirect to homepage for drawing
+      }
+
+      // Support Form Submission (unchanged)
       document.getElementById('supportForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formResult = document.getElementById('formResult');
@@ -168,5 +323,12 @@
           console.error('Error:', error);
         }
       });
+
+      // Bootstrap init
+      document.addEventListener("DOMContentLoaded", () => {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipTriggerList.forEach((el) => new bootstrap.Tooltip(el));
+      });
     </script>
   </body>
+</html>
