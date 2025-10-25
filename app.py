@@ -520,6 +520,11 @@ def logout():
     logger.info("User logged out")
     return redirect(url_for('home'))
 
+@app.route('/about')
+def about():
+    user = session.get('user')  # Retrieve user from session for authentication
+    return render_template('about.html', user=user)
+
 @app.route("/pricing")
 def pricing():
     logger.info("Rendering Pricing page")
@@ -804,3 +809,4 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
