@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Synesthetica - Pricing</title>
 
     <!-- Tailwind CDN -->
@@ -22,104 +22,232 @@
     ></script>
 
     <style>
+      body {
+        font-family: "Inter", Arial, sans-serif;
+        background-color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      main {
+        flex: 1 0 auto;
+      }
+      footer {
+        flex-shrink: 0;
+      }
       header {
         font-family: "Inter", Arial, sans-serif;
         align-items: flex-start;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
       }
       header > div:first-child {
-        margin-top: -0.3rem; /* lifts logo a bit */
+        margin-top: -0.3rem;
       }
       header nav a,
       header div a {
         transition: all 0.2s ease-in-out;
       }
       header nav a:hover,
-      header div a:hover {
+      header div a:active {
         background-color: #f3f4f6;
         transform: translateY(-1px);
       }
+      .logo-img {
+        height: 30px;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      /* Hamburger Menu Icon */
+      .hamburger {
+        display: none;
+        font-size: 24px;
+        background: none;
+        border: none;
+        color: #000;
+        cursor: pointer;
+        padding: 8px;
+      }
+      /* Pricing Section Styles (retained from original) */
+      .pricing-section {
+        max-width: 4xl;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+      }
+      /* Mobile-Specific Styles */
       @media (max-width: 768px) {
         header {
-          flex-direction: column;
+          flex-direction: row;
           align-items: center;
+          justify-content: space-between;
+          padding: 8px 12px;
         }
-        header nav,
-        header div {
-          justify-content: center;
+        header > div:first-child {
+          margin-top: 0;
+        }
+        .logo-img {
+          height: 24px;
+        }
+        .hamburger {
+          display: block;
+        }
+        header .navigation {
+          display: none;
+        }
+        header .navigation.active {
+          display: flex;
+          flex-direction: column;
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background-color: #fff;
+          border-bottom: 1px solid #ccc;
+          padding: 12px;
+          z-index: 999;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        header .navigation.active nav,
+        header .navigation.active div {
+          display: flex;
+          flex-direction: column;
+        }
+        header .navigation nav a,
+        header .navigation div a,
+        header .navigation div span {
+          font-size: 14px;
+          padding: 10px;
+          text-align: left;
+          width: 100%;
+          border: none;
+          border-radius: 0;
+          border-bottom: 1px solid #eee;
+        }
+        header .navigation nav a:last-child,
+        header .navigation div a:last-child,
+        header .navigation div span:last-child {
+          border-bottom: none;
+        }
+        .pricing-section {
+          padding: 1.5rem 0.5rem;
+        }
+        .pricing-section h2 {
+          font-size: 1.5rem;
+        }
+        .pricing-section p {
+          font-size: 0.9rem;
+        }
+        .pricing-section .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 480px) {
+        header .navigation.active nav a,
+        header .navigation.active div a,
+        header .navigation.active div span {
+          font-size: 12px;
+          padding: 8px;
+        }
+        .pricing-section h2 {
+          font-size: 1.25rem;
+        }
+        .pricing-section p {
+          font-size: 0.85rem;
+        }
+        .pricing-section .grid div h3 {
+          font-size: 1.125rem;
+        }
+        .pricing-section .grid div p,
+        .pricing-section .grid div ul li {
+          font-size: 0.85rem;
         }
       }
     </style>
   </head>
   <body class="min-h-screen flex flex-col font-sans" style="background-color: #ffffff;">
-    <!-- Header -->
-    <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between">
-      <div class="sm:mt-[-6px]">
-        <a href="/" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
-          Synesthetica
-        </a>
-      </div>
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
-        <nav class="flex gap-3 flex-wrap justify-end">
-          <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            About us
-          </a>
-          <a href="/" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1" onclick="window.location.href='/'">
-            🎨 Start <span>Drawing</span>
-          </a>
-          <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            Pricing
-          </a>
-          <a href="/support" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
-            Help
-          </a>
-        </nav>
-        <div class="flex gap-3 flex-wrap justify-end">
-          <a href="/login" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-            🔒 Login with Microsoft
-          </a>
-          <a href="/signup" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-            📄 Sign Up with Microsoft
+    <main>
+      <!-- Header -->
+      <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between sticky top-0 z-[1000]">
+        <div class="sm:mt-[-6px] flex items-center">
+          <img src="/static/logo.png" alt="Synesthetica Logo" class="logo-img" />
+          <a href="/" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
+            Synesthetica
           </a>
         </div>
-      </div>
-    </header>
+        <button class="hamburger" onclick="toggleNav()">☰</button>
+        <div class="navigation flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
+          <nav class="flex gap-3 flex-wrap justify-end">
+            <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              About us
+            </a>
+            <a href="/" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1" onclick="toggleDrawingSection()">
+              🎨 Start <span>Drawing</span>
+            </a>
+            <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              Pricing
+            </a>
+            <a href="/support" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
+              Help
+            </a>
+          </nav>
+          <div class="flex gap-3 flex-wrap justify-end">
+            {% if user %}
+              <span class="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                Welcome, {{ user.name }}
+              </span>
+              <a href="/logout" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+                🔓 Logout
+              </a>
+            {% else %}
+              <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+                🔒 Login with Microsoft
+              </a>
+              <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
+                📄 Sign Up with Microsoft
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      </header>
 
-    <!-- Main Content -->
-    <section class="max-w-4xl mx-auto py-12 px-4">
-      <h2 class="text-3xl font-semibold mb-8 text-black">
-        Pricing Plans
-      </h2>
-      <p class="text-lg mb-12 text-black">
-        Choose a plan that suits your creative needs. As of October 22, 2025, 12:26 PM WAT, explore your options below:
-      </p>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white p-6 rounded-lg shadow-md text-center">
-          <h3 class="text-xl font-semibold mb-2 text-black">Free Tier</h3>
-          <p class="text-gray-600 mb-4">Perfect for getting started.</p>
-          <ul class="list-disc list-inside mb-4 text-black">
-            <li>5 submissions/day (guests)</li>
-            <li>10 submissions/day (logged-in)</li>
-            <li>All brush types</li>
-            <li>Basic support</li>
-          </ul>
-          <p class="text-green-600 font-bold">Free</p>
+      <!-- Main Content (unchanged) -->
+      <section class="pricing-section">
+        <h2 class="text-3xl font-semibold mb-8 text-black">
+          Pricing Plans
+        </h2>
+        <p class="text-lg mb-12 text-black">
+          Choose a plan that suits your creative needs. As of October 22, 2025, 12:26 PM WAT, explore your options below:
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <h3 class="text-xl font-semibold mb-2 text-black">Free Tier</h3>
+            <p class="text-gray-600 mb-4">Perfect for getting started.</p>
+            <ul class="list-disc list-inside mb-4 text-black">
+              <li>5 submissions/day (guests)</li>
+              <li>10 submissions/day (logged-in)</li>
+              <li>All brush types</li>
+              <li>Basic support</li>
+            </ul>
+            <p class="text-green-600 font-bold">Free</p>
+          </div>
+          <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <h3 class="text-xl font-semibold mb-2 text-black">Paid Tier</h3>
+            <p class="text-gray-600 mb-4">For unlimited creativity.</p>
+            <ul class="list-disc list-inside mb-4 text-black">
+              <li>10 free submissions/day</li>
+              <li>$0.01 per additional submission</li>
+              <li>Priority support</li>
+            </ul>
+            <a href="https://portal.azure.com/#create/1700007431.synesthetica" class="inline-block bg-blue-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-blue-700 transition duration-300">
+              Subscribe Now
+            </a>
+          </div>
         </div>
-        <div class="bg-white p-6 rounded-lg shadow-md text-center">
-          <h3 class="text-xl font-semibold mb-2 text-black">Paid Tier</h3>
-          <p class="text-gray-600 mb-4">For unlimited creativity.</p>
-          <ul class="list-disc list-inside mb-4 text-black">
-            <li>10 free submissions/day</li>
-            <li>$0.01 per additional submission</li>
-            <li>Priority support</li>
-          </ul>
-          <a href="https://portal.azure.com/#create/1700007431.synesthetica" class="inline-block bg-blue-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-blue-700 transition duration-300">
-            Subscribe Now
-          </a>
-        </div>
-      </div>
-    </section>
+      </section>
+    </main>
 
-    <!-- Footer -->
+    <!-- Footer (unchanged) -->
     <footer class="py-6 text-center">
       <p class="text-sm text-black">© 2025 Synesthetica. All rights reserved.</p>
       <p class="text-sm text-black">
@@ -127,4 +255,27 @@
         <a href="/support" class="text-blue-600 hover:text-blue-800">Support</a>
       </p>
     </footer>
+
+    <!-- JavaScript -->
+    <script>
+      // Toggle Navigation Menu for Mobile
+      function toggleNav() {
+        const navigation = document.querySelector(".navigation");
+        const hamburger = document.querySelector(".hamburger");
+        navigation.classList.toggle("active");
+        hamburger.textContent = navigation.classList.contains("active") ? "✕" : "☰";
+      }
+
+      // Placeholder for toggleDrawingSection (used in header link)
+      function toggleDrawingSection() {
+        window.location.href = "/"; // Redirect to homepage for drawing
+      }
+
+      // Bootstrap init
+      document.addEventListener("DOMContentLoaded", () => {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipTriggerList.forEach((el) => new bootstrap.Tooltip(el));
+      });
+    </script>
   </body>
+</html>
