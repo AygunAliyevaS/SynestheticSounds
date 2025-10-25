@@ -23,9 +23,11 @@
 
     <style>
       body {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
+            font-family: "Inter", Arial, sans-serif;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
       }
       main {
         flex: 1 0 auto;
@@ -413,13 +415,13 @@
           box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         header .navigation.active nav,
-        header .navigation.active .auth-section {
+        header .navigation.active div {
           display: flex;
           flex-direction: column;
         }
         header .navigation nav a,
-        header .navigation .auth-section a,
-        header .navigation .auth-section span {
+        header .navigation div a,
+        header .navigation div span {
           font-size: 14px;
           padding: 10px;
           text-align: left;
@@ -429,9 +431,14 @@
           border-bottom: 1px solid #eee;
         }
         header .navigation nav a:last-child,
-        header .navigation .auth-section a:last-child,
-        header .navigation .auth-section span:last-child {
+        header .navigation div a:last-child,
+        header .navigation div span:last-child {
           border-bottom: none;
+        }
+        header nav a,
+        header div a {
+          font-size: 12px;
+          padding: 6px 10px;
         }
         section {
           padding: 8px;
@@ -548,8 +555,8 @@
 
       @media (max-width: 480px) {
         header .navigation.active nav a,
-        header .navigation.active .auth-section a,
-        header .navigation.active .auth-section span {
+        header .navigation.active div a,
+        header .navigation.active div span {
           font-size: 12px;
           padding: 8px;
         }
@@ -607,7 +614,7 @@
       <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between sticky top-0 z-[1000]">
         <div class="sm:mt-[-6px] flex items-center">
           <img src="/static/logo.png" alt="Synesthetica Logo" class="logo-img" />
-          <a href="/" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
+          <a href="#" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">
             Synesthetica
           </a>
         </div>
@@ -627,7 +634,7 @@
               Help
             </a>
           </nav>
-          <div class="auth-section flex gap-3 flex-wrap justify-end">
+          <div class="flex gap-3 flex-wrap justify-end">
             {% if user %}
               <span class="text-sm font-semibold text-gray-800 flex items-center gap-2">
                 Welcome, {{ user.name }}
@@ -687,518 +694,674 @@
           Create Art That Sings
         </h2>
         <p class="text-lg mb-12 text-black text-center">
-          Synesthetica transforms your brush strokes into harmonious sounds. Draw with vibrant colors and hear your artwork come to life in real-time. Unleash your creativity and experience art like never before!
+          Synesthetica transforms your brush strokes into musical tones. Choose
+          from unique brush shapes, adjust sizes, and pick colors that generate
+          real-time piano-like
+          <span id="seeMoreLink" onclick="toggleBrushPreview()" role="button" aria-expanded="false" aria-controls="brushPreviewSection">see more</span>
         </p>
-      </section>
-
-      <!-- Drawing Application -->
-      <section id="drawing-app" class="mx-auto max-w-4xl px-4 hidden">
-        <div id="bb">
-          <div id="toolSections">
-            <div class="tool-box">
-              <label for="brushSelect">Brush:</label>
-              <select id="brushSelect">
-                <option value="round">Round</option>
-                <option value="spray">Spray</option>
-                <option value="star">Star</option>
-                <option value="cross">Cross</option>
-                <option value="square">Square</option>
-                <option value="triangle">Triangle</option>
-                <option value="sawtooth">Sawtooth</option>
-                <option value="line">Line</option>
-              </select>
-            </div>
-            <div class="tool-box">
-              <label for="brushSize">Size:</label>
-              <input type="range" id="brushSize" min="1" max="50" value="10" />
-            </div>
-            <div class="tool-box">
-              <label for="colorPicker">Color:</label>
-              <input type="color" id="colorPicker" value="#000000" />
-            </div>
-            <div id="colorButtons"></div>
-          </div>
-          <canvas id="drawingCanvas"></canvas>
-          <div id="actionButtons">
-            <button id="undoButton">Undo</button>
-            <button id="clearButton">Clear</button>
-            <button id="submitButton">Submit</button>
-          </div>
-          <div id="infoBox">
-            <span>ℹ️</span>
-            <div id="infoContent">
-              <p>Use the brush tools to draw on the canvas. Select a brush type, adjust the size, and pick a color. Each color corresponds to a musical note, creating a unique sound as you draw. Click "Submit" to generate an audio file from your artwork. Undo or clear the canvas as needed.</p>
-            </div>
-          </div>
-        </div>
       </section>
 
       <!-- Brush Preview Section -->
-      <section id="brushPreviewSection" class="max-w-4xl mx-auto px-4 hidden">
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <div class="brush-preview p-4 border border-gray-300 rounded-lg">
-            <h3 class="text-lg font-semibold">Spray Brush</h3>
-            <p class="text-sm">Creates a textured, misty effect with a soft, diffused sound.</p>
+      <section id="brushPreviewSection" class="max-w-4xl mx-auto px-4 pb-12 hidden">
+        <p class="text-lg mb-12 text-black text-center">
+          sounds. Experience creativity like never before!
+          <span id="seeLessLink" class="text-blue-600 cursor-pointer underline hover:text-blue-800 hidden" onclick="toggleBrushPreview()" role="button" aria-expanded="true" aria-controls="brushPreviewSection">see less</span>
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
+            <h3 class="text-xl font-semibold mb-2 text-black">Round Brush</h3>
+            <p class="text-sm text-black">Pure sine wave for a clean, smooth tone.</p>
           </div>
-          <div class="brush-preview p-4 border border-gray-300 rounded-lg">
-            <h3 class="text-lg font-semibold">Star Brush</h3>
-            <p class="text-sm">Draws star-shaped patterns with a twinkling, harmonic tone.</p>
+          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
+            <h3 class="text-xl font-semibold mb-2 text-black">Square Brush</h3>
+            <p class="text-sm text-black">Harsh, digital square wave sound.</p>
           </div>
-          <div class="brush-preview p-4 border border-gray-300 rounded-lg">
-            <h3 class="text-lg font-semibold">Cross Brush</h3>
-            <p class="text-sm">Produces cross shapes with a bold, rhythmic sound.</p>
+          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
+            <h3 class="text-xl font-semibold mb-2 text-black">Star Brush</h3>
+            <p class="text-sm text-black">Rich harmonics at twice the frequency.</p>
           </div>
-          <div class="brush-preview p-4 border border-gray-300 rounded-lg">
-            <h3 class="text-lg font-semibold">Square Brush</h3>
-            <p class="text-sm">Draws square patterns with a steady, pulsating tone.</p>
+          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
+            <h3 class="text-xl font-semibold mb-2 text-black">Triangle Brush</h3>
+            <p class="text-sm text-black">Soft, mellow triangle wave tone.</p>
           </div>
-          <div class="brush-preview p-4 border border-gray-300 rounded-lg">
-            <h3 class="text-lg font-semibold">Triangle Brush</h3>
-            <p class="text-sm">Creates triangular shapes with a sharp, clear note.</p>
+          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
+            <h3 class="text-xl font-semibold mb-2 text-black">Cross Brush</h3>
+            <p class="text-sm text-black">Detuned frequency for a beating effect.</p>
           </div>
-          <div class="brush-preview p-4 border border-gray-300 rounded-lg">
-            <h3 class="text-lg font-semibold">Sawtooth Brush</h3>
-            <p class="text-sm">Generates jagged lines with a rich, buzzy sound.</p>
+          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
+            <h3 class="text-xl font-semibold mb-2 text-black">Sawtooth Brush</h3>
+            <p class="text-sm text-black">Bright, buzzy sawtooth wave.</p>
+          </div>
+          <div class="brush-preview bg-white bg-opacity-10 p-6 rounded-lg text-center">
+            <h3 class="text-xl font-semibold mb-2 text-black">Spray Brush</h3>
+            <p class="text-sm text-black">Complex, textured rounded saw tone.</p>
           </div>
         </div>
-        <p class="text-center mt-4">
-          <span id="seeMoreLink" class="cursor-pointer">See More</span>
-          <span id="seeLessLink" class="cursor-pointer hidden">See Less</span>
-        </p>
       </section>
 
-      <!-- Modal for Audio Playback -->
-      <div class="modal fade" id="audioModal" tabindex="-1" aria-labelledby="audioModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="audioModalLabel">Your Artwork's Sound</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      <!-- Drawing App -->
+      <section id="drawing-app" class="max-w-5xl mx-auto p-4 mb-12">
+        <div id="bb">
+          <h1 class="text-2xl md:text-3xl font-bold text-center mb-4 text-black">
+            <img src="/static/logo2.png" alt="SynestheticSounds Logo" style="height: 50px; vertical-align: middle" />
+            Welcome to Synesthetic Sounds
+          </h1>
+
+          <!-- Toolbar -->
+          <div id="toolSections">
+            <div class="tool-box">
+              <button onclick="undo()">↩️ Undo</button>
+              <button onclick="redo()">↪️ Redo</button>
+              <button onclick="saveImage()">💾 Save</button>
+              <button onclick="clearCanvas()">🗑️ Clear</button>
             </div>
-            <div class="modal-body">
-              <audio id="audioPlayer" controls style="width: 100%;">
-                <source id="audioSource" src="" type="audio/wav" />
-                Your browser does not support the audio element.
-              </audio>
+            <div class="tool-box" title="Multiple Brush Shapes | Affects waveform harmonics">
+              <label title="Adjustable Brush Size (4px to 64px) controls amplitude">
+                Brush Size: <br />
+                <input type="range" id="brushSizeSlider" min="4" max="64" value="16" />
+              </label>
+              <label>
+                Brush Type: <br />
+                <select id="toolSelect" data-bs-toggle="tooltip" title="Select a waveform shape to affect how sound is blended.">
+                  <option value="line" title="Basic sawtooth wave">Line</option>
+                  <option value="square" title="Square wave with strong harmonics">Square</option>
+                  <option value="cross" title="Complex FM synthesis tones">Cross</option>
+                  <option value="round" title="Smooth sine wave tones">Round</option>
+                  <option value="star" title="Bell-like harmonic overtones">Star</option>
+                  <option value="spray" title="Noise-based texture sounds">Spray</option>
+                  <option value="triangle" title="Clean triangle wave">Triangle</option>
+                  <option value="sawtooth" title="Rich harmonic content">Sawtooth</option>
+                </select>
+              </label>
             </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-              <a id="downloadButton" href="#" class="btn btn-primary">Download</a>
+            <div class="tool-box">
+              <div id="colorButtons">
+                <div><button style="background-color: #80e000" onclick="setColor('#80E000')"></button><br /><span>C4</span></div>
+                <div><button style="background-color: #006073" onclick="setColor('#006073')"></button><br /><span>D4</span></div>
+                <div><button style="background-color: #7e00d9" onclick="setColor('#7e00d9')"></button><br /><span>E4</span></div>
+                <div><button style="background-color: #9f1aec" onclick="setColor('#9F1AEC')"></button><br /><span>F4</span></div>
+                <div><button style="background-color: #d91a80" onclick="setColor('#D91A80')"></button><br /><span>G4</span></div>
+                <div><button style="background-color: #f95700" onclick="setColor('#F95700')"></button><br /><span>A4</span></div>
+                <div><button style="background-color: #ffff33" onclick="setColor('#ffff33')"></button><br /><span>B4</span></div>
+                <div><button style="background-color: #3399cc" onclick="setColor('#3399CC')"></button><br /><span>C5</span></div>
+              </div>
+              Color Picker: <input type="color" id="colorPicker" value="#ff0000" data-bs-toggle="tooltip" title="Pick a color to assign a musical note." />
             </div>
+          </div>
+
+          <!-- Instructions and Info Button -->
+          <div style="font-size: 14px; padding: 10px">
+            <p style="text-align: center; font-weight: bold">
+              SynestheticSounds is a creative painting application that not only
+              lets you draw with various artistic brushes, but also generates
+              sound based on the colors and shapes you use. It's a unique way to
+              visualize and sonify your creativity.
+            </p>
+            <div id="infoBox">
+              <span>ℹ️</span>
+              <div id="infoContent">
+                <strong>🎨 How to Use This App</strong><br /><br />
+                <ul class="list-unstyled">
+                  <li><b>🎨 Color = Note & Frequency:</b> Each color corresponds to a specific musical note and its frequency. Try different hues to hear different pitches.</li>
+                  <li><b>🖌️ Brush Type = Blend:</b> The brush type controls how tones blend. Choose shapes like round, triangle, or sawtooth to alter the sound character.</li>
+                  <li><b>🖼️ Canvas Area = Sound Weight:</b> The more you paint with a specific color, the louder and more prominent that note becomes in the final mix.</li>
+                  <li><b>▶️ Submit Drawing:</b> Click this to generate and play back your audio composition based on your visual artwork.</li>
+                </ul>
+                <p class="mb-0 text-muted" style="font-size: 0.85em">
+                  Tip: Mix brush types and colors to compose rich soundscapes visually!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Canvas -->
+          <div id="canvasContainer">
+            <canvas id="canvas" width="1000" height="500"></canvas>
+          </div>
+          <div style="text-align: center">
+            <span style="position: relative; display: inline-flex; justify-content: center;">Time (sec)</span>
+          </div>
+
+          <!-- Action Buttons -->
+          <div id="actionButtons">
+            <button onclick="submitDrawing()" data-bs-toggle="tooltip" title="Click to generate sound from your drawing.">
+              🎼 Submit Drawing
+            </button>
+            <button onclick="downloadAudio()" data-bs-toggle="tooltip" title="Save your generated audio as a WAV file.">
+              🔊 Download Audio
+            </button>
+            <button id="subscribeButton" style="display: none;" onclick="subscribe()" data-bs-toggle="tooltip" title="Subscribe to continue using Synesthetica.">
+              💳 Subscribe
+            </button>
+          </div>
+
+          <br />
+          <audio id="player" controls></audio>
+        </div>
+      </section>
+    </main>
+
+    <!-- Onboarding Modal -->
+    <div class="modal fade" id="onboardingModal" tabindex="-1" aria-labelledby="onboardingLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 shadow-lg">
+          <div class="modal-header border-0">
+            <h5 class="modal-title" id="onboardingLabel">🎶 Welcome to SynestheticSounds</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <ol class="list-group list-group-numbered">
+              <li class="list-group-item"><strong>Pick a Color:</strong> Each color represents a musical note. Choose one from the palette.</li>
+              <li class="list-group-item"><strong>Select a Brush:</strong> Change how the sound blends using different waveforms (round, sawtooth, triangle).</li>
+              <li class="list-group-item"><strong>Start Drawing:</strong> The more color you add, the louder that note will sound.</li>
+              <li class="list-group-item"><strong>Submit Drawing:</strong> Click the play button to hear your artwork come alive!</li>
+            </ol>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-primary w-100" data-bs-dismiss="modal">Let's Get Started!</button>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Chat Interface -->
-      <button id="chatButton" onclick="toggleChat()">💬</button>
-      <div id="chatWindow">
-        <div id="chatHeader">
-          Synesthetica Support
-          <button id="chatClose" onclick="toggleChat()">✖</button>
-        </div>
-        <div id="chatMessages"></div>
-        <div id="chatInputContainer">
-          <input type="text" id="chatInput" placeholder="Type your message..." />
-          <button id="sendButton">Send</button>
-        </div>
+    <!-- Chat Window -->
+    <div id="chatWindow">
+      <div id="chatHeader">
+        <span>Synesthetica Support</span>
+        <button id="chatClose">×</button>
       </div>
-    </main>
+      <div id="chatMessages">
+        <!-- Chat messages will be added via JavaScript -->
+      </div>
+      <div id="chatInputContainer">
+        <input type="text" id="chatInput" placeholder="Type your question..." />
+        <button id="sendButton">Send</button>
+      </div>
+    </div>
+
+    <!-- Chat Icon Button -->
+    <button id="chatButton" onclick="toggleChat()" title="Customer Support">
+      💬
+    </button>
 
     <!-- Footer -->
-    <footer class="bg-white border-t border-gray-200 py-4 text-center">
-      <p class="text-sm text-gray-600">
-        &copy; 2025 Synesthetica. All rights reserved. | <a href="/privacy" class="text-blue-600 hover:underline">Privacy Policy</a> | <a href="/support" class="text-blue-600 hover:underline">Support</a>
+    <footer class="py-6 text-center">
+      <p class="text-sm text-black">© 2025 Synesthetica. All rights reserved.</p>
+      <p class="text-sm text-black">
+        <a href="/privacy" class="text-blue-600 hover:text-blue-800">Privacy Policy</a> |
+        <a href="/support" class="text-blue-600 hover:text-blue-800">Support</a>
       </p>
     </footer>
 
+    <!-- JavaScript -->
     <script>
-      // Toggle navigation for mobile
+      // Toggle Navigation Menu for Mobile
       function toggleNav() {
         const navigation = document.querySelector(".navigation");
         const hamburger = document.querySelector(".hamburger");
-        const isActive = navigation.classList.contains("active");
-        
         navigation.classList.toggle("active");
-        hamburger.textContent = isActive ? "☰" : "✕";
+        hamburger.textContent = navigation.classList.contains("active") ? "✕" : "☰";
       }
 
-      // Toggle drawing section
+      // Toggle Drawing Section
       function toggleDrawingSection() {
-        const drawingApp = document.getElementById("drawing-app");
-        const brushPreviewSection = document.getElementById("brushPreviewSection");
-        const createArtSection = document.getElementById("createArtSection");
+        const drawingSection = document.getElementById("drawing-app");
         const toast = new bootstrap.Toast(document.getElementById("drawingToast"));
-
-        drawingApp.classList.toggle("visible");
-        brushPreviewSection.classList.toggle("hidden");
-        createArtSection.classList.toggle("hidden");
-
-        if (drawingApp.classList.contains("visible")) {
+        const isHidden = !drawingSection.classList.contains("visible");
+        drawingSection.classList.toggle("visible");
+        if (isHidden) {
           toast.show();
         }
       }
 
-      // Canvas drawing logic
-      const canvas = document.getElementById("drawingCanvas");
+      // Toggle Brush Preview with Debounce and ARIA
+      let isToggling = false;
+      function toggleBrushPreview() {
+        if (isToggling) return;
+        isToggling = true;
+        
+        const brushPreviewSection = document.getElementById("brushPreviewSection");
+        const seeMoreLink = document.getElementById("seeMoreLink");
+        const seeLessLink = document.getElementById("seeLessLink");
+
+        // Debugging logs
+        console.log("toggleBrushPreview called");
+        console.log("brushPreviewSection:", brushPreviewSection);
+        console.log("seeMoreLink:", seeMoreLink);
+        console.log("seeLessLink:", seeLessLink);
+
+        if (!brushPreviewSection || !seeMoreLink || !seeLessLink) {
+          console.error("One or more elements not found!");
+          isToggling = false;
+          return;
+        }
+
+        const isHidden = brushPreviewSection.classList.contains("hidden");
+        brushPreviewSection.classList.toggle("hidden");
+        seeMoreLink.classList.toggle("hidden");
+        seeLessLink.classList.toggle("hidden");
+        seeMoreLink.setAttribute("aria-expanded", isHidden ? "true" : "false");
+        seeLessLink.setAttribute("aria-expanded", isHidden ? "true" : "false");
+
+        if (!brushPreviewSection.classList.contains("hidden")) {
+          brushPreviewSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        setTimeout(() => {
+          isToggling = false;
+        }, 300);
+      }
+
+      // Chat Functions
+      function toggleChat() {
+        const chatWindow = document.getElementById("chatWindow");
+        if (chatWindow.style.display === "flex") {
+          chatWindow.style.display = "none";
+        } else {
+          chatWindow.style.display = "flex";
+          scrollToBottom();
+        }
+      }
+
+      function addMessage(text, isUser = false) {
+        const messages = document.getElementById("chatMessages");
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message ${isUser ? "user-message" : "bot-message"}`;
+        
+        const textSpan = document.createElement("span");
+        textSpan.className = "message-text";
+        textSpan.textContent = text;
+        
+        const now = new Date();
+        const timeString = now.getHours().toString().padStart(2, "0") + ":" + now.getMinutes().toString().padStart(2, "0");
+        const timestampSpan = document.createElement("span");
+        timestampSpan.className = "timestamp";
+        timestampSpan.textContent = timeString;
+        
+        messageDiv.appendChild(textSpan);
+        messageDiv.appendChild(timestampSpan);
+        messages.appendChild(messageDiv);
+        scrollToBottom();
+      }
+
+      function scrollToBottom() {
+        const messages = document.getElementById("chatMessages");
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      function getBotResponse(question) {
+        const lowerQuestion = question.toLowerCase();
+        if (lowerQuestion.includes("hello") || lowerQuestion.includes("hi")) {
+          return "Hello! Welcome to Synesthetica Support. How can I assist you with drawing, sounds, subscriptions, or signing up today?";
+        } else if (lowerQuestion.includes("draw") || lowerQuestion.includes("start")) {
+          return "To start drawing, click 'Try Drawing' on the homepage or header. Select a brush, color, and paint on the canvas. The more you use a color, the louder its note in the sound!";
+        } else if (lowerQuestion.includes("submit") || lowerQuestion.includes("limit")) {
+          return "If you can't submit, you've likely hit the daily limit (5 for guests, 10 for logged-in users). Log in or sign up for more, or subscribe for unlimited. Ensure your drawing has colors!";
+        } else if (lowerQuestion.includes("subscribe")) {
+          return "Click the 'Pricing' link in the header or visit our pricing page to subscribe to the Basic Usage-Based plan and get unlimited submissions.";
+        } else if (lowerQuestion.includes("color") || lowerQuestion.includes("sound")) {
+          return "Colors represent musical notes: e.g., green is C4. Brush types affect sound texture (round for smooth, sawtooth for buzzy). Submit to hear your artwork!";
+        } else if (lowerQuestion.includes("login") || lowerQuestion.includes("microsoft")) {
+          return "Log in with Microsoft via the 'Login with Microsoft' link in the header. This unlocks more submissions and personalized features.";
+        } else if (lowerQuestion.includes("signup") || lowerQuestion.includes("sign up")) {
+          return "Sign up with Microsoft using the 'Sign Up with Microsoft' link in the header. You'll be prompted to create a Microsoft account if you don't have one, then get access to more submissions!";
+        } else if (lowerQuestion.includes("help") || lowerQuestion.includes("support")) {
+          return "I'm here for quick help! For advanced issues, email support@synesthetica.com or visit our Support page. What specific question do you have?";
+        } else {
+          return "That's an interesting question! For now, try asking about drawing, submitting, subscriptions, signing up, or colors. If you need more help, email support@synesthetica.com.";
+        }
+      }
+
+      document.getElementById("chatClose").addEventListener("click", toggleChat);
+      document.getElementById("sendButton").addEventListener("click", sendMessage);
+      document.getElementById("chatInput").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") {
+          sendMessage();
+        }
+      });
+
+      function sendMessage() {
+        const input = document.getElementById("chatInput");
+        const question = input.value.trim();
+        if (!question) return;
+
+        const messages = document.getElementById("chatMessages");
+        const isFirstMessage = messages.children.length === 0;
+
+        addMessage(question, true);
+        input.value = "";
+
+        addMessage("Typing...", false);
+        setTimeout(() => {
+          const lastMessage = document.querySelector("#chatMessages .message:last-child");
+          if (lastMessage && lastMessage.textContent.includes("Typing...")) {
+            lastMessage.remove();
+          }
+          
+          if (isFirstMessage) {
+            addMessage("Hello! I'm here to help with Synesthetica. Ask me anything about drawing, sounds, subscriptions, or signing up.", false);
+          }
+          const response = getBotResponse(question);
+          addMessage(response, false);
+        }, 1000);
+      }
+
+      // Canvas & Drawing Logic
+      const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
-      let isDrawing = false;
-      let lastX = 0;
-      let lastY = 0;
-      let history = [];
-      let currentColor = "#000000";
-      let brushType = "round";
-      let brushSize = 10;
+      const colorPicker = document.getElementById("colorPicker");
+      const toolSelect = document.getElementById("toolSelect");
+      const brushSizeSlider = document.getElementById("brushSizeSlider");
+      const colorButtons = document.querySelectorAll("#colorButtons button");
+
+      let drawing = false;
+      let hasMoved = false;
+      let currentColor = colorPicker.value;
+      let brushSize = parseInt(brushSizeSlider.value, 10);
+      let tool = toolSelect.value;
+      let undoStack = [];
+      let redoStack = [];
+      let subscribeUrl = "/pricing";
 
       function resizeCanvas() {
-        const parent = canvas.parentElement;
-        canvas.width = parent.clientWidth - 20;
-        canvas.height = Math.min(window.innerHeight * 0.5, 400);
-        redrawCanvas();
+        const width = Math.min(window.innerWidth - 20, 1000);
+        const height = Math.min(window.innerHeight * 0.5, 300);
+        canvas.width = width;
+        canvas.height = height;
+        if (undoStack.length > 0) {
+          restoreState(undoStack[undoStack.length - 1]);
+        } else {
+          saveState();
+        }
+        drawXAxisLabels();
       }
 
       window.addEventListener("resize", resizeCanvas);
-      resizeCanvas();
+      window.addEventListener("load", resizeCanvas);
 
-      function startDrawing(e) {
-        isDrawing = true;
-        const pos = getMousePos(canvas, e);
-        lastX = pos.x;
-        lastY = pos.y;
+      // Prevent pinch-to-zoom on mobile
+      document.addEventListener('gesturestart', (e) => {
+        e.preventDefault();
+      });
+
+      // Mouse Events
+      canvas.addEventListener("mousedown", (e) => {
+        drawing = true;
+        hasMoved = false;
         draw(e);
-      }
+      });
+      canvas.addEventListener("mouseup", () => {
+        drawing = false;
+        ctx.beginPath();
+        saveState();
+      });
+      canvas.addEventListener("mousemove", draw);
 
-      function stopDrawing() {
-        if (isDrawing) {
-          history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-        }
-        isDrawing = false;
+      // Touch Events
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        drawing = true;
+        hasMoved = false;
+        draw(e.touches[0]);
+      }, { passive: false });
+      canvas.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        draw(e.touches[0]);
+      }, { passive: false });
+      canvas.addEventListener("touchend", () => {
+        drawing = false;
+        ctx.beginPath();
+        saveState();
+      });
+
+      colorPicker.addEventListener("input", () => (currentColor = colorPicker.value));
+      brushSizeSlider.addEventListener("input", () => (brushSize = parseInt(brushSizeSlider.value, 10)));
+      toolSelect.addEventListener("change", () => (tool = toolSelect.value));
+      function setColor(color) {
+        currentColor = color;
+        colorPicker.value = color;
       }
 
       function draw(e) {
-        if (!isDrawing) return;
-        const pos = getMousePos(canvas, e);
-        ctx.beginPath();
-        ctx.lineCap = brushType === "round" || brushType === "line" ? "round" : "square";
-        ctx.lineJoin = "round";
-        ctx.strokeStyle = currentColor;
-        ctx.lineWidth = brushSize;
+        if (!drawing) return;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = ((e.clientX || e.touches[0].clientX) - rect.left) * scaleX;
+        const y = ((e.clientY || e.touches[0].clientY) - rect.top) * scaleY;
 
-        if (brushType === "spray") {
-          for (let i = 0; i < 10; i++) {
-            const offsetX = (Math.random() - 0.5) * brushSize;
-            const offsetY = (Math.random() - 0.5) * brushSize;
-            ctx.beginPath();
-            ctx.arc(pos.x + offsetX, pos.y + offsetY, brushSize / 10, 0, Math.PI * 2);
-            ctx.fillStyle = currentColor;
-            ctx.fill();
-          }
-        } else if (brushType === "star") {
-          drawStar(pos.x, pos.y, 5, brushSize, brushSize / 2);
-        } else if (brushType === "cross") {
-          ctx.moveTo(pos.x - brushSize, pos.y);
-          ctx.lineTo(pos.x + brushSize, pos.y);
-          ctx.moveTo(pos.x, pos.y - brushSize);
-          ctx.lineTo(pos.x, pos.y + brushSize);
-          ctx.stroke();
-        } else if (brushType === "square") {
-          ctx.beginPath();
-          ctx.rect(pos.x - brushSize / 2, pos.y - brushSize / 2, brushSize, brushSize);
-          ctx.fillStyle = currentColor;
-          ctx.fill();
-        } else if (brushType === "triangle") {
-          ctx.beginPath();
-          ctx.moveTo(pos.x, pos.y - brushSize);
-          ctx.lineTo(pos.x - brushSize, pos.y + brushSize / 2);
-          ctx.lineTo(pos.x + brushSize, pos.y + brushSize / 2);
-          ctx.closePath();
-          ctx.fillStyle = currentColor;
-          ctx.fill();
-        } else if (brushType === "sawtooth") {
-          ctx.beginPath();
-          ctx.moveTo(lastX, lastY);
-          ctx.lineTo(pos.x, pos.y);
-          ctx.stroke();
-          for (let i = -brushSize / 2; i < brushSize / 2; i += 2) {
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y + i);
-            ctx.lineTo(pos.x + brushSize / 2, pos.y + i + brushSize / 4);
-            ctx.stroke();
+        ctx.fillStyle = currentColor;
+        ctx.strokeStyle = currentColor;
+
+        if (tool === "spray") {
+          const sprayDensity = Math.max(brushSize, 10);
+          for (let i = 0; i < sprayDensity; i++) {
+            const offsetX = (Math.random() - 0.5) * brushSize * 2;
+            const offsetY = (Math.random() - 0.5) * brushSize * 2;
+            ctx.fillRect(x + offsetX, y + offsetY, 1, 1);
           }
         } else {
-          ctx.moveTo(lastX, lastY);
-          ctx.lineTo(pos.x, pos.y);
-          ctx.stroke();
+          switch (tool) {
+            case "square":
+              ctx.fillRect(x, y, brushSize, brushSize);
+              break;
+            case "line":
+              ctx.lineWidth = brushSize;
+              if (!hasMoved) {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                hasMoved = true;
+              } else {
+                ctx.lineTo(x, y);
+                ctx.stroke();
+              }
+              break;
+            case "round":
+              ctx.beginPath();
+              ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+              ctx.fill();
+              break;
+            case "star":
+              drawStar(x, y, 5, brushSize / 2, brushSize);
+              break;
+            case "cross":
+              drawCross(x, y, brushSize);
+              break;
+            case "triangle":
+              drawTriangle(x, y, brushSize);
+              break;
+            case "sawtooth":
+              drawSawtooth(x, y, brushSize);
+              break;
+          }
         }
-
-        lastX = pos.x;
-        lastY = pos.y;
-        playSound(pos.x, pos.y);
       }
 
-      function drawStar(cx, cy, spikes, outerRadius, innerRadius) {
-        let rot = Math.PI / 2 * 3;
-        let x = cx;
-        let y = cy;
-        const step = Math.PI / spikes;
+      function drawStar(cx, cy, spikes, innerRadius, outerRadius) {
+        let rot = (Math.PI / 2) * 3;
+        let step = Math.PI / spikes;
         ctx.beginPath();
         ctx.moveTo(cx, cy - outerRadius);
         for (let i = 0; i < spikes; i++) {
-          x = cx + Math.cos(rot) * outerRadius;
-          y = cy + Math.sin(rot) * outerRadius;
-          ctx.lineTo(x, y);
+          ctx.lineTo(cx + Math.cos(rot) * outerRadius, cy + Math.sin(rot) * outerRadius);
           rot += step;
-          x = cx + Math.cos(rot) * innerRadius;
-          y = cy + Math.sin(rot) * innerRadius;
-          ctx.lineTo(x, y);
+          ctx.lineTo(cx + Math.cos(rot) * innerRadius, cy + Math.sin(rot) * innerRadius);
           rot += step;
         }
         ctx.lineTo(cx, cy - outerRadius);
         ctx.closePath();
-        ctx.fillStyle = currentColor;
         ctx.fill();
       }
 
-      function getMousePos(canvas, evt) {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        let clientX, clientY;
-        if (evt.touches) {
-          clientX = evt.touches[0].clientX;
-          clientY = evt.touches[0].clientY;
-        } else {
-          clientX = evt.clientX;
-          clientY = evt.clientY;
+      function drawCross(x, y, size) {
+        ctx.beginPath();
+        ctx.moveTo(x - size / 2, y);
+        ctx.lineTo(x + size / 2, y);
+        ctx.moveTo(x, y - size / 2);
+        ctx.lineTo(x, y + size / 2);
+        ctx.stroke();
+      }
+
+      function drawTriangle(x, y, size) {
+        const height = (size * Math.sqrt(3)) / 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y - height / 2);
+        ctx.lineTo(x - size / 2, y + height / 2);
+        ctx.lineTo(x + size / 2, y + height / 2);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function drawSawtooth(x, y, size) {
+        const teeth = 4;
+        const width = size / 4;
+        const height = size / 4;
+        const toothWidth = width / teeth;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        for (let i = 0; i < teeth; i++) {
+          ctx.lineTo(x + i * toothWidth + toothWidth / 2, y - height);
+          ctx.lineTo(x + (i + 1) * toothWidth, y);
         }
-        return {
-          x: (clientX - rect.left) * scaleX,
-          y: (clientY - rect.top) * scaleY,
+        ctx.stroke();
+      }
+
+      function saveState() {
+        drawXAxisLabels();
+        undoStack.push(canvas.toDataURL());
+        if (undoStack.length > 50) undoStack.shift();
+        redoStack.length = 0;
+      }
+
+      function undo() {
+        if (undoStack.length > 1) {
+          redoStack.push(undoStack.pop());
+          restoreState(undoStack[undoStack.length - 1]);
+        }
+      }
+
+      function redo() {
+        if (redoStack.length > 0) {
+          const state = redoStack.pop();
+          restoreState(state);
+          undoStack.push(state);
+        }
+      }
+
+      function restoreState(stateURL) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
         };
+        img.src = stateURL;
       }
 
-      function redrawCanvas() {
-        if (history.length > 0) {
-          ctx.putImageData(history[history.length - 1], 0, 0);
-        }
+      function saveImage() {
+        const link = document.createElement("a");
+        link.download = "drawing.png";
+        link.href = canvas.toDataURL();
+        link.click();
       }
 
-      canvas.addEventListener("mousedown", startDrawing);
-      canvas.addEventListener("mousemove", draw);
-      canvas.addEventListener("mouseup", stopDrawing);
-      canvas.addEventListener("mouseout", stopDrawing);
-      canvas.addEventListener("touchstart", (e) => {
-        e.preventDefault();
-        startDrawing(e);
-      });
-      canvas.addEventListener("touchmove", (e) => {
-        e.preventDefault();
-        draw(e);
-      });
-      canvas.addEventListener("touchend", stopDrawing);
-
-      // Brush and color controls
-      document.getElementById("brushSelect").addEventListener("change", (e) => {
-        brushType = e.target.value;
-      });
-
-      document.getElementById("brushSize").addEventListener("input", (e) => {
-        brushSize = parseInt(e.target.value);
-      });
-
-      document.getElementById("colorPicker").addEventListener("change", (e) => {
-        currentColor = e.target.value;
-        updateColorButtons(currentColor);
-      });
-
-      function updateColorButtons(selectedColor) {
-        const colorButtons = document.getElementById("colorButtons");
-        colorButtons.innerHTML = "";
-        const colors = [
-          "#FF0000",
-          "#00FF00",
-          "#0000FF",
-          "#FFFF00",
-          "#FF00FF",
-          "#00FFFF",
-          "#000000",
-          "#FFFFFF",
-        ];
-        colors.forEach((color) => {
-          const button = document.createElement("button");
-          button.style.backgroundColor = color;
-          button.addEventListener("click", () => {
-            currentColor = color;
-            document.getElementById("colorPicker").value = color;
-            playSound(0, 0);
-          });
-          if (color === selectedColor) {
-            button.style.border = "2px solid #000";
-          }
-          colorButtons.appendChild(button);
-        });
-      }
-
-      updateColorButtons(currentColor);
-
-      // Undo and clear canvas
-      document.getElementById("undoButton").addEventListener("click", () => {
-        history.pop();
+      function clearCanvas() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        redrawCanvas();
-      });
-
-      document.getElementById("clearButton").addEventListener("click", () => {
-        history = [];
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      });
-
-      // Submit drawing
-      document.getElementById("submitButton").addEventListener("click", () => {
-        const dataURL = canvas.toDataURL("image/png");
-        const data = {
-          image: dataURL,
-          brush: brushType,
-        };
-        fetch("/submit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        })
-          .then((response) => response.json())
-          .then((data) => {
-            if (data.error) {
-              const toastId = data.subscribe ? "subscribeToast" : "limitToast";
-              const toast = new bootstrap.Toast(document.getElementById(toastId));
-              toast.show();
-            } else {
-              const audioModal = new bootstrap.Modal(document.getElementById("audioModal"));
-              document.getElementById("audioSource").src = data.url;
-              document.getElementById("audioPlayer").load();
-              document.getElementById("downloadButton").href = data.url;
-              audioModal.show();
-            }
-          })
-          .catch((error) => {
-            console.error("Error submitting drawing:", error);
-          });
-      });
-
-      // Sound generation
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-      function playSound(x, y) {
-        if (!isDrawing) return;
-        const hex = currentColor.replace("#", "");
-        const r = parseInt(hex.substring(0, 2), 16);
-        const g = parseInt(hex.substring(2, 4), 16);
-        const b = parseInt(hex.substring(4, 6), 16);
-        let frequency;
-        // Map colors to frequencies (simplified)
-        const hsv = rgbToHsv(r, g, b);
-        const hue = hsv[0] * 360;
-        const noteIndex = Math.floor((hue % 360) / 30);
-        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        const note = noteNames[noteIndex];
-        const octave = Math.floor(3 + hsv[2] * 3);
-        const midiNote = 12 + octave * 12 + noteNames.indexOf(note);
-        frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
-
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        oscillator.type = brushType === "square" ? "square" : brushType === "sawtooth" ? "sawtooth" : brushType === "triangle" ? "triangle" : "sine";
-        oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.5);
+        saveState();
+        drawXAxisLabels();
       }
 
-      function rgbToHsv(r, g, b) {
-        r /= 255;
-        g /= 255;
-        b /= 255;
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        let h, s, v = max;
-        const d = max - min;
-        s = max === 0 ? 0 : d / max;
-        if (max === min) {
-          h = 0;
-        } else {
-          if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
-          else if (max === g) h = (b - r) / d + 2;
-          else h = (r - g) / d + 4;
-          h /= 6;
-        }
-        return [h, s, v];
-      }
-
-      // Chat functionality
-      function toggleChat() {
-        const chatWindow = document.getElementById("chatWindow");
-        chatWindow.style.display = chatWindow.style.display === "none" ? "flex" : "none";
-      }
-
-      document.getElementById("sendButton").addEventListener("click", sendMessage);
-      document.getElementById("chatInput").addEventListener("keypress", (e) => {
-        if (e.key === "Enter") sendMessage();
-      });
-
-      function sendMessage() {
-        const chatInput = document.getElementById("chatInput");
-        const messageText = chatInput.value.trim();
-        if (!messageText) return;
-        const chatMessages = document.getElementById("chatMessages");
-        const userMessage = document.createElement("div");
-        userMessage.className = "message user-message";
-        userMessage.innerHTML = `<span>${messageText}</span><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
-        chatMessages.appendChild(userMessage);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-
-        const typingIndicator = document.createElement("div");
-        typingIndicator.className = "message bot-message typing-indicator";
-        typingIndicator.textContent = "Synesthetica is typing...";
-        chatMessages.appendChild(typingIndicator);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-
-        setTimeout(() => {
-          chatMessages.removeChild(typingIndicator);
-          const botMessage = document.createElement("div");
-          botMessage.className = "message bot-message";
-          botMessage.innerHTML = `<span>Thanks for your message! For further assistance, please visit our <a href="/support" class="text-blue-600">Support page</a>.</span><span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
-          chatMessages.appendChild(botMessage);
-          chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 1000);
-
-        chatInput.value = "";
-      }
-
-      // Initialize toast links
-      document.getElementById("subscribeLink").addEventListener("click", () => {
+      function subscribe() {
         window.location.href = "/pricing";
-      });
+      }
 
-      // See More/Less functionality
-      document.getElementById("seeMoreLink").addEventListener("click", () => {
-        document.getElementById("seeMoreLink").classList.add("hidden");
-        document.getElementById("seeLessLink").classList.remove("hidden");
-        document.querySelectorAll(".brush-preview:nth-child(n+4)").forEach((el) => el.classList.remove("hidden"));
-      });
+      async function submitDrawing() {
+        if (undoStack.length <= 1) {
+          alert("Please draw something before submitting!");
+          return;
+        }
+        const dataURL = canvas.toDataURL("image/png");
+        const brush = document.getElementById("toolSelect").value;
+        try {
+          const res = await fetch("/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: dataURL, brush: brush }),
+          });
+          const data = await res.json();
+          if (data.error) {
+            if (data.error.includes("submission limit")) {
+              if (data.subscribe) {
+                subscribeUrl = "/pricing";
+                document.getElementById("subscribeButton").style.display = "block";
+                document.getElementById("subscribeLink").href = subscribeUrl;
+                const toast = new bootstrap.Toast(document.getElementById("subscribeToast"));
+                toast.show();
+              } else {
+                const toast = new bootstrap.Toast(document.getElementById("limitToast"));
+                toast.show();
+              }
+            } else {
+              alert(data.error);
+            }
+            return;
+          }
+          const player = document.getElementById("player");
+          player.src = data.url + "?t=" + new Date().getTime();
+          player.play();
+        } catch (error) {
+          console.error("Error submitting drawing:", error);
+          alert("Failed to generate audio. Please try again or check your drawing.");
+        }
+      }
 
-      document.getElementById("seeLessLink").addEventListener("click", () => {
-        document.getElementById("seeMoreLink").classList.remove("hidden");
-        document.getElementById("seeLessLink").classList.add("hidden");
-        document.querySelectorAll(".brush-preview:nth-child(n+4)").forEach((el) => el.classList.add("hidden"));
-      });
+      function downloadAudio() {
+        const player = document.getElementById("player");
+        if (!player.src) {
+          alert("No audio available! Please submit a drawing first.");
+          return;
+        }
+        const link = document.createElement("a");
+        link.href = player.src;
+        link.download = "drawing_sound.wav";
+        link.click();
+      }
 
-      // Show welcome message if present
-      {% if show_welcome %}
-        const welcomeToast = new bootstrap.Toast(document.getElementById("drawingToast"));
-        document.querySelector("#drawingToast .toast-body").textContent = "Welcome back! Start creating your artwork.";
-        welcomeToast.show();
-      {% endif %}
+      function drawXAxisLabels() {
+        const totalSeconds = 60;
+        const interval = 5;
+        const numberOfLabels = totalSeconds / interval + 1;
+        const labelY = canvas.height - 5;
+        const spacing = canvas.width / (numberOfLabels - 1);
+        ctx.save();
+        ctx.font = "12px Arial";
+        ctx.fillStyle = "#333";
+        ctx.textAlign = "center";
+        for (let i = 0; i < numberOfLabels; i++) {
+          const x = i * spacing;
+          const label = (i * interval).toFixed(1);
+          ctx.fillText(label, x, labelY);
+          ctx.beginPath();
+          ctx.moveTo(x, labelY - 5);
+          ctx.lineTo(x, labelY - 15);
+          ctx.strokeStyle = "#888";
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // Initial state
+      saveState();
+
+      // Bootstrap init
+      document.addEventListener("DOMContentLoaded", () => {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipTriggerList.forEach((el) => new bootstrap.Tooltip(el));
+        const modal = new bootstrap.Modal(document.getElementById("onboardingModal"));
+        if (!sessionStorage.getItem("onboardingSeen")) {
+          modal.show();
+          sessionStorage.setItem("onboardingSeen", "true");
+        }
+      });
     </script>
   </body>
 </html>
