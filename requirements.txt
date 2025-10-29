@@ -8,7 +8,8 @@ python-dotenv
 flask-session
 redis
 pyodbc
-sendgrid
+uuid
+
 
 
 
