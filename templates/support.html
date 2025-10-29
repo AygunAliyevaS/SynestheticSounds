@@ -2,8 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Synesthetica - Support</title>
 
     <!-- Tailwind CDN -->
@@ -104,7 +103,7 @@
         <h2 class="text-3xl font-semibold mb-8 text-black">Get Help</h2>
         <p class="text-lg mb-12 text-black">Need assistance? Submit a ticket or explore our resources.</p>
 
-        <!-- ---------- CONTACT FORM (Category, Email, Message) ---------- -->
+        <!-- ---------- CONTACT FORM ---------- -->
         <div class="bg-white p-6 rounded-lg shadow-md mb-6">
           <h3 class="text-xl font-semibold mb-4 text-black">Submit a Support Ticket</h3>
           <form id="supportForm" class="space-y-4">
@@ -119,7 +118,7 @@
               </select>
             </div>
 
-            <!-- 2. Email (Required) -->
+            <!-- 2. Email -->
             <div>
               <label for="user_email" class="block text-sm font-medium text-black">Your Email <span class="text-red-500">*</span></label>
               <input type="email" id="user_email" required class="mt-1 block w-full p-2 border rounded-md"
@@ -139,17 +138,16 @@
             </button>
           </form>
 
-          <!-- Result -->
           <div id="formResult" class="mt-4"></div>
         </div>
 
-        <!-- ---------- CHAT PREVIEW (after submit) ---------- -->
+        <!-- ---------- CHAT PREVIEW ---------- -->
         <div id="chatContainer" class="bg-white p-6 rounded-lg shadow-md mb-6 hidden">
           <h3 class="text-xl font-semibold mb-4 text-black">Your Message (Saved)</h3>
           <div id="chatBox" class="chat-box"></div>
         </div>
 
-        <!-- ---------- CONTACT INFO (with Gmail) ---------- -->
+        <!-- ---------- CONTACT INFO ---------- -->
         <div class="bg-white p-6 rounded-lg shadow-md">
           <h3 class="text-xl font-semibold mb-4 text-black">Contact Us</h3>
           <ul class="list-disc list-inside text-black space-y-2">
@@ -178,7 +176,6 @@
 
     <!-- ==================== JAVASCRIPT ==================== -->
     <script>
-      // Mobile menu
       function toggleNav() {
         const nav = document.querySelector('.navigation');
         const btn = document.querySelector('.hamburger');
@@ -188,14 +185,12 @@
 
       function toggleDrawingSection() { window.location.href = '/'; }
 
-      // Escape HTML
       function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
       }
 
-      // Render chat
       function renderChat(chat) {
         const box = document.getElementById('chatBox');
         box.innerHTML = '';
@@ -211,7 +206,6 @@
         });
       }
 
-      // Form submit
       document.getElementById('supportForm').addEventListener('submit', async e => {
         e.preventDefault();
         const result = document.getElementById('formResult');
@@ -223,7 +217,6 @@
           user_message: document.getElementById('user_message').value.trim()
         };
 
-        // Validate all required
         if (!payload.category || !payload.user_email || !payload.user_message) {
           result.innerHTML = `<div class="text-red-600">Please fill all required fields.</div>`;
           return;
@@ -251,10 +244,10 @@
             chatContainer.classList.remove('hidden');
             document.getElementById('supportForm').reset();
           } else {
-            result.innerHTML = `<div class="text-red-600">${data.error || 'Failed to submit.'}</div>`;
+            result.innerHTML = `<div class="text-red-600">${data.error}</div>`;
           }
         } catch (err) {
-          result.innerHTML = `<div class="text-red-600">Network error. Try again.</div>`;
+          result.innerHTML = `<div class="text-red-600">Network error.</div>`;
         }
       });
     </script>
