@@ -610,35 +610,7 @@ def list_tickets():
         cur.close()
         conn.close()
 
-@app.route("/api/support/<ticket_uuid>/reply", methods=['POST'])
-def add_reply(ticket_uuid):
-    # Only allow admin (add auth later)
-    data = request.get_json()
-    reply = data.get('reply')
-    if not reply:
-        return jsonify({"error": "reply required"}), 400
 
-    conn = get_db_connection()
-    try:
-        cur = conn.cursor()
-        now = datetime.utcnow().isoformat() + "Z"
-        new_message = {"time": now, "user": None, "assistant": reply}
-
-        # Append to existing JSON array
-        sql = """
-            UPDATE SupportTickets
-            SET messages = JSON_MODIFY(messages, 'append $.', ?)
-            WHERE ticket_uuid = ?
-        """
-        cur.execute(sql, (json.dumps(new_message), ticket_uuid))
-        conn.commit()
-        return jsonify({"message": "Reply added"}), 200
-    except Exception as e:
-        logger.error(f"Error: {e}")
-        return jsonify({"error": "Failed"}), 500
-    finally:
-        cur.close()
-        conn.close()
 
 @app.route("/support/<short_id>")
 def chat_page(short_id):
@@ -895,4 +867,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
