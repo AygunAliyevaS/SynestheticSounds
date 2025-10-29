@@ -650,6 +650,30 @@ def chat_page(short_id):
         cur.close()
         conn.close()
 
+def short_to_uuid(short: str) -> str | None:
+    """
+    Convert 8-char short_id (e.g. '44051652') back to full UUID.
+    Uses the computed column: LEFT(REPLACE(CAST(ticket_uuid AS varchar(36)), '-', ''), 8)
+    """
+    conn = get_db_connection()
+    if not conn:
+        return None
+    try:
+        cur = conn.cursor()
+        # Remove hyphens and take first 8 chars of UUID
+        cur.execute(
+            "SELECT ticket_uuid FROM SupportTickets WHERE LEFT(REPLACE(CAST(ticket_uuid AS varchar(36)), '-', ''), 8) = ?",
+            (short.upper(),)
+        )
+        row = cur.fetchone()
+        return str(row[0]) if row else None
+    except Exception as e:
+        logger.error(f"Error in short_to_uuid: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
 @app.route("/api/support/<short_id>/reply", methods=['POST'])
 def add_reply(short_id):
     # ------------------------------------------------------------------
@@ -868,6 +892,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
