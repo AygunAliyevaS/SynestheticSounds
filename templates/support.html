@@ -59,7 +59,6 @@
         vertical-align: middle;
         margin-right: 6px;
       }
-      /* Hamburger Menu Icon */
       .hamburger {
         display: none;
         font-size: 24px;
@@ -69,13 +68,11 @@
         cursor: pointer;
         padding: 8px;
       }
-      /* Support Section Styles (retained from original) */
       .support-section {
         max-width: 4xl;
         margin: 0 auto;
         padding: 2rem 1rem;
       }
-      /* Mobile-Specific Styles */
       @media (max-width: 768px) {
         header {
           flex-direction: row;
@@ -187,14 +184,14 @@
             Synesthetica
           </a>
         </div>
-        <button class="hamburger" onclick="toggleNav()">☰</button>
+        <button class="hamburger" onclick="toggleNav()">Menu</button>
         <div class="navigation flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
           <nav class="flex gap-3 flex-wrap justify-end">
             <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
               About us
             </a>
             <a href="/" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1" onclick="toggleDrawingSection()">
-              🎨 Start <span>Drawing</span>
+              Start <span>Drawing</span>
             </a>
             <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">
               Pricing
@@ -209,21 +206,21 @@
                 Welcome, {{ user.name }}
               </span>
               <a href="/logout" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-                🔓 Logout
+                Logout
               </a>
             {% else %}
               <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-                🔒 Login with Microsoft
+                Login with Microsoft
               </a>
               <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">
-                📄 Sign Up with Microsoft
+                Sign Up with Microsoft
               </a>
             {% endif %}
           </div>
         </div>
       </header>
 
-      <!-- Main Content (unchanged) -->
+      <!-- Main Content -->
       <section class="support-section">
         <h2 class="text-3xl font-semibold mb-8 text-black">
           Get Help
@@ -256,7 +253,7 @@
               Submit Ticket
             </button>
           </form>
-          <div id="formResult" class="mt-4 text-black"></div>
+          <div id="formResult" class="mt-4"></div>
         </div>
 
         <!-- Support Resources -->
@@ -270,7 +267,7 @@
       </section>
     </main>
 
-    <!-- Footer (unchanged) -->
+    <!-- Footer -->
     <footer class="py-6 text-center">
       <p class="text-sm text-black">© 2025 Synesthetica. All rights reserved.</p>
       <p class="text-sm text-black">
@@ -281,20 +278,19 @@
 
     <!-- JavaScript -->
     <script>
-      // Toggle Navigation Menu for Mobile
+      // Toggle Mobile Menu
       function toggleNav() {
         const navigation = document.querySelector(".navigation");
         const hamburger = document.querySelector(".hamburger");
         navigation.classList.toggle("active");
-        hamburger.textContent = navigation.classList.contains("active") ? "✕" : "☰";
+        hamburger.textContent = navigation.classList.contains("active") ? "Close" : "Menu";
       }
 
-      // Placeholder for toggleDrawingSection (used in header link)
       function toggleDrawingSection() {
-        window.location.href = "/"; // Redirect to homepage for drawing
+        window.location.href = "/";
       }
 
-      // Support Form Submission (unchanged)
+      // Support Form Submission
       document.getElementById('supportForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formResult = document.getElementById('formResult');
@@ -304,7 +300,8 @@
           category: document.getElementById('category').value
         };
 
-        formResult.innerText = 'Submitting...';
+        formResult.innerHTML = '<p class="text-blue-600">Submitting...</p>';
+
         try {
           const response = await fetch('/api/support', {
             method: 'POST',
@@ -312,19 +309,38 @@
             body: JSON.stringify(formData)
           });
           const data = await response.json();
+
           if (response.ok) {
-            formResult.innerText = `Ticket created successfully! Ticket ID: ${data.ticket_id}`;
+            formResult.innerHTML = `
+              <div class="text-green-600 font-semibold">
+                ${data.message || 'Ticket created successfully!'}
+              </div>
+              <div class="text-sm text-gray-600 mt-2">
+                <strong>Ticket ID:</strong> 
+                <code class="bg-gray-100 px-2 py-1 rounded font-mono text-blue-700">
+                  ${data.ticket_uuid}
+                </code>
+              </div>
+            `;
             document.getElementById('supportForm').reset();
           } else {
-            formResult.innerText = data.error || 'Failed to submit ticket.';
+            formResult.innerHTML = `
+              <div class="text-red-600">
+                ${data.error || 'Failed to submit ticket. Please try again.'}
+              </div>
+            `;
           }
         } catch (error) {
-          formResult.innerText = 'An error occurred. Please try again.';
-          console.error('Error:', error);
+          formResult.innerHTML = `
+            <div class="text-red-600">
+              Network error. Please check your connection and try again.
+            </div>
+          `;
+          console.error('Submission error:', error);
         }
       });
 
-      // Bootstrap init
+      // Bootstrap Tooltips
       document.addEventListener("DOMContentLoaded", () => {
         const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
         tooltipTriggerList.forEach((el) => new bootstrap.Tooltip(el));
