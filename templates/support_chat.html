@@ -1,0 +1,83 @@
+{% extends "base.html" %}   <!-- optional, if you have a base -->
+{% block title %}Support – {{ short_id }}{% endblock %}
+
+{% block content %}
+<header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between sticky top-0 z-[1000]">
+    <!-- same header as support.html (logo, nav, login/logout) -->
+    … (copy-paste from support.html) …
+</header>
+
+<main class="support-section">
+    <h2 class="text-3xl font-semibold mb-4">Ticket #{{ short_id }}</h2>
+    <p class="mb-2"><strong>Category:</strong> {{ category }} | <strong>Status:</strong> {{ status }}</p>
+
+    <!-- Chat bubbles -->
+    <div id="chatBox" class="chat-box mb-6">
+        {% for msg in chat %}
+            {% if msg.user %}
+                <div class="msg msg-user">
+                    <div class="msg-bubble">{{ msg.user | safe }}</div>
+                    <div class="msg-time">{{ msg.time }}</div>
+                </div>
+            {% else %}
+                <div class="msg msg-admin">
+                    <div class="msg-bubble">{{ msg.assistant | safe }}</div>
+                    <div class="msg-time">{{ msg.time }}</div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Reply form -->
+    <form id="replyForm" class="space-y-4">
+        <textarea id="replyText" class="mt-1 block w-full p-2 border rounded-md" rows="4"
+                  placeholder="Type your message…"></textarea>
+        <button type="submit"
+                class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full hover:bg-blue-700">
+            Send
+        </button>
+    </form>
+    <div id="replyResult" class="mt-2"></div>
+</main>
+
+<script>
+function escapeHtml(t){const d=document.createElement("div");d.textContent=t;return d.innerHTML}
+
+async function sendReply(){
+    const txt = document.getElementById('replyText').value.trim();
+    if(!txt) return;
+    const res = await fetch("/api/support/{{ short_id }}/reply",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({reply:txt})
+    });
+    const data = await res.json();
+    const resultDiv = document.getElementById('replyResult');
+    if(res.ok){
+        resultDiv.innerHTML = '<p class="text-green-600">Sent!</p>';
+        addBubble(txt, true);
+        document.getElementById('replyText').value='';
+    }else{
+        resultDiv.innerHTML = `<p class="text-red-600">${data.error||'Failed'}</p>`;
+    }
+}
+function addBubble(text, isUser){
+    const box = document.getElementById('chatBox');
+    const time = new Date().toLocaleString();
+    const bubble = `
+        <div class="msg ${isUser?'msg-user':'msg-admin'}">
+            <div class="msg-bubble">${escapeHtml(text)}</div>
+            <div class="msg-time">${time}</div>
+        </div>`;
+    box.insertAdjacentHTML('beforeend', bubble);
+    box.scrollTop = box.scrollHeight;
+}
+document.getElementById('replyForm').addEventListener('submit', e=>{
+    e.preventDefault(); sendReply();
+});
+</script>
+
+<style>
+.msg-admin .msg-bubble{background:#e5e7eb;color:#1f2937;}
+</style>
+{% endblock %}
