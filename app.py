@@ -525,7 +525,7 @@ def support():
 
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
-    logger.info("Creating support ticket")
+    logger.info("Creating support ticket with chat history")
     data = request.get_json()
     if not data:
         return jsonify({"error": "No data"}), 400
@@ -539,7 +539,6 @@ def create_ticket():
         return jsonify({"error": "title, description, category required"}), 400
 
     user_email = session.get('user', {}).get('email')
-
     conn = get_db_connection()
     if not conn:
         return jsonify({"error": "DB unavailable"}), 500
@@ -547,23 +546,36 @@ def create_ticket():
     try:
         cur = conn.cursor()
         ticket_uuid = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat() + "Z"
+
+        # Initial message from user
+        initial_message = {
+            "time": now,
+            "user": description,
+            "assistant": None  # Will be filled later by admin
+        }
+
+        # Store as JSON string
+        import json
+        messages_json = json.dumps([initial_message])
 
         sql = """
             INSERT INTO SupportTickets 
-                (ticket_uuid, user_email, title, description, category, attachment, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'Open', GETDATE())
+                (ticket_uuid, user_email, title, description, category, attachment, status, created_at, messages)
+            VALUES (?, ?, ?, ?, ?, ?, 'Open', GETDATE(), ?)
         """
-        cur.execute(sql, (ticket_uuid, user_email, title, description, category, attachment))
+        cur.execute(sql, (ticket_uuid, user_email, title, description, category, attachment, messages_json))
         conn.commit()
 
-        logger.info(f"Ticket created: {ticket_uuid}")
+        logger.info(f"Ticket created: {ticket_uuid} with initial message")
 
         return jsonify({
             "ticket_uuid": ticket_uuid,
-            "message": f"We have received your ticket (UUID: {ticket_uuid}). Our team will get back to you shortly."
+            "message": f"We have received your ticket (UUID: {ticket_uuid}). Our team will get back to you shortly.",
+            "chat": [initial_message]
         }), 201
 
-    except pyodbc.Error as e:
+    except Exception as e:
         logger.error(f"DB error: {e}")
         return jsonify({"error": "Failed to create ticket"}), 500
     finally:
@@ -582,52 +594,58 @@ def list_tickets():
 
     try:
         cur = conn.cursor()
-        sql = "SELECT ticket_uuid, title, category, status, created_at FROM SupportTickets WHERE user_email = ? ORDER BY created_at DESC"
+        sql = """
+            SELECT ticket_uuid, title, category, status, created_at, messages 
+            FROM SupportTickets 
+            WHERE user_email = ? 
+            ORDER BY created_at DESC
+        """
         cur.execute(sql, (user_email,))
-        tickets = [
-            {
-                "ticket_uuid": r.ticket_uuid,
-                "title": r.title,
-                "category": r.category,
-                "status": r.status,
-                "created_at": r.created_at.isoformat()
-            } for r in cur.fetchall()
-        ]
+        tickets = []
+        import json
+        for row in cur.fetchall():
+            messages = json.loads(row.messages) if row.messages else []
+            tickets.append({
+                "ticket_uuid": row.ticket_uuid,
+                "title": row.title,
+                "category": row.category,
+                "status": row.status,
+                "created_at": row.created_at.isoformat(),
+                "messages": messages  # Full chat history
+            })
         return jsonify({"tickets": tickets}), 200
-    except pyodbc.Error as e:
+    except Exception as e:
         logger.error(f"DB error: {e}")
         return jsonify({"error": "Failed to fetch tickets"}), 500
     finally:
         cur.close()
         conn.close()
 
-@app.route("/api/support/<ticket_uuid>", methods=['GET'])
-def get_ticket(ticket_uuid):
-    user_email = session.get('user', {}).get('email')
-    if not user_email:
-        return jsonify({"error": "Login required"}), 401
+@app.route("/api/support/<ticket_uuid>/reply", methods=['POST'])
+def add_reply(ticket_uuid):
+    # Only allow admin (add auth later)
+    data = request.get_json()
+    reply = data.get('reply')
+    if not reply:
+        return jsonify({"error": "reply required"}), 400
 
     conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "DB error"}), 500
-
     try:
         cur = conn.cursor()
-        sql = "SELECT * FROM SupportTickets WHERE ticket_uuid = ? AND user_email = ?"
-        cur.execute(sql, (ticket_uuid, user_email))
-        row = cur.fetchone()
-        if not row:
-            return jsonify({"error": "Not found"}), 404
-        return jsonify({
-            "ticket_uuid": row.ticket_uuid,
-            "title": row.title,
-            "description": row.description,
-            "category": row.category,
-            "status": row.status,
-            "created_at": row.created_at.isoformat()
-        }), 200
-    except pyodbc.Error as e:
-        logger.error(f"DB error: {e}")
+        now = datetime.utcnow().isoformat() + "Z"
+        new_message = {"time": now, "user": None, "assistant": reply}
+
+        # Append to existing JSON array
+        sql = """
+            UPDATE SupportTickets
+            SET messages = JSON_MODIFY(messages, 'append $.', ?)
+            WHERE ticket_uuid = ?
+        """
+        cur.execute(sql, (json.dumps(new_message), ticket_uuid))
+        conn.commit()
+        return jsonify({"message": "Reply added"}), 200
+    except Exception as e:
+        logger.error(f"Error: {e}")
         return jsonify({"error": "Failed"}), 500
     finally:
         cur.close()
@@ -809,5 +827,6 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
