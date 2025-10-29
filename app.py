@@ -17,7 +17,8 @@ from datetime import datetime
 import pyodbc
 import uuid
 import json
-
+import string
+import random
 
 # Load environment variables
 load_dotenv()
@@ -558,10 +559,18 @@ def create_ticket():
         cur.execute(sql, (ticket_uuid, user_email, category, messages_json))
         conn.commit()
 
+        # ------------------------------------------------------------------
+        # Get the short id that the DB just computed
+        # ------------------------------------------------------------------
+        cur.execute("SELECT short_id FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
+        short_id = cur.fetchone()[0]
+
         return jsonify({
             "ticket_uuid": ticket_uuid,
+            "short_id": short_id,
             "message": "We have received your ticket. Our team will reply soon.",
-            "chat": messages
+            "chat": messages,
+            "chat_url": url_for('chat_page', short_id=short_id, _external=True)
         }), 201
 
     except Exception as e:
@@ -627,6 +636,85 @@ def add_reply(ticket_uuid):
         return jsonify({"message": "Reply added"}), 200
     except Exception as e:
         logger.error(f"Error: {e}")
+        return jsonify({"error": "Failed"}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route("/support/<short_id>")
+def chat_page(short_id):
+    user = session.get('user')
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        return render_template("error.html", error="Ticket not found"), 404
+
+    conn = get_db_connection()
+    if not conn:
+        return render_template("error.html", error="DB error"), 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
+            (ticket_uuid,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return render_template("error.html", error="Ticket not found"), 404
+
+        chat = json.loads(row.messages) if row.messages else []
+
+        return render_template(
+            "support_chat.html",
+            user=user,
+            ticket_uuid=row.ticket_uuid,
+            short_id=short_id,
+            category=row.category,
+            status=row.status,
+            chat=chat,
+            is_admin=False                     # change later if you add admin auth
+        )
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route("/api/support/<short_id>/reply", methods=['POST'])
+def add_reply(short_id):
+    # ------------------------------------------------------------------
+    # For demo: anyone can reply.  In production add admin check.
+    # ------------------------------------------------------------------
+    data = request.get_json()
+    reply = data.get('reply')
+    if not reply:
+        return jsonify({"error": "reply required"}), 400
+
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        return jsonify({"error": "Ticket not found"}), 404
+
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        now = datetime.utcnow().isoformat() + "Z"
+
+        # Determine who is sending the message
+        sender_is_user = 'user' in session
+        new_message = {
+            "time": now,
+            "user": reply if sender_is_user else None,
+            "assistant": reply if not sender_is_user else None
+        }
+
+        sql = """
+            UPDATE SupportTickets
+            SET messages = JSON_MODIFY(messages, 'append $.', ?)
+            WHERE ticket_uuid = ?
+        """
+        cur.execute(sql, (json.dumps(new_message), ticket_uuid))
+        conn.commit()
+        return jsonify({"message": "Reply added"}), 200
+    except Exception as e:
+        logger.error(f"Error adding reply: {e}")
         return jsonify({"error": "Failed"}), 500
     finally:
         cur.close()
@@ -808,8 +896,3 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
-
-
-
-
-
