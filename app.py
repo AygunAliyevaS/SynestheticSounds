@@ -16,7 +16,6 @@ from flask_session import Session
 from datetime import datetime
 import pyodbc
 import uuid
-import json
 import string
 import random
 
@@ -896,3 +895,4 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
