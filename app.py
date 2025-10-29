@@ -16,6 +16,8 @@ from flask_session import Session
 from datetime import datetime
 import pyodbc
 import uuid
+import json
+
 
 # Load environment variables
 load_dotenv()
@@ -525,59 +527,49 @@ def support():
 
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
-    logger.info("Creating support ticket with chat history")
     data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data"}), 400
+    if not data: return jsonify({"error": "No data"}), 400
 
     title = data.get('title')
-    description = data.get('description')
     category = data.get('category')
+    user_message = data.get('user_message')  # from form
     attachment = data.get('attachment')
 
-    if not all([title, description, category]):
-        return jsonify({"error": "title, description, category required"}), 400
+    if not all([title, category, user_message]):
+        return jsonify({"error": "title, category, user_message required"}), 400
 
     user_email = session.get('user', {}).get('email')
     conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "DB unavailable"}), 500
+    if not conn: return jsonify({"error": "DB error"}), 500
 
     try:
         cur = conn.cursor()
         ticket_uuid = str(uuid.uuid4())
         now = datetime.utcnow().isoformat() + "Z"
 
-        # Initial message from user
-        initial_message = {
-            "time": now,
-            "user": description,
-            "assistant": None  # Will be filled later by admin
-        }
-
-        # Store as JSON string
-        import json
-        messages_json = json.dumps([initial_message])
+        # First message: user only
+        messages = [
+            {"time": now, "user": user_message, "assistant": None}
+        ]
+        messages_json = json.dumps(messages)
 
         sql = """
             INSERT INTO SupportTickets 
-                (ticket_uuid, user_email, title, description, category, attachment, status, created_at, messages)
-            VALUES (?, ?, ?, ?, ?, ?, 'Open', GETDATE(), ?)
+                (ticket_uuid, user_email, title, category, attachment, status, created_at, messages)
+            VALUES (?, ?, ?, ?, ?, 'Open', GETDATE(), ?)
         """
-        cur.execute(sql, (ticket_uuid, user_email, title, description, category, attachment, messages_json))
+        cur.execute(sql, (ticket_uuid, user_email, title, category, attachment, messages_json))
         conn.commit()
-
-        logger.info(f"Ticket created: {ticket_uuid} with initial message")
 
         return jsonify({
             "ticket_uuid": ticket_uuid,
-            "message": f"We have received your ticket (UUID: {ticket_uuid}). Our team will get back to you shortly.",
-            "chat": [initial_message]
+            "message": f"Ticket created! ID: {ticket_uuid}",
+            "chat": messages
         }), 201
 
     except Exception as e:
-        logger.error(f"DB error: {e}")
-        return jsonify({"error": "Failed to create ticket"}), 500
+        logger.error(f"Error: {e}")
+        return jsonify({"error": "Failed"}), 500
     finally:
         cur.close()
         conn.close()
@@ -585,38 +577,30 @@ def create_ticket():
 @app.route("/api/support", methods=['GET'])
 def list_tickets():
     user_email = session.get('user', {}).get('email')
-    if not user_email:
-        return jsonify({"error": "Login required"}), 401
+    if not user_email: return jsonify({"error": "Login required"}), 401
 
     conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "DB error"}), 500
+    if not conn: return jsonify({"error": "DB error"}), 500
 
     try:
         cur = conn.cursor()
-        sql = """
-            SELECT ticket_uuid, title, category, status, created_at, messages 
-            FROM SupportTickets 
-            WHERE user_email = ? 
-            ORDER BY created_at DESC
-        """
+        sql = "SELECT ticket_uuid, title, category, status, created_at, messages FROM SupportTickets WHERE user_email = ? ORDER BY created_at DESC"
         cur.execute(sql, (user_email,))
         tickets = []
-        import json
         for row in cur.fetchall():
-            messages = json.loads(row.messages) if row.messages else []
+            chat = json.loads(row.messages) if row.messages else []
             tickets.append({
                 "ticket_uuid": row.ticket_uuid,
                 "title": row.title,
                 "category": row.category,
                 "status": row.status,
                 "created_at": row.created_at.isoformat(),
-                "messages": messages  # Full chat history
+                "chat": chat  # Full conversation
             })
         return jsonify({"tickets": tickets}), 200
     except Exception as e:
-        logger.error(f"DB error: {e}")
-        return jsonify({"error": "Failed to fetch tickets"}), 500
+        logger.error(f"Error: {e}")
+        return jsonify({"error": "Failed"}), 500
     finally:
         cur.close()
         conn.close()
@@ -827,6 +811,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
