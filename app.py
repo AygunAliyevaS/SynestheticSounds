@@ -15,8 +15,7 @@ import requests
 from flask_session import Session
 from datetime import datetime
 import pyodbc
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+import uuid
 
 # Load environment variables
 load_dotenv()
@@ -51,8 +50,6 @@ app.config['DB_USER'] = os.getenv('DB_USER')
 app.config['DB_PASSWORD'] = os.getenv('DB_PASSWORD')
 app.config['DB_DRIVER'] = os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')
 
-# SendGrid Configuration
-SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 
 # Subscription and Billing Configuration
 FREE_SUBMISSION_LIMIT = 10
@@ -286,24 +283,6 @@ def generate_tone(frequencies, brush, duration=DURATION_PER_STEP):
 
     return waveform
 
-# SendGrid email notification
-def send_support_email(ticket_id, title, user_email):
-    if not SENDGRID_API_KEY:
-        logger.warning("SendGrid API key not configured, skipping email")
-        return
-
-    message = Mail(
-        from_email='support@synesthetica.com',
-        to_emails='admin@synesthetica.com',
-        subject=f'New Support Ticket #{ticket_id}: {title}',
-        html_content=f'<strong>New support ticket created</strong><br>Ticket ID: {ticket_id}<br>Title: {title}<br>User: {user_email or "Guest"}'
-    )
-    try:
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
-        response = sg.send(message)
-        logger.info(f"Support email sent for ticket #{ticket_id}, status: {response.status_code}")
-    except Exception as e:
-        logger.error(f"Failed to send support email for ticket #{ticket_id}: {str(e)}")
 
 # Azure Marketplace Metered Billing
 def report_metered_usage(subscription_id, quantity):
@@ -537,6 +516,15 @@ def privacy():
     user = session.get('user')
     return render_template("privacy.html", user=user)
 
+@app.after_request
+def after_request(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
+
 @app.route("/support")
 def support():
     logger.info("Rendering Support page")
@@ -545,11 +533,10 @@ def support():
 
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
-    logger.info("Creating new support ticket")
+    logger.info("Creating support ticket")
     data = request.get_json()
     if not data:
-        logger.error("No JSON payload provided")
-        return jsonify({"error": "No payload provided"}), 400
+        return jsonify({"error": "No data"}), 400
 
     title = data.get('title')
     description = data.get('description')
@@ -557,81 +544,102 @@ def create_ticket():
     attachment = data.get('attachment')
 
     if not all([title, description, category]):
-        logger.error("Missing required fields in ticket payload")
-        return jsonify({"error": "Missing required fields: title, description, category"}), 400
+        return jsonify({"error": "title, description, category required"}), 400
 
-    user_id = session.get('user', {}).get('email') or None
+    user_email = session.get('user', {}).get('email')
 
-    connection = get_db_connection()
-    if not connection:
-        logger.error("Database connection failed")
-        return jsonify({"error": "Database connection failed"}), 500
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB unavailable"}), 500
 
     try:
-        cursor = connection.cursor()
-        insert_query = """
-            INSERT INTO SupportTickets (user_id, title, description, category, attachment, status, priority, created_at, updated_at)
-            OUTPUT INSERTED.ticket_id
-            VALUES (?, ?, ?, ?, ?, 'Open', 'Normal', GETDATE(), GETDATE())
-        """
-        cursor.execute(insert_query, (user_id, title, description, category, attachment))
-        ticket_id = cursor.fetchone()[0]
-        connection.commit()
-        logger.info(f"Ticket #{ticket_id} created for user {user_id or 'Guest'}")
+        cur = conn.cursor()
+        ticket_uuid = str(uuid.uuid4())
 
-        send_support_email(ticket_id, title, user_id)
-        return jsonify({"message": "Ticket created successfully", "ticket_id": ticket_id}), 201
+        sql = """
+            INSERT INTO SupportTickets 
+                (ticket_uuid, user_email, title, description, category, attachment, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'Open', GETDATE())
+        """
+        cur.execute(sql, (ticket_uuid, user_email, title, description, category, attachment))
+        conn.commit()
+
+        logger.info(f"Ticket created: {ticket_uuid}")
+
+        return jsonify({
+            "ticket_uuid": ticket_uuid,
+            "message": f"We have received your ticket (UUID: {ticket_uuid}). Our team will get back to you shortly."
+        }), 201
+
     except pyodbc.Error as e:
-        logger.error(f"Database error creating ticket: {str(e)}")
+        logger.error(f"DB error: {e}")
         return jsonify({"error": "Failed to create ticket"}), 500
     finally:
-        cursor.close()
-        connection.close()
-        logger.info("Database connection closed")
+        cur.close()
+        conn.close()
 
-@app.route('/api/support', methods=['GET'])
-def get_tickets():
-    logger.info("Retrieving support tickets")
-    user_id = session.get('user', {}).get('email') or None
-    if not user_id:
-        logger.warning("Unauthenticated user attempted to retrieve tickets")
-        return jsonify({"error": "Authentication required to view tickets"}), 403
+@app.route("/api/support", methods=['GET'])
+def list_tickets():
+    user_email = session.get('user', {}).get('email')
+    if not user_email:
+        return jsonify({"error": "Login required"}), 401
 
-    connection = get_db_connection()
-    if not connection:
-        logger.error("Database connection failed")
-        return jsonify({"error": "Database connection failed"}), 500
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB error"}), 500
 
     try:
-        cursor = connection.cursor()
-        query = """
-            SELECT ticket_id, title, description, category, status, priority, created_at, updated_at
-            FROM SupportTickets
-            WHERE user_id = ?
-            ORDER BY created_at DESC
-        """
-        cursor.execute(query, (user_id,))
-        tickets = []
-        for row in cursor.fetchall():
-            tickets.append({
-                "ticket_id": row.ticket_id,
-                "title": row.title,
-                "description": row.description,
-                "category": row.category,
-                "status": row.status,
-                "priority": row.priority,
-                "created_at": row.created_at.isoformat(),
-                "updated_at": row.updated_at.isoformat() if row.updated_at else None
-            })
-        logger.info(f"Retrieved {len(tickets)} tickets for user {user_id}")
-        return jsonify({"tickets": tickets})
+        cur = conn.cursor()
+        sql = "SELECT ticket_uuid, title, category, status, created_at FROM SupportTickets WHERE user_email = ? ORDER BY created_at DESC"
+        cur.execute(sql, (user_email,))
+        tickets = [
+            {
+                "ticket_uuid": r.ticket_uuid,
+                "title": r.title,
+                "category": r.category,
+                "status": r.status,
+                "created_at": r.created_at.isoformat()
+            } for r in cur.fetchall()
+        ]
+        return jsonify({"tickets": tickets}), 200
     except pyodbc.Error as e:
-        logger.error(f"Database error retrieving tickets: {str(e)}")
-        return jsonify({"error": "Failed to retrieve tickets"}), 500
+        logger.error(f"DB error: {e}")
+        return jsonify({"error": "Failed to fetch tickets"}), 500
     finally:
-        cursor.close()
-        connection.close()
-        logger.info("Database connection closed")
+        cur.close()
+        conn.close()
+
+@app.route("/api/support/<ticket_uuid>", methods=['GET'])
+def get_ticket(ticket_uuid):
+    user_email = session.get('user', {}).get('email')
+    if not user_email:
+        return jsonify({"error": "Login required"}), 401
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB error"}), 500
+
+    try:
+        cur = conn.cursor()
+        sql = "SELECT * FROM SupportTickets WHERE ticket_uuid = ? AND user_email = ?"
+        cur.execute(sql, (ticket_uuid, user_email))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        return jsonify({
+            "ticket_uuid": row.ticket_uuid,
+            "title": row.title,
+            "description": row.description,
+            "category": row.category,
+            "status": row.status,
+            "created_at": row.created_at.isoformat()
+        }), 200
+    except pyodbc.Error as e:
+        logger.error(f"DB error: {e}")
+        return jsonify({"error": "Failed"}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route("/submit", methods=['POST'])
 def submit():
@@ -809,4 +817,3 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
-
