@@ -528,48 +528,45 @@ def support():
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
     data = request.get_json()
-    if not data: return jsonify({"error": "No data"}), 400
+    if not data:
+        return jsonify({"error": "No data"}), 400
 
-    title = data.get('title')
     category = data.get('category')
-    user_message = data.get('user_message')  # from form
-    attachment = data.get('attachment')
+    user_email = data.get('user_email')
+    user_message = data.get('user_message')
 
-    if not all([title, category, user_message]):
-        return jsonify({"error": "title, category, user_message required"}), 400
+    if not all([category, user_email, user_message]):
+        return jsonify({"error": "category, user_email, user_message required"}), 400
 
-    user_email = session.get('user', {}).get('email')
     conn = get_db_connection()
-    if not conn: return jsonify({"error": "DB error"}), 500
+    if not conn:
+        return jsonify({"error": "DB error"}), 500
 
     try:
         cur = conn.cursor()
         ticket_uuid = str(uuid.uuid4())
         now = datetime.utcnow().isoformat() + "Z"
 
-        # First message: user only
-        messages = [
-            {"time": now, "user": user_message, "assistant": None}
-        ]
+        messages = [{"time": now, "user": user_message, "assistant": None}]
         messages_json = json.dumps(messages)
 
         sql = """
             INSERT INTO SupportTickets 
-                (ticket_uuid, user_email, title, category, attachment, status, created_at, messages)
-            VALUES (?, ?, ?, ?, ?, 'Open', GETDATE(), ?)
+                (ticket_uuid, user_email, category, messages, status, created_at)
+            VALUES (?, ?, ?, ?, 'Open', GETDATE())
         """
-        cur.execute(sql, (ticket_uuid, user_email, title, category, attachment, messages_json))
+        cur.execute(sql, (ticket_uuid, user_email, category, messages_json))
         conn.commit()
 
         return jsonify({
             "ticket_uuid": ticket_uuid,
-            "message": f"Ticket created! ID: {ticket_uuid}",
+            "message": "We have received your ticket. Our team will reply soon.",
             "chat": messages
         }), 201
 
     except Exception as e:
         logger.error(f"Error: {e}")
-        return jsonify({"error": "Failed"}), 500
+        return jsonify({"error": "Failed to create ticket"}), 500
     finally:
         cur.close()
         conn.close()
@@ -811,6 +808,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
