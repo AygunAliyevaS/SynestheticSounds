@@ -104,13 +104,13 @@
         <h2 class="text-3xl font-semibold mb-8 text-black">Get Help</h2>
         <p class="text-lg mb-12 text-black">Need assistance? Submit a ticket or explore our resources.</p>
 
-        <!-- ---------- CONTACT FORM (Category First) ---------- -->
+        <!-- ---------- CONTACT FORM (Category, Email, Message) ---------- -->
         <div class="bg-white p-6 rounded-lg shadow-md mb-6">
           <h3 class="text-xl font-semibold mb-4 text-black">Submit a Support Ticket</h3>
           <form id="supportForm" class="space-y-4">
-            <!-- Category at the top -->
+            <!-- 1. Category (Top) -->
             <div>
-              <label for="category" class="block text-sm font-medium text-black">Category</label>
+              <label for="category" class="block text-sm font-medium text-black">Category <span class="text-red-500">*</span></label>
               <select id="category" required class="mt-1 block w-full p-2 border rounded-md">
                 <option value="">Select a category</option>
                 <option value="technical">Technical Issue</option>
@@ -119,9 +119,16 @@
               </select>
             </div>
 
-            <!-- User message -->
+            <!-- 2. Email (Required) -->
             <div>
-              <label for="user_message" class="block text-sm font-medium text-black">Your Message</label>
+              <label for="user_email" class="block text-sm font-medium text-black">Your Email <span class="text-red-500">*</span></label>
+              <input type="email" id="user_email" required class="mt-1 block w-full p-2 border rounded-md"
+                     placeholder="you@example.com">
+            </div>
+
+            <!-- 3. Message -->
+            <div>
+              <label for="user_message" class="block text-sm font-medium text-black">Your Message <span class="text-red-500">*</span></label>
               <textarea id="user_message" required class="mt-1 block w-full p-2 border rounded-md" rows="6"
                         placeholder="Describe your issue in detail..."></textarea>
             </div>
@@ -142,7 +149,7 @@
           <div id="chatBox" class="chat-box"></div>
         </div>
 
-        <!-- ---------- RESOURCES (with Gmail) ---------- -->
+        <!-- ---------- CONTACT INFO (with Gmail) ---------- -->
         <div class="bg-white p-6 rounded-lg shadow-md">
           <h3 class="text-xl font-semibold mb-4 text-black">Contact Us</h3>
           <ul class="list-disc list-inside text-black space-y-2">
@@ -212,11 +219,13 @@
 
         const payload = {
           category: document.getElementById('category').value,
+          user_email: document.getElementById('user_email').value.trim(),
           user_message: document.getElementById('user_message').value.trim()
         };
 
-        if (!payload.category || !payload.user_message) {
-          result.innerHTML = `<div class="text-red-600">Please fill all fields.</div>`;
+        // Validate all required
+        if (!payload.category || !payload.user_email || !payload.user_message) {
+          result.innerHTML = `<div class="text-red-600">Please fill all required fields.</div>`;
           return;
         }
 
@@ -242,10 +251,10 @@
             chatContainer.classList.remove('hidden');
             document.getElementById('supportForm').reset();
           } else {
-            result.innerHTML = `<div class="text-red-600">${data.error}</div>`;
+            result.innerHTML = `<div class="text-red-600">${data.error || 'Failed to submit.'}</div>`;
           }
         } catch (err) {
-          result.innerHTML = `<div class="text-red-600">Network error.</div>`;
+          result.innerHTML = `<div class="text-red-600">Network error. Try again.</div>`;
         }
       });
     </script>
