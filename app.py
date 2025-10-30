@@ -745,43 +745,53 @@ def list_tickets():
 
 
 @app.route("/support/<short_id>")
-def chat_page(short_id):
-    user = session.get('user')
+def support_chat(short_id):
     ticket_uuid = short_to_uuid(short_id)
-    
-    if not ticket_uuid or not short_id:
-        return render_template("error.html", error="Invalid ticket"), 404
+    if not ticket_uuid:
+        return "Ticket not found", 404
 
     conn = get_db_connection()
-    if not conn:
-        return render_template("error.html", error="Database error"), 500
+    cur = conn.cursor()
+    cur.execute("SELECT messages, category, status, user_email FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
+    row = cur.fetchone()
+    if not row:
+        return "Ticket not found", 404
 
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
-            (ticket_uuid,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return render_template("error.html", error="Ticket not found"), 404
+    messages, category, status, user_email = row
+    chat = json.loads(messages) if messages else []
 
-        chat = json.loads(row[4]) if row[4] else []  # row[4] = messages
+    # AUTO-WELCOME: Only if user has sent 1 message and no admin reply yet
+    if len(chat) == 1 and chat[0].get("user") and not any(m.get("assistant") for m in chat):
+        welcome_msg = {
+            "time": datetime.utcnow().isoformat() + "Z",
+            "user": None,
+            "assistant": "Hi! Thanks for reaching out. We've received your message and our team will assist you shortly."
+        }
+        chat.append(welcome_msg)
 
-        return render_template(
-            "support_chat.html",
-            user=user,
+        # Save to DB
+        sql = "UPDATE SupportTickets SET messages = JSON_MODIFY(messages, 'append $.', ?) WHERE ticket_uuid = ?"
+        cur.execute(sql, (json.dumps(welcome_msg), ticket_uuid))
+        conn.commit()
+
+        # SEND EMAIL TO USER (optional, but recommended)
+        send_reply_email(
+            user_email=user_email,
             short_id=short_id,
-            category=row[2] or "Unknown",
-            status=row[3] or "Open",
-            chat=chat
+            category=category,
+            reply_message=welcome_msg["assistant"]
         )
-    except Exception as e:
-        logger.error(f"Error in chat_page: {e}")
-        return render_template("error.html", error="Server error"), 500
-    finally:
-        cur.close()
-        conn.close()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "support_chat.html",
+        short_id=short_id,
+        chat=chat,
+        category=category,
+        status=status
+    )
 
 def short_to_uuid(short: str) -> str | None:
     if not short or len(short) != 8:
@@ -1022,6 +1032,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
