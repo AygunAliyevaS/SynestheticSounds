@@ -742,126 +742,62 @@ def list_tickets():
         cur.close()
         conn.close()
 
-
-
-# --------------------------------------------------------------
-# 1. Helper: short_id → ticket_uuid
-# --------------------------------------------------------------
-def short_to_uuid(short: str) -> str | None:
-    """
-    Look up the full ticket_uuid from the 8-character short_id.
-    We store `short_id` in the table, so a simple SELECT is enough.
-    """
-    if not short or len(short) != 8:
-        return None
+@app.route("/support/<short_id>")
+def chat_page(short_id):
+    user = session.get('user')
+    ticket_uuid = short_to_uuid(short_id)
+    
+    if not ticket_uuid or not short_id:
+        return render_template("error.html", error="Invalid ticket"), 404
 
     conn = get_db_connection()
     if not conn:
-        logger.error("short_to_uuid: DB connection failed")
-        return None
+        return render_template("error.html", error="Database error"), 500
 
     try:
         cur = conn.cursor()
         cur.execute(
-            "SELECT ticket_uuid FROM SupportTickets WHERE short_id = ?",
-            (short.upper(),)
-        )
-        row = cur.fetchone()
-        return str(row[0]) if row else None
-    except pyodbc.Error as e:
-        logger.error(f"short_to_uuid DB error: {e}")
-        return None
-    finally:
-        cur.close()
-        conn.close()
-
-
-# --------------------------------------------------------------
-# 2. Chat page – auto-welcome works on SQL Server
-# --------------------------------------------------------------
-@app.route("/support/<short_id>")
-def support_chat(short_id):
-    ticket_uuid = short_to_uuid(short_id)
-    if not ticket_uuid:
-        return "Ticket not found", 404
-
-    conn = get_db_connection()
-    if not conn:
-        return "Server error – DB unavailable", 500
-
-    cur = conn.cursor()
-    try:
-        # ------------------------------------------------------------------
-        # 1. Load ticket
-        # ------------------------------------------------------------------
-        cur.execute(
-            "SELECT messages, category, status, user_email "
-            "FROM SupportTickets WHERE ticket_uuid = ?",
+            "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
             (ticket_uuid,)
         )
         row = cur.fetchone()
         if not row:
-            return "Ticket not found", 404
+            return render_template("error.html", error="Ticket not found"), 404
 
-        messages_json, category, status, user_email = row
-        chat = json.loads(messages_json) if messages_json else []
+        chat = json.loads(row[4]) if row[4] else []  # row[4] = messages
 
-        # ------------------------------------------------------------------
-        # 2. AUTO-WELCOME (only once)
-        # ------------------------------------------------------------------
-        if (len(chat) == 1
-                and chat[0].get("user")
-                and not any(m.get("assistant") for m in chat)):
-
-            welcome_msg = {
-                "time": datetime.utcnow().isoformat() + "Z",
-                "user": None,
-                "assistant": (
-                    "Hi! Thanks for reaching out. "
-                    "We've received your message and our team will assist you shortly."
-                )
-            }
-            chat.append(welcome_msg)
-
-            # ---- Update the JSON column (SQL Server) ----
-            # JSON_MODIFY can only append a *JSON fragment*, not a Python dict.
-            # We build a tiny JSON string: {"time":"...", "assistant":"..."}
-            welcome_json_fragment = json.dumps(welcome_msg, ensure_ascii=False)
-
-            cur.execute(
-                """UPDATE SupportTickets
-                   SET messages = JSON_MODIFY(messages, 'append $', JSON_QUERY(?))
-                   WHERE ticket_uuid = ?""",
-                (welcome_json_fragment, ticket_uuid)
-            )
-            conn.commit()
-
-            # ---- Send reply email (optional) ----
-            send_reply_email(
-                user_email=user_email,
-                short_id=short_id,
-                category=category,
-                reply_message=welcome_msg["assistant"]
-            )
-
-        # ------------------------------------------------------------------
-        # 3. Render chat page
-        # ------------------------------------------------------------------
         return render_template(
             "support_chat.html",
+            user=user,
             short_id=short_id,
-            chat=chat,
-            category=category,
-            status=status
+            category=row[2] or "Unknown",
+            status=row[3] or "Open",
+            chat=chat
         )
-
-    except pyodbc.Error as e:
-        logger.error(f"support_chat DB error: {e}")
-        conn.rollback()
-        return "Database error", 500
     except Exception as e:
-        logger.error(f"support_chat unexpected error: {e}")
-        return "Server error", 500
+        logger.error(f"Error in chat_page: {e}")
+        return render_template("error.html", error="Server error"), 500
+    finally:
+        cur.close()
+        conn.close()
+
+def short_to_uuid(short: str) -> str | None:
+    if not short or len(short) != 8:
+        return None
+    conn = get_db_connection()
+    if not conn:
+        return None
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT ticket_uuid FROM SupportTickets WHERE LEFT(REPLACE(CAST(ticket_uuid AS varchar(36)), '-', ''), 8) = ?",
+            (short.upper(),)
+        )
+        row = cur.fetchone()
+        return str(row[0]) if row else None
+    except Exception as e:
+        logger.error(f"Error in short_to_uuid: {e}")
+        return None
     finally:
         cur.close()
         conn.close()
@@ -1084,5 +1020,6 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
