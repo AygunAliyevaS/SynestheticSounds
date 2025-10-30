@@ -1,81 +1,157 @@
+{% extends "base.html" %}   {# keep your header/footer – you already have base.html #}
+
+{% block title %}Support – {{ short_id }}{% endblock %}
 
 {% block content %}
-<header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between sticky top-0 z-[1000]">
-    <!-- same header as support.html (logo, nav, login/logout) -->
-    … (copy-paste from support.html) …
-</header>
 
-<main class="support-section">
-    <h2 class="text-3xl font-semibold mb-4">Ticket #{{ short_id }}</h2>
-    <p class="mb-2"><strong>Category:</strong> {{ category }} | <strong>Status:</strong> {{ status }}</p>
+<!-- ────────────────────────  WhatsApp-style Chat  ──────────────────────── -->
+<div class="flex flex-col h-screen bg-gray-100">
 
-    <!-- Chat bubbles -->
-    <div id="chatBox" class="chat-box mb-6">
-        {% for msg in chat %}
-            {% if msg.user %}
-                <div class="msg msg-user">
-                    <div class="msg-bubble">{{ msg.user | safe }}</div>
-                    <div class="msg-time">{{ msg.time }}</div>
-                </div>
-            {% else %}
-                <div class="msg msg-admin">
-                    <div class="msg-bubble">{{ msg.assistant | safe }}</div>
-                    <div class="msg-time">{{ msg.time }}</div>
-                </div>
-            {% endif %}
-        {% endfor %}
+  <!-- ───── Header (same as support.html) ───── -->
+  <header class="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+    <div class="flex items-center space-x-3">
+      <a href="/support" class="text-gray-600 hover:text-gray-800">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      </a>
+      <div class="flex items-center space-x-2">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-green-500 flex items-center justify-center text-white font-bold">
+          {{ short_id[0]|upper }}
+        </div>
+        <div>
+          <p class="font-semibold text-gray-900">Ticket #{{ short_id }}</p>
+          <p class="text-xs text-gray-500">{{ category }} • {{ status }}</p>
+        </div>
+      </div>
     </div>
 
-    <!-- Reply form -->
-    <form id="replyForm" class="space-y-4">
-        <textarea id="replyText" class="mt-1 block w-full p-2 border rounded-md" rows="4"
-                  placeholder="Type your message…"></textarea>
-        <button type="submit"
-                class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full hover:bg-blue-700">
-            Send
-        </button>
-    </form>
-    <div id="replyResult" class="mt-2"></div>
-</main>
+    <div class="flex items-center space-x-4">
+      {% if user %}
+        <span class="text-sm text-gray-700 hidden sm:inline">Hi, {{ user.name }}</span>
+        <a href="/logout" class="text-sm text-gray-600 hover:underline">Logout</a>
+      {% else %}
+        <a href="/auth" class="text-sm text-gray-600 hover:underline">Login</a>
+      {% endif %}
+    </div>
+  </header>
 
+  <!-- ───── Chat Area ───── -->
+  <div id="chatBox"
+       class="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-gray-100"
+       style="max-height: calc(100vh - 140px);">
+    {% for msg in chat %}
+      {% if msg.user %}
+        <!-- USER (right side) -->
+        <div class="flex justify-end">
+          <div class="max-w-xs lg:max-w-md">
+            <div class="bg-[#dcf8c6] text-gray-900 rounded-2xl rounded-tr-none px-4 py-2 shadow-sm">
+              {{ msg.user | safe }}
+            </div>
+            <p class="text-xs text-gray-500 text-right mt-1">{{ msg.time }}</p>
+          </div>
+        </div>
+      {% else %}
+        <!-- ADMIN (left side) -->
+        <div class="flex justify-start">
+          <div class="max-w-xs lg:max-w-md">
+            <div class="bg-white text-gray-800 rounded-2xl rounded-tl-none px-4 py-2 shadow-sm">
+              {{ msg.assistant | safe }}
+            </div>
+            <p class="text-xs text-gray-500 mt-1">{{ msg.time }}</p>
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <!-- ───── Reply Box ───── -->
+  <form id="replyForm" class="bg-white border-t border-gray-200 p-3 flex items-center space-x-2">
+    <textarea id="replyText"
+              rows="1"
+              placeholder="Type a message..."
+              class="flex-1 resize-none rounded-full border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+              required></textarea>
+    <button type="submit"
+            class="bg-[#25d366] hover:bg-[#1da851] text-white rounded-full p-3 transition">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+      </svg>
+    </button>
+  </form>
+
+  <div id="replyResult" class="hidden"></div>
+</div>
+
+<!-- ────────────────────────  JavaScript  ──────────────────────── -->
 <script>
-function escapeHtml(t){const d=document.createElement("div");d.textContent=t;return d.innerHTML}
+  // ---- Escape HTML (security) ----
+  function escapeHtml(t) {
+    const div = document.createElement('div');
+    div.textContent = t;
+    return div.innerHTML;
+  }
 
-async function sendReply(){
-    const txt = document.getElementById('replyText').value.trim();
-    if(!txt) return;
-    const res = await fetch("/api/support/{{ short_id }}/reply",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({reply:txt})
-    });
-    const data = await res.json();
-    const resultDiv = document.getElementById('replyResult');
-    if(res.ok){
-        resultDiv.innerHTML = '<p class="text-green-600">Sent!</p>';
-        addBubble(txt, true);
-        document.getElementById('replyText').value='';
-    }else{
-        resultDiv.innerHTML = `<p class="text-red-600">${data.error||'Failed'}</p>`;
-    }
-}
-function addBubble(text, isUser){
+  // ---- Add a new bubble instantly (optimistic UI) ----
+  function addBubble(text, isUser) {
     const box = document.getElementById('chatBox');
     const time = new Date().toLocaleString();
-    const bubble = `
-        <div class="msg ${isUser?'msg-user':'msg-admin'}">
-            <div class="msg-bubble">${escapeHtml(text)}</div>
-            <div class="msg-time">${time}</div>
-        </div>`;
-    box.insertAdjacentHTML('beforeend', bubble);
+    const bubbleHTML = `
+      <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
+        <div class="max-w-xs lg:max-w-md">
+          <div class="rounded-2xl ${isUser ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none'} px-4 py-2 shadow-sm">
+            ${escapeHtml(text)}
+          </div>
+          <p class="text-xs text-gray-500 ${isUser ? 'text-right' : ''} mt-1">${time}</p>
+        </div>
+      </div>`;
+    box.insertAdjacentHTML('beforeend', bubbleHTML);
     box.scrollTop = box.scrollHeight;
-}
-document.getElementById('replyForm').addEventListener('submit', e=>{
-    e.preventDefault(); sendReply();
-});
+  }
+
+  // ---- Send reply to backend ----
+  async function sendReply() {
+    const txt = document.getElementById('replyText').value.trim();
+    if (!txt) return;
+
+    // Optimistic UI
+    addBubble(txt, true);
+    document.getElementById('replyText').value = '';
+
+    const res = await fetch('/api/support/{{ short_id }}/reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reply: txt })
+    });
+
+    const data = await res.json();
+    const resultDiv = document.getElementById('replyResult');
+
+    if (!res.ok) {
+      resultDiv.classList.remove('hidden');
+      resultDiv.innerHTML = `<p class="text-red-600 p-2">${data.error || 'Failed to send'}</p>`;
+      setTimeout(() => resultDiv.classList.add('hidden'), 4000);
+    }
+  }
+
+  // ---- Form submit ----
+  document.getElementById('replyForm').addEventListener('submit', e => {
+    e.preventDefault();
+    sendReply();
+  });
+
+  // ---- Auto-scroll to bottom on load ----
+  const chatBox = document.getElementById('chatBox');
+  chatBox.scrollTop = chatBox.scrollHeight;
 </script>
 
+<!-- ────────────────────────  Tailwind-only Styles  ──────────────────────── -->
 <style>
-.msg-admin .msg-bubble{background:#e5e7eb;color:#1f2937;}
+  /* WhatsApp green */
+  .bg-whatsapp-green { background-color: #25d366; }
+  /* Slight rounded corners for bubbles */
+  .rounded-2xl { border-radius: 1rem; }
+  .rounded-tr-none { border-top-right-radius: 0; }
+  .rounded-tl-none { border-top-left-radius: 0; }
 </style>
+
 {% endblock %}
