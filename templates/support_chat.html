@@ -1,75 +1,75 @@
-
-
-{% block title %}Support – {{ short_id|default('Ticket') }}{% endblock %}
-
 {% block content %}
-<div class="flex flex-col h-screen bg-gray-100">
+<div class="flex flex-col h-screen bg-[url('https://i.imgur.com/Vz9sYQY.png')] bg-cover bg-center">
 
   <!-- Header -->
-  <header class="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+  <header class="bg-[#075E54] text-white px-4 py-3 flex items-center justify-between sticky top-0 z-50 shadow-md">
     <div class="flex items-center space-x-3">
-      <a href="/support" class="text-gray-600 hover:text-gray-800">
+      <a href="/support" class="hover:opacity-80 transition">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
         </svg>
       </a>
       <div class="flex items-center space-x-2">
-        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-green-500 flex items-center justify-center text-white font-bold">
+        <div class="w-10 h-10 rounded-full bg-[#128C7E] flex items-center justify-center font-bold">
           {{ (short_id|default('?'))[0]|upper }}
         </div>
         <div>
-          <p class="font-semibold text-gray-900">Ticket #{{ short_id|default('????') }}</p>
-          <p class="text-xs text-gray-500">{{ category|default('Unknown') }} • {{ status|default('Open') }}</p>
+          <p class="font-semibold">Ticket #{{ short_id|default('????') }}</p>
+          <p class="text-xs opacity-80">{{ category|default('Unknown') }} • {{ status|default('Open') }}</p>
         </div>
       </div>
     </div>
 
-    <div class="flex items-center space-x-4">
+    <div class="flex items-center space-x-4 text-sm">
       {% if user %}
-        <span class="text-sm text-gray-700 hidden sm:inline">Hi, {{ user.name }}</span>
-        <a href="/logout" class="text-sm text-gray-600 hover:underline">Logout</a>
+        <span class="hidden sm:inline">Hi, {{ user.name }}</span>
+        <a href="/logout" class="hover:underline">Logout</a>
       {% else %}
-        <a href="/auth" class="text-sm text-gray-600 hover:underline">Login</a>
+        <a href="/auth" class="hover:underline">Login</a>
       {% endif %}
     </div>
   </header>
 
   <!-- Chat Area -->
-  <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-gray-100"
-       style="max-height: calc(100vh - 140px);">
+  <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-[#ECE5DD] to-[#DAD3CC]"
+       style="max-height: calc(100vh - 120px);">
     {% if chat %}
       {% for msg in chat %}
         {% if msg.user %}
+          <!-- User message -->
           <div class="flex justify-end">
-            <div class="max-w-xs lg:max-w-md">
-              <div class="bg-[#dcf8c6] text-gray-900 rounded-2xl rounded-tr-none px-4 py-2 shadow-sm">
+            <div class="max-w-[80%]">
+              <div class="bg-[#DCF8C6] text-gray-900 rounded-3xl rounded-tr-none px-4 py-2 shadow-md relative">
                 {{ msg.user | safe }}
+                <span class="text-[10px] text-gray-500 absolute bottom-1 right-3">{{ msg.time|default('Now') }}</span>
               </div>
-              <p class="text-xs text-gray-500 text-right mt-1">{{ msg.time|default('Just now') }}</p>
             </div>
           </div>
         {% elif msg.assistant %}
+          <!-- Assistant message -->
           <div class="flex justify-start">
-            <div class="max-w-xs lg:max-w-md">
-              <div class="bg-white text-gray-800 rounded-2xl rounded-tl-none px-4 py-2 shadow-sm">
+            <div class="max-w-[80%]">
+              <div class="bg-white text-gray-900 rounded-3xl rounded-tl-none px-4 py-2 shadow-md relative">
                 {{ msg.assistant | safe }}
+                <span class="text-[10px] text-gray-500 absolute bottom-1 right-3">{{ msg.time|default('Now') }}</span>
               </div>
-              <p class="text-xs text-gray-500 mt-1">{{ msg.time|default('Just now') }}</p>
             </div>
           </div>
         {% endif %}
       {% endfor %}
     {% else %}
-      <p class="text-center text-gray-500 italic">No messages yet. Start the conversation!</p>
+      <p class="text-center text-gray-600 italic">No messages yet. Start the conversation!</p>
     {% endif %}
   </div>
 
   <!-- Reply Box -->
-  <form id="replyForm" class="bg-white border-t border-gray-200 p-3 flex items-center space-x-2">
-    <textarea id="replyText" rows="1" placeholder="Type a message..."
-              class="flex-1 resize-none rounded-full border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-              required></textarea>
-    <button type="submit" class="bg-[#25d366] hover:bg-[#1da851] text-white rounded-full p-3 transition">
+  <form id="replyForm" class="bg-[#F0F0F0] border-t border-gray-300 p-3 flex items-center space-x-2">
+    <div class="flex items-center bg-white rounded-full px-3 py-2 flex-1 shadow-sm">
+      <textarea id="replyText" rows="1" placeholder="Type a message"
+                class="flex-1 resize-none border-none focus:ring-0 outline-none text-gray-800 text-sm"
+                required></textarea>
+    </div>
+    <button type="submit" class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3 shadow-md transition">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
       </svg>
@@ -88,14 +88,14 @@
 
   function addBubble(text, isUser) {
     const box = document.getElementById('chatBox');
-    const time = new Date().toLocaleString();
+    const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
     const bubbleHTML = `
       <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
-        <div class="max-w-xs lg:max-w-md">
-          <div class="rounded-2xl ${isUser ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none'} px-4 py-2 shadow-sm">
+        <div class="max-w-[80%]">
+          <div class="${isUser ? 'bg-[#DCF8C6] rounded-tr-none' : 'bg-white rounded-tl-none'} text-gray-900 rounded-3xl px-4 py-2 shadow-md relative">
             ${escapeHtml(text)}
+            <span class="text-[10px] text-gray-500 absolute bottom-1 right-3">${time}</span>
           </div>
-          <p class="text-xs text-gray-500 ${isUser ? 'text-right' : ''} mt-1">${time}</p>
         </div>
       </div>`;
     box.insertAdjacentHTML('beforeend', bubbleHTML);
@@ -133,10 +133,4 @@
   const chatBox = document.getElementById('chatBox');
   chatBox.scrollTop = chatBox.scrollHeight;
 </script>
-
-<style>
-  .rounded-2xl { border-radius: 1rem; }
-  .rounded-tr-none { border-top-right-radius: 0; }
-  .rounded-tl-none { border-top-left-radius: 0; }
-</style>
 {% endblock %}
