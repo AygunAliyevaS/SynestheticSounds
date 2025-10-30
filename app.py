@@ -19,6 +19,91 @@ import uuid
 import string
 import random
 import json
+from azure.communication.email import EmailClient
+
+
+# Initialize Email Client (global)
+EMAIL_CONNECTION_STRING = os.getenv("ACS_EMAIL_CONNECTION_STRING")
+email_client = None
+if EMAIL_CONNECTION_STRING:
+    email_client = EmailClient.from_connection_string(EMAIL_CONNECTION_STRING)
+
+def send_user_confirmation(user_email, short_id, message):
+    """
+    Send confirmation email to USER who submitted ticket
+    """
+    if not email_client:
+        logger.warning("Email service not configured")
+        return False
+
+    try:
+        email_message = {
+            "senderAddress": "noreply@synes.azurecomm.net",  # Your ACS domain
+            "recipients": {
+                "to": [{"address": user_email, "displayName": "Support User"}]
+            },
+            "content": {
+                "subject": f"Your Support Ticket #{short_id} - Received! ✅",
+                "html": f"""
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #075E54; font-size: 24px;">🎫 Ticket #{short_id} Received!</h2>
+                    
+                    <div style="background: #f0f8ff; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                        <p style="margin: 0; font-size: 16px;">
+                            <strong>Hi there!</strong><br><br>
+                            We've received your support request. Our team will get back to you shortly.
+                        </p>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #25D366;">
+                        <h3 style="margin-top: 0; color: #075E54;">📋 Ticket Details</h3>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            <li><strong>ID:</strong> <code style="background: #e5e5e5; padding: 2px 6px; border-radius: 4px;">{short_id}</code></li>
+                            <li><strong>Category:</strong> {category}</li>
+                            <li><strong>Status:</strong> <span style="color: #f39c12;">Open</span></li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: #e8f5e8; padding: 15px; border-radius: 10px; margin: 20px 0;">
+                        <p style="margin: 0; font-size: 14px;">
+                            👉 <strong>Open Chat:</strong> <a href="https://synes.azurewebsites.net/support/{short_id}" style="color: #25D366; text-decoration: none;">Click here</a>
+                        </p>
+                    </div>
+                    
+                    <p style="color: #666; font-size: 14px;">
+                        Best regards,<br>
+                        <strong>Synesthetica Support Team</strong><br>
+                        <a href="mailto:aygunaliyeva@anas.az">aygunaliyeva@anas.az</a>
+                    </p>
+                </div>
+                """,
+                "plainText": f"""
+Your Support Ticket #{short_id} has been received!
+
+Ticket Details:
+ID: {short_id}
+Category: {category}
+Status: Open
+
+Our team will get back to you shortly!
+
+Open Chat: https://synes.azurewebsites.net/support/{short_id}
+
+Best,
+Synesthetica Support Team
+aygunaliyeva@anas.az
+                """
+            }
+        }
+
+        poller = email_client.begin_send(email_message)
+        result = poller.result()
+        logger.info(f"✅ Confirmation email sent to {user_email}: {result.id}")
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Failed to send confirmation to {user_email}: {e}")
+        return False
 
 # Load environment variables
 load_dotenv()
@@ -559,11 +644,12 @@ def create_ticket():
         cur.execute(sql, (ticket_uuid, user_email, category, messages_json))
         conn.commit()
 
-        # ------------------------------------------------------------------
-        # Get the short id that the DB just computed
-        # ------------------------------------------------------------------
+        # Get short_id
         cur.execute("SELECT short_id FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
         short_id = cur.fetchone()[0]
+
+        # SEND CONFIRMATION EMAIL TO USER
+        send_user_confirmation(user_email, short_id, user_message)
 
         return jsonify({
             "ticket_uuid": ticket_uuid,
@@ -891,6 +977,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
