@@ -658,7 +658,6 @@ def support():
 
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
-    """Create new support ticket"""
     try:
         data = request.get_json()
         if not data:
@@ -668,73 +667,68 @@ def create_ticket():
         user_email = data.get('user_email', '').strip()
         user_message = data.get('user_message', '').strip()
 
-        # Validate required fields
         if not all([category, user_email, user_message]):
-            return jsonify({"error": "Category, email, and message are required"}), 400
-
-        # Validate email format
+            return jsonify({"error": "All fields required"}), 400
         if '@' not in user_email:
             return jsonify({"error": "Invalid email"}), 400
 
         conn = get_db_connection()
         if not conn:
-            logger.error("Database connection failed")
-            return jsonify({"error": "Database error"}), 500
+            return jsonify({"error": "DB connection failed"}), 500
 
         cur = conn.cursor()
 
-        # Generate unique ticket
+        # Generate IDs
         ticket_uuid = str(uuid.uuid4())
-        short_id = ticket_uuid[:8].upper()  # Simple 8-char ID
+        short_id = ticket_uuid[:8].upper()
 
-        # Check if short_id already exists (rare collision)
-        cur.execute("SELECT COUNT(*) FROM SupportTickets WHERE short_id = ?", (short_id,))
-        if cur.fetchone()[0] > 0:
-            short_id = ticket_uuid[:4].upper() + ticket_uuid[14:18].upper()
+        # Avoid collision
+        while True:
+            cur.execute("SELECT 1 FROM SupportTickets WHERE short_id = ?", (short_id,))
+            if not cur.fetchone():
+                break
+            short_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
 
-        # Create initial chat
-        now = datetime.utcnow().isoformat() + "Z"
-        messages = [{
-            "time": now,
-            "user": user_message,
-            "assistant": None
-        }]
-        messages_json = json.dumps(messages)
+        # Initial message
+        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        chat = [{"time": now + "Z", "user": user_message, "assistant": None}]
+        chat_json = json.dumps(chat)
 
-        # Insert ticket
+        # INSERT
         cur.execute("""
             INSERT INTO SupportTickets 
             (ticket_uuid, short_id, user_email, category, messages, status, created_at)
             VALUES (?, ?, ?, ?, ?, 'Open', GETDATE())
-        """, (ticket_uuid, short_id, user_email, category, messages_json))
+        """, (ticket_uuid, short_id, user_email, category, chat_json))
 
         conn.commit()
-        cur.close()
-        conn.close()
+        logger.info(f"Ticket created: {short_id}")
 
-        logger.info(f"✅ Ticket created: {short_id} for {user_email}")
-
-        # Send confirmation email (non-blocking)
+        # Send email
         send_user_confirmation(user_email, short_id, category, user_message)
 
         return jsonify({
-            "message": "We have received your ticket. Our team will reply soon.",
+            "message": "Ticket created!",
             "short_id": short_id,
-            "ticket_uuid": ticket_uuid,
             "chat_url": f"/support/{short_id}",
-            "chat": messages
+            "chat": chat
         }), 201
 
     except pyodbc.Error as e:
-        logger.error(f"Database error: {e}")
-        if conn:
+        logger.error(f"DB Error: {e}")
+        if 'conn' in locals():
             conn.rollback()
         return jsonify({"error": "Database error"}), 500
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
-        if conn:
+        logger.error(f"Error: {e}")
+        if 'conn' in locals():
             conn.rollback()
         return jsonify({"error": "Server error"}), 500
+    finally:
+        if 'cur' in locals():
+            cur.close()
+        if 'conn' in locals():
+            conn.close()
 
 @app.route("/api/support", methods=['GET'])
 def list_tickets():
@@ -826,26 +820,19 @@ def support_chat(short_id):
         conn.close()
 
 def short_to_uuid(short_id: str) -> str | None:
-    """Convert 8-char short_id back to full UUID"""
-    if len(short_id) != 8:
+    if len(short_id) < 6:
         return None
-    
     conn = get_db_connection()
     if not conn:
         return None
-    
     try:
         cur = conn.cursor()
         cur.execute("SELECT ticket_uuid FROM SupportTickets WHERE short_id = ?", (short_id,))
-        result = cur.fetchone()
-        return result[0] if result else None
+        row = cur.fetchone()
+        return row[0] if row else None
     finally:
         cur.close()
         conn.close()
-
-def uuid_to_short(uuid_str: str) -> str:
-    """Generate 8-char short_id from UUID"""
-    return uuid_str[:8].upper()
 
 @app.route("/api/support/<short_id>/reply", methods=["POST"])
 def add_reply(short_id):
@@ -1076,18 +1063,3 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
