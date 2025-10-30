@@ -27,6 +27,7 @@ from email.mime.multipart import MIMEMultipart
 load_dotenv()
 logger = logging.getLogger(__name__)
 
+
 def send_user_confirmation(user_email: str, short_id: str, category: str, message: str) -> bool:
     """
     Send confirmation email to the user's email from the support form using custom SMTP server.
@@ -62,7 +63,7 @@ Best regards,
 aygunaliyeva@anas.az
 """
 
-    
+    # SportyBet-inspired HTML template
     html_body = f"""
     <!DOCTYPE html>
     <html>
@@ -1021,6 +1022,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
