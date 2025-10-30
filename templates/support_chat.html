@@ -5,14 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Support – #{{ short_id|default('Ticket') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    /* WhatsApp background */
-    body { background: #ECE5DD; }
-    .chat-bg { background: url('https://i.imgur.com/Vz9sYQY.png') center/cover; }
-    .msg-time { font-size: 10px; }
-    .msg-user .msg-bubble { background: #DCF8C6; }
-    .msg-admin .msg-bubble { background: white; }
-  </style>
+<style>
+  /* WhatsApp-style background – NO BLOCKED IMAGE */
+  body { background: #ECE5DD; }                 /* Light beige */
+  .chat-bg { 
+    background: #ECE5DD;                       /* Solid color fallback */
+    background-image: none;                    /* Remove any image */
+  }
+  
+  /* Optional: Use a public, unblocked pattern (from CDN) */
+  /*
+  .chat-bg {
+    background: #ECE5DD url('https://cdn.jsdelivr.net/gh/StartBootstrap/startbootstrap-landing-page@6.0.6/img/bg-masthead.jpg') center/cover;
+  }
+  */
+
+  .msg-time { font-size: 10px; }
+  .msg-user .msg-bubble { background: #DCF8C6; }
+  .msg-admin .msg-bubble { background: white; }
+</style>
 </head>
 <body class="flex flex-col h-screen m-0 p-0">
 
