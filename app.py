@@ -24,13 +24,13 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 
-# Load environment variables
 load_dotenv()
 logger = logging.getLogger(__name__)
 
 def send_user_confirmation(user_email: str, short_id: str, category: str, message: str) -> bool:
     """
-    Send confirmation email to the user’s email from the support form using custom SMTP server.
+    Send confirmation email to the user's email from the support form using custom SMTP server.
+    Template styled like SportyBet emails (green accents, bold CTA, sports energy).
     """
     # --- Configuration ---
     SMTP_SERVER = os.getenv("SMTP_HOST", "mail.optimal.com.ng")
@@ -45,49 +45,83 @@ def send_user_confirmation(user_email: str, short_id: str, category: str, messag
         return False
 
     # --- Email Content ---
-    subject = f"Your Support Ticket #{short_id} - Received!"
+    subject = f"🎫 Ticket #{short_id} - We've Got You Covered!"
     
-    # Updated plain-text message
+    # Updated plain-text message (your exact request)
     plain_body = f"""We have received your report ticket number {short_id}. Our team will be with you shortly.
+
+Ticket Details:
+- ID: {short_id}
+- Category: {category}
+- Status: Open
+
+Open Chat: https://synes.azurewebsites.net/support/{short_id}
 
 Best regards,
 {SENDER_NAME}
 aygunaliyeva@anas.az
 """
 
-    # Updated HTML message (keeps your style, includes new message)
+    
     html_body = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #075E54; font-size: 24px; margin-bottom: 20px;">🎫 Ticket #{short_id} Received!</h2>
-        <div style="background: #f0f8ff; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #25D366;">
-            <p style="margin: 0 0 10px; font-size: 16px;">
-                We have received your report ticket number <strong>{short_id}</strong>. Our team will be with you shortly.
-            </p>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{ font-family: 'Arial', sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; background-color: #fff; }}
+            .header {{ background: linear-gradient(135deg, #00C851, #00a651); padding: 20px; text-align: center; color: white; }}
+            .header h1 {{ margin: 0; font-size: 28px; font-weight: bold; }}
+            .header p {{ margin: 5px 0 0; font-size: 14px; opacity: 0.9; }}
+            .content {{ padding: 30px 20px; }}
+            .ticket-card {{ background: #fff; border: 2px solid #00C851; border-radius: 10px; padding: 20px; margin: 20px 0; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }}
+            .ticket-card h2 {{ color: #00C851; margin-top: 0; font-size: 22px; display: flex; align-items: center; }}
+            .ticket-card h2::before {{ content: '🎫'; margin-right: 10px; }}
+            .ticket-details {{ list-style: none; padding: 0; }}
+            .ticket-details li {{ padding: 8px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }}
+            .ticket-details li:last-child {{ border-bottom: none; }}
+            .label {{ font-weight: bold; color: #FF5722; }}
+            .value {{ color: #333; }}
+            .cta {{ text-align: center; margin: 30px 0; }}
+            .cta-button {{ background: #00C851; color: white; padding: 15px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 8px rgba(0,200,81,0.3); transition: background 0.3s; }}
+            .cta-button:hover {{ background: #00a651; }}
+            .footer {{ background: #333; color: white; padding: 20px; text-align: center; font-size: 12px; }}
+            .footer a {{ color: #00C851; text-decoration: none; }}
+            @media (max-width: 600px) {{ .content {{ padding: 20px 15px; }} .header h1 {{ font-size: 24px; }} }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Synesthetica Support</h1>
+                <p>Turning Your Support Into Victory! ⚡</p>
+            </div>
+            <div class="content">
+                <div class="ticket-card">
+                    <h2>Ticket Confirmation</h2>
+                    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
+                        We have received your report ticket number <strong>{short_id}</strong>. Our team will be with you shortly. 🚀
+                    </p>
+                    <ul class="ticket-details">
+                        <li><span class="label">Ticket ID:</span> <span class="value"><strong>{short_id}</strong></span></li>
+                        <li><span class="label">Category:</span> <span class="value">{category}</span></li>
+                        <li><span class="label">Status:</span> <span class="value" style="color: #00C851; font-weight: bold;">Open & Active</span></li>
+                    </ul>
+                </div>
+                <div class="cta">
+                    <a href="https://synes.azurewebsites.net/support/{short_id}" class="cta-button">Open Chat Now →</a>
+                </div>
+            </div>
+            <div class="footer">
+                <p>Best regards,<br><strong>{SENDER_NAME}</strong></p>
+                <p><a href="mailto:aygunaliyeva@anas.az">aygunaliyeva@anas.az</a> | Questions? Reply to this email.</p>
+                <p style="font-size: 10px; opacity: 0.8;">&copy; 2025 Synesthetica. All rights reserved. Support messages are confidential.</p>
+            </div>
         </div>
-        <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h3 style="margin-top: 0; color: #333;">📋 Ticket Details</h3>
-            <ul style="margin: 0; padding-left: 20px; font-size: 15px;">
-                <li><strong>ID:</strong> <code style="background: #e5e5e5; padding: 4px 8px; border-radius: 4px; font-family: monospace;">{short_id}</code></li>
-                <li><strong>Category:</strong> {category}</li>
-                <li><strong>Status:</strong> <span style="color: #f39c12; font-weight: bold;">Open</span></li>
-            </ul>
-        </div>
-        <div style="background: #e8f5e8; padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
-            <p style="margin: 0; font-size: 16px;">
-                <a href="https://synes.azurewebsites.net/support/{short_id}" 
-                   style="color: white; background: #25D366; padding: 12px 24px; text-decoration: none; 
-                          border-radius: 25px; font-weight: bold; display: inline-block;">
-                    Open Chat Now
-                </a>
-            </p>
-        </div>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-        <p style="color: #666; font-size: 14px; margin: 0;">
-            Best regards,<br>
-            <strong>{SENDER_NAME}</strong><br>
-            <a href="mailto:aygunaliyeva@anas.az" style="color: #25D366;">aygunaliyeva@anas.az</a>
-        </p>
-    </div>
+    </body>
+    </html>
     """
 
     # --- Compose Email ---
@@ -987,6 +1021,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
