@@ -20,8 +20,9 @@ import string
 import random
 import json
 import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 
 def send_user_confirmation(user_email, short_id, category, message):
     """
@@ -994,6 +995,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
