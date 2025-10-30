@@ -617,12 +617,13 @@ def list_tickets():
 def chat_page(short_id):
     user = session.get('user')
     ticket_uuid = short_to_uuid(short_id)
-    if not ticket_uuid:
-        return render_template("error.html", error="Ticket not found"), 404
+    
+    if not ticket_uuid or not short_id:
+        return render_template("error.html", error="Invalid ticket"), 404
 
     conn = get_db_connection()
     if not conn:
-        return render_template("error.html", error="DB error"), 500
+        return render_template("error.html", error="Database error"), 500
 
     try:
         cur = conn.cursor()
@@ -634,33 +635,31 @@ def chat_page(short_id):
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
-        chat = json.loads(row.messages) if row.messages else []
+        chat = json.loads(row[4]) if row[4] else []  # row[4] = messages
 
         return render_template(
             "support_chat.html",
             user=user,
-            ticket_uuid=row.ticket_uuid,
             short_id=short_id,
-            category=row.category,
-            status=row.status,
-            chat=chat,
-            is_admin=False                     # change later if you add admin auth
+            category=row[2] or "Unknown",
+            status=row[3] or "Open",
+            chat=chat
         )
+    except Exception as e:
+        logger.error(f"Error in chat_page: {e}")
+        return render_template("error.html", error="Server error"), 500
     finally:
         cur.close()
         conn.close()
 
 def short_to_uuid(short: str) -> str | None:
-    """
-    Convert 8-char short_id (e.g. '44051652') back to full UUID.
-    Uses the computed column: LEFT(REPLACE(CAST(ticket_uuid AS varchar(36)), '-', ''), 8)
-    """
+    if not short or len(short) != 8:
+        return None
     conn = get_db_connection()
     if not conn:
         return None
     try:
         cur = conn.cursor()
-        # Remove hyphens and take first 8 chars of UUID
         cur.execute(
             "SELECT ticket_uuid FROM SupportTickets WHERE LEFT(REPLACE(CAST(ticket_uuid AS varchar(36)), '-', ''), 8) = ?",
             (short.upper(),)
@@ -892,6 +891,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
