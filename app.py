@@ -19,33 +19,49 @@ import uuid
 import string
 import random
 import json
+import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import smtplib
 
-def send_user_confirmation(user_email, short_id, category, message):
-    """
-    Send confirmation email to USER via Gmail SMTP
-    """
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
-    sender_email = "support.synesthetica@gmail.com"
-    sender_password = os.getenv("GMAIL_APP_PASSWORD")
 
-    if not sender_password:
-        logger.warning("GMAIL_APP_PASSWORD not set in environment")
+# Load environment variables
+load_dotenv()
+logger = logging.getLogger(__name__)
+
+def send_user_confirmation(user_email: str, short_id: str, category: str, message: str) -> bool:
+    """
+    Send confirmation email to the user’s email from the support form using custom SMTP server.
+    """
+    # --- Configuration ---
+    SMTP_SERVER = os.getenv("SMTP_HOST", "mail.optimal.com.ng")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER = os.getenv("SMTP_USER", "support@lantopinfotech.com")
+    SMTP_PASS = os.getenv("SMTP_PASSWORD", "Lantopsupport@")
+    SENDER_NAME = os.getenv("SMTP_SENDER_NAME", "Synesthetica Support")
+    USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+
+    if not all([SMTP_SERVER, SMTP_USER, SMTP_PASS]):
+        logger.warning("SMTP configuration missing in .env")
         return False
 
-    subject = f"Your Support Ticket #{short_id} - Received! ✅"
+    # --- Email Content ---
+    subject = f"Your Support Ticket #{short_id} - Received!"
     
-    # --- HTML Email Body ---
+    # Updated plain-text message
+    plain_body = f"""We have received your report ticket number {short_id}. Our team will be with you shortly.
+
+Best regards,
+{SENDER_NAME}
+aygunaliyeva@anas.az
+"""
+
+    # Updated HTML message (keeps your style, includes new message)
     html_body = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #075E54; font-size: 24px; margin-bottom: 20px;">🎫 Ticket #{short_id} Received!</h2>
         <div style="background: #f0f8ff; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #25D366;">
             <p style="margin: 0 0 10px; font-size: 16px;">
-                <strong>Hi there!</strong><br><br>
-                We've received your support request. Our team will get back to you shortly.
+                We have received your report ticket number <strong>{short_id}</strong>. Our team will be with you shortly.
             </p>
         </div>
         <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
@@ -58,73 +74,50 @@ def send_user_confirmation(user_email, short_id, category, message):
         </div>
         <div style="background: #e8f5e8; padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
             <p style="margin: 0; font-size: 16px;">
-                👉 <strong><a href="https://synes.azurewebsites.net/support/{short_id}" 
-                            style="color: white; background: #25D366; padding: 12px 24px; text-decoration: none; 
-                                   border-radius: 25px; font-weight: bold; display: inline-block;">
+                <a href="https://synes.azurewebsites.net/support/{short_id}" 
+                   style="color: white; background: #25D366; padding: 12px 24px; text-decoration: none; 
+                          border-radius: 25px; font-weight: bold; display: inline-block;">
                     Open Chat Now
-                </a></strong>
+                </a>
             </p>
         </div>
         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
         <p style="color: #666; font-size: 14px; margin: 0;">
             Best regards,<br>
-            <strong>Synesthetica Support Team</strong><br>
+            <strong>{SENDER_NAME}</strong><br>
             <a href="mailto:aygunaliyeva@anas.az" style="color: #25D366;">aygunaliyeva@anas.az</a>
         </p>
     </div>
     """
 
-    plain_text = f"""
-Your Support Ticket #{short_id} has been received!
+    # --- Compose Email ---
+    msg = MIMEMultipart("alternative")
+    msg["From"] = f"{SENDER_NAME} <{SMTP_USER}>"
+    msg["To"] = user_email  # Dynamic email from support form
+    msg["Subject"] = subject
 
-Ticket Details:
-ID: {short_id}
-Category: {category}
-Status: Open
+    msg.attach(MIMEText(plain_body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
 
-Open Chat: https://synes.azurewebsites.net/support/{short_id}
-
-Best,
-Synesthetica Support Team
-aygunaliyeva@anas.az
-    """
-
+    # --- Send Email ---
     try:
-        # Create message
-        msg = MIMEMultipart("alternative")
-        msg['Subject'] = subject
-        msg['From'] = sender_email
-        msg['To'] = user_email
-
-        # Attach parts: **text first, then HTML**
-        msg.attach(MIMEText(plain_text, 'plain'))
-        msg.attach(MIMEText(html_body, 'html'))
-
-        # Connect and send
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.set_debuglevel(1)  # REMOVE IN PRODUCTION
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, [user_email], msg.as_string())
-        server.quit()
-
-        logger.info(f"Confirmation email SENT to {user_email} (Ticket: {short_id})")
-        return True
-
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            if USE_TLS:
+                server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+            logger.info(f"✅ Confirmation email sent to {user_email} for ticket {short_id}")
+            return True
     except smtplib.SMTPAuthenticationError as e:
-        logger.error(f"SMTP Auth failed: {e}")
-        logger.error("Check: GMAIL_APP_PASSWORD, 2FA, App Password (16 chars)")
+        logger.error(f"❌ SMTP Authentication failed: {e}")
+        logger.error("Check SMTP_USER and SMTP_PASSWORD in .env")
         return False
     except smtplib.SMTPRecipientsRefused:
-        logger.error(f"Recipient refused: {user_email}")
+        logger.error(f"❌ Recipient refused: {user_email}")
         return False
     except Exception as e:
-        logger.error(f"Email failed: {type(e).__name__}: {e}")
+        logger.error(f"❌ Email sending failed: {type(e).__name__}: {e}")
         return False
-
-# Load environment variables
-load_dotenv()
-logger = logging.getLogger(__name__)
 
 # Configure logging
 logging.basicConfig(
@@ -994,6 +987,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
