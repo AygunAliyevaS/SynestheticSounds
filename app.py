@@ -19,65 +19,66 @@ import uuid
 import string
 import random
 import json
-from azure.communication.email import EmailClient
+import smtplib
+from email.mime.text import MimeText
+from email.mime.multipart import MimeMultipart
 
-
-# Initialize Email Client (global)
-EMAIL_CONNECTION_STRING = os.getenv("ACS_EMAIL_CONNECTION_STRING")
-email_client = None
-if EMAIL_CONNECTION_STRING:
-    email_client = EmailClient.from_connection_string(EMAIL_CONNECTION_STRING)
-
-def send_user_confirmation(user_email, short_id, message):
+def send_user_confirmation(user_email, short_id, category, message):
     """
-    Send confirmation email to USER who submitted ticket
+    Send confirmation email to USER via Gmail SMTP
     """
-    if not email_client:
-        logger.warning("Email service not configured")
+    smtp_server = "smtp.gmail.com"
+    smtp_port = 587
+    sender_email = "support.synesthetica@gmail.com"  # Your Gmail
+    sender_password = os.getenv("GMAIL_APP_PASSWORD")  # 16-char code from Google
+
+    if not sender_password:
+        logger.warning("GMAIL_APP_PASSWORD not set")
         return False
 
     try:
-        email_message = {
-            "senderAddress": "noreply@synes.azurecomm.net",  # Your ACS domain
-            "recipients": {
-                "to": [{"address": user_email, "displayName": "Support User"}]
-            },
-            "content": {
-                "subject": f"Your Support Ticket #{short_id} - Received! ✅",
-                "html": f"""
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #075E54; font-size: 24px;">🎫 Ticket #{short_id} Received!</h2>
-                    
-                    <div style="background: #f0f8ff; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                        <p style="margin: 0; font-size: 16px;">
-                            <strong>Hi there!</strong><br><br>
-                            We've received your support request. Our team will get back to you shortly.
-                        </p>
-                    </div>
-                    
-                    <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #25D366;">
-                        <h3 style="margin-top: 0; color: #075E54;">📋 Ticket Details</h3>
-                        <ul style="margin: 0; padding-left: 20px;">
-                            <li><strong>ID:</strong> <code style="background: #e5e5e5; padding: 2px 6px; border-radius: 4px;">{short_id}</code></li>
-                            <li><strong>Category:</strong> {category}</li>
-                            <li><strong>Status:</strong> <span style="color: #f39c12;">Open</span></li>
-                        </ul>
-                    </div>
-                    
-                    <div style="background: #e8f5e8; padding: 15px; border-radius: 10px; margin: 20px 0;">
-                        <p style="margin: 0; font-size: 14px;">
-                            👉 <strong>Open Chat:</strong> <a href="https://synes.azurewebsites.net/support/{short_id}" style="color: #25D366; text-decoration: none;">Click here</a>
-                        </p>
-                    </div>
-                    
-                    <p style="color: #666; font-size: 14px;">
-                        Best regards,<br>
-                        <strong>Synesthetica Support Team</strong><br>
-                        <a href="mailto:aygunaliyeva@anas.az">aygunaliyeva@anas.az</a>
-                    </p>
-                </div>
-                """,
-                "plainText": f"""
+        # Email content
+        subject = f"Your Support Ticket #{short_id} - Received! ✅"
+        html_body = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #075E54; font-size: 24px; margin-bottom: 20px;">🎫 Ticket #{short_id} Received!</h2>
+            
+            <div style="background: #f0f8ff; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #25D366;">
+                <p style="margin: 0 0 10px; font-size: 16px;">
+                    <strong>Hi there!</strong><br><br>
+                    We've received your support request. Our team will get back to you shortly.
+                </p>
+            </div>
+            
+            <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">📋 Ticket Details</h3>
+                <ul style="margin: 0; padding-left: 20px; font-size: 15px;">
+                    <li><strong>ID:</strong> <code style="background: #e5e5e5; padding: 4px 8px; border-radius: 4px; font-family: monospace;">{short_id}</code></li>
+                    <li><strong>Category:</strong> {category}</li>
+                    <li><strong>Status:</strong> <span style="color: #f39c12; font-weight: bold;">Open</span></li>
+                </ul>
+            </div>
+            
+            <div style="background: #e8f5e8; padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
+                <p style="margin: 0; font-size: 16px;">
+                    👉 <strong><a href="https://synes.azurewebsites.net/support/{short_id}" 
+                                style="color: white; background: #25D366; padding: 12px 24px; text-decoration: none; 
+                                       border-radius: 25px; font-weight: bold; display: inline-block;">
+                        Open Chat Now
+                    </a></strong>
+                </p>
+            </div>
+            
+            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+            <p style="color: #666; font-size: 14px; margin: 0;">
+                Best regards,<br>
+                <strong>Synesthetica Support Team</strong><br>
+                <a href="mailto:aygunaliyeva@anas.az" style="color: #25D366;">aygunaliyeva@anas.az</a>
+            </p>
+        </div>
+        """
+        
+        plain_text = f"""
 Your Support Ticket #{short_id} has been received!
 
 Ticket Details:
@@ -92,17 +93,33 @@ Open Chat: https://synes.azurewebsites.net/support/{short_id}
 Best,
 Synesthetica Support Team
 aygunaliyeva@anas.az
-                """
-            }
-        }
+        """
 
-        poller = email_client.begin_send(email_message)
-        result = poller.result()
-        logger.info(f"✅ Confirmation email sent to {user_email}: {result.id}")
+        # Create message
+        msg = MimeMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = sender_email
+        msg['To'] = user_email
+
+        # Attach HTML and plain text
+        html_part = MimeText(html_body, 'html')
+        text_part = MimeText(plain_text, 'plain')
+        msg.attach(text_part)
+        msg.attach(html_part)
+
+        # Send via SMTP
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = msg.as_string()
+        server.sendmail(sender_email, user_email, text)
+        server.quit()
+
+        logger.info(f"✅ Confirmation email sent to {user_email} for ticket {short_id}")
         return True
 
     except Exception as e:
-        logger.error(f"❌ Failed to send confirmation to {user_email}: {e}")
+        logger.error(f"❌ Email failed for {user_email}: {e}")
         return False
 
 # Load environment variables
@@ -649,7 +666,7 @@ def create_ticket():
         short_id = cur.fetchone()[0]
 
         # SEND CONFIRMATION EMAIL TO USER
-        send_user_confirmation(user_email, short_id, user_message)
+        send_user_confirmation(user_email, short_id, category, user_message)
 
         return jsonify({
             "ticket_uuid": ticket_uuid,
@@ -977,6 +994,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
