@@ -656,56 +656,58 @@ def support():
     user = session.get('user')
     return render_template("support.html", user=user)
 
-@app.route("/api/support", methods=['POST'])
+@app.route("/api/support", methods=["POST"])
 def create_ticket():
     data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data"}), 400
-
-    category = data.get('category')
-    user_email = data.get('user_email')
-    user_message = data.get('user_message')
+    category = data.get("category")
+    user_email = data.get("user_email")
+    user_message = data.get("user_message")
 
     if not all([category, user_email, user_message]):
-        return jsonify({"error": "category, user_email, user_message required"}), 400
+        return jsonify({"error": "Missing fields"}), 400
+
+    # Generate IDs
+    ticket_uuid = str(uuid.uuid4())
+    short_id = uuid_to_short(ticket_uuid)  # your function
+
+    # Build initial chat
+    now = datetime.utcnow().isoformat() + "Z"
+    chat = [
+        {"time": now, "user": user_message, "assistant": None}
+    ]
 
     conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "DB error"}), 500
+    cur = conn.cursor()
 
     try:
-        cur = conn.cursor()
-        ticket_uuid = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat() + "Z"
-
-        messages = [{"time": now, "user": user_message, "assistant": None}]
-        messages_json = json.dumps(messages)
-
-        sql = """
-            INSERT INTO SupportTickets 
-                (ticket_uuid, user_email, category, messages, status, created_at)
-            VALUES (?, ?, ?, ?, 'Open', GETDATE())
-        """
-        cur.execute(sql, (ticket_uuid, user_email, category, messages_json))
+        # INSERT ticket
+        cur.execute(
+            """INSERT INTO SupportTickets 
+               (ticket_uuid, short_id, user_email, category, status, messages) 
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (ticket_uuid, short_id, user_email, category, "Open", json.dumps(chat))
+        )
         conn.commit()
 
-        # Get short_id
-        cur.execute("SELECT short_id FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
-        short_id = cur.fetchone()[0]
+        # SEND CONFIRMATION EMAIL
+        send_user_confirmation(
+            user_email=user_email,
+            short_id=short_id,
+            category=category,
+            message=user_message
+        )
 
-        # SEND CONFIRMATION EMAIL TO USER
-        send_user_confirmation(user_email, short_id, category, user_message)
-
+        chat_url = f"/support/{short_id}"
         return jsonify({
-            "ticket_uuid": ticket_uuid,
+            "message": "Ticket created!",
             "short_id": short_id,
-            "message": "We have received your ticket. Our team will reply soon.",
-            "chat": messages,
-            "chat_url": url_for('chat_page', short_id=short_id, _external=True)
-        }), 201
+            "chat_url": chat_url,
+            "chat": chat
+        }), 200
 
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"Create ticket error: {e}")
+        conn.rollback()
         return jsonify({"error": "Failed to create ticket"}), 500
     finally:
         cur.close()
@@ -752,46 +754,53 @@ def support_chat(short_id):
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT messages, category, status, user_email FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
-    row = cur.fetchone()
-    if not row:
-        return "Ticket not found", 404
+    try:
+        cur.execute("SELECT messages, category, status, user_email FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
+        row = cur.fetchone()
+        if not row:
+            return "Ticket not found", 404
 
-    messages, category, status, user_email = row
-    chat = json.loads(messages) if messages else []
+        messages_json, category, status, user_email = row
+        chat = json.loads(messages_json) if messages_json else []
 
-    # AUTO-WELCOME: Only if user has sent 1 message and no admin reply yet
-    if len(chat) == 1 and chat[0].get("user") and not any(m.get("assistant") for m in chat):
-        welcome_msg = {
-            "time": datetime.utcnow().isoformat() + "Z",
-            "user": None,
-            "assistant": "Hi! Thanks for reaching out. We've received your message and our team will assist you shortly."
-        }
-        chat.append(welcome_msg)
+        # AUTO-WELCOME: Only if 1 user message and no admin reply
+        if len(chat) == 1 and chat[0].get("user") and not any(m.get("assistant") for m in chat):
+            welcome_msg = {
+                "time": datetime.utcnow().isoformat() + "Z",
+                "user": None,
+                "assistant": "Hi! Thanks for reaching out. We've received your message and our team will assist you shortly."
+            }
+            chat.append(welcome_msg)
 
-        # Save to DB
-        sql = "UPDATE SupportTickets SET messages = JSON_MODIFY(messages, 'append $.', ?) WHERE ticket_uuid = ?"
-        cur.execute(sql, (json.dumps(welcome_msg), ticket_uuid))
-        conn.commit()
+            # UPDATE DB (SQLite: read → modify → write)
+            cur.execute(
+                "UPDATE SupportTickets SET messages = ? WHERE ticket_uuid = ?",
+                (json.dumps(chat), ticket_uuid)
+            )
+            conn.commit()
 
-        # SEND EMAIL TO USER (optional, but recommended)
-        send_reply_email(
-            user_email=user_email,
+            # SEND EMAIL
+            send_reply_email(
+                user_email=user_email,
+                short_id=short_id,
+                category=category,
+                reply_message=welcome_msg["assistant"]
+            )
+
+        return render_template(
+            "support_chat.html",
             short_id=short_id,
+            chat=chat,
             category=category,
-            reply_message=welcome_msg["assistant"]
+            status=status
         )
 
-    cur.close()
-    conn.close()
-
-    return render_template(
-        "support_chat.html",
-        short_id=short_id,
-        chat=chat,
-        category=category,
-        status=status
-    )
+    except Exception as e:
+        logger.error(f"Chat load error: {e}")
+        return "Server error", 500
+    finally:
+        cur.close()
+        conn.close()
 
 def short_to_uuid(short: str) -> str | None:
     if not short or len(short) != 8:
@@ -814,13 +823,10 @@ def short_to_uuid(short: str) -> str | None:
         cur.close()
         conn.close()
 
-@app.route("/api/support/<short_id>/reply", methods=['POST'])
+@app.route("/api/support/<short_id>/reply", methods=["POST"])
 def add_reply(short_id):
-    # ------------------------------------------------------------------
-    # For demo: anyone can reply.  In production add admin check.
-    # ------------------------------------------------------------------
     data = request.get_json()
-    reply = data.get('reply')
+    reply = data.get("reply")
     if not reply:
         return jsonify({"error": "reply required"}), 400
 
@@ -829,28 +835,42 @@ def add_reply(short_id):
         return jsonify({"error": "Ticket not found"}), 404
 
     conn = get_db_connection()
+    cur = conn.cursor()
+
     try:
-        cur = conn.cursor()
+        # Get current messages + user_email
+        cur.execute("SELECT messages, user_email, category FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "Ticket not found"}), 404
+
+        messages_json, user_email, category = row
+        chat = json.loads(messages_json) if messages_json else []
+
+        # Add reply
         now = datetime.utcnow().isoformat() + "Z"
+        chat.append({"time": now, "user": None, "assistant": reply})
 
-        # Determine who is sending the message
-        sender_is_user = 'user' in session
-        new_message = {
-            "time": now,
-            "user": reply if sender_is_user else None,
-            "assistant": reply if not sender_is_user else None
-        }
-
-        sql = """
-            UPDATE SupportTickets
-            SET messages = JSON_MODIFY(messages, 'append $.', ?)
-            WHERE ticket_uuid = ?
-        """
-        cur.execute(sql, (json.dumps(new_message), ticket_uuid))
+        # Save back
+        cur.execute(
+            "UPDATE SupportTickets SET messages = ? WHERE ticket_uuid = ?",
+            (json.dumps(chat), ticket_uuid)
+        )
         conn.commit()
-        return jsonify({"message": "Reply added"}), 200
+
+        # SEND EMAIL
+        send_reply_email(
+            user_email=user_email,
+            short_id=short_id,
+            category=category,
+            reply_message=reply
+        )
+
+        return jsonify({"message": "Reply sent"}), 200
+
     except Exception as e:
-        logger.error(f"Error adding reply: {e}")
+        logger.error(f"Reply error: {e}")
+        conn.rollback()
         return jsonify({"error": "Failed"}), 500
     finally:
         cur.close()
@@ -1032,6 +1052,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
