@@ -154,6 +154,20 @@ aygunaliyeva@anas.az
         logger.error(f"❌ Email sending failed: {type(e).__name__}: {e}")
         return False
 
+def _ensure_welcome_message(chat: list) -> list:
+    """
+    Guarantees that the first entry in `chat` is the support‑team welcome.
+    If the list is empty or the first entry is not the welcome, prepend it.
+    """
+    WELCOME = {
+        "sender": "support",
+        "text": "Welcome to support! How can we help you today?",
+        "timestamp": None  # will be filled by the client or left null
+    }
+    if not chat or chat[0].get("sender") != "support":
+        chat.insert(0, WELCOME)
+    return chat
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -766,6 +780,10 @@ def chat_page(short_id):
 
         chat = json.loads(row[4]) if row[4] else []  # row[4] = messages
 
+        # <<< INSERT THIS LINE >>>
+        chat = _ensure_welcome_message(chat)
+        # <<< END INSERT >>>
+
         return render_template(
             "support_chat.html",
             user=user,
@@ -1020,6 +1038,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
