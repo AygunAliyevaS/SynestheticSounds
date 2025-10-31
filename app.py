@@ -778,11 +778,29 @@ def chat_page(short_id):
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
-        chat = json.loads(row[4]) if row[4] else []  # row[4] = messages
+        chat = json.loads(row[4]) if row[4] else []          # <-- messages column
 
-        # <<< INSERT THIS LINE >>>
-        chat = _ensure_welcome_message(chat)
-        # <<< END INSERT >>>
+        # --------------------------------------------------------------
+        #  INSERT / UPDATE WELCOME MESSAGE WITH TIMESTAMP
+        # --------------------------------------------------------------
+        now_iso = datetime.utcnow().isoformat() + "Z"
+        WELCOME = {
+            "sender": "support",
+            "assistant": "Welcome to support! How can we help you today?",
+            "time": now_iso
+        }
+
+        if not chat or chat[0].get("sender") != "support":
+            chat.insert(0, WELCOME)
+            # persist the welcome so it survives reloads
+            cur.execute(
+                """UPDATE SupportTickets
+                   SET messages = ?
+                   WHERE ticket_uuid = ?""",
+                (json.dumps(chat), ticket_uuid)
+            )
+            conn.commit()
+        # --------------------------------------------------------------
 
         return render_template(
             "support_chat.html",
@@ -822,9 +840,6 @@ def short_to_uuid(short: str) -> str | None:
 
 @app.route("/api/support/<short_id>/reply", methods=['POST'])
 def add_reply(short_id):
-    # ------------------------------------------------------------------
-    # For demo: anyone can reply.  In production add admin check.
-    # ------------------------------------------------------------------
     data = request.get_json()
     reply = data.get('reply')
     if not reply:
@@ -834,17 +849,22 @@ def add_reply(short_id):
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
 
+    # --------------------------------------------------------------
+    #  ADMIN CHECK – you can change the condition to whatever you use
+    # --------------------------------------------------------------
+    is_admin = session.get('is_admin', False)          # <-- set True for admins
+    # --------------------------------------------------------------
+
     conn = get_db_connection()
     try:
         cur = conn.cursor()
         now = datetime.utcnow().isoformat() + "Z"
 
-        # Determine who is sending the message
-        sender_is_user = 'user' in session
         new_message = {
             "time": now,
-            "user": reply if sender_is_user else None,
-            "assistant": reply if not sender_is_user else None
+            "sender": "user" if not is_admin else "support",
+            "user": reply if not is_admin else None,
+            "assistant": reply if is_admin else None
         }
 
         sql = """
@@ -1038,7 +1058,3 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
-
-
-
-
