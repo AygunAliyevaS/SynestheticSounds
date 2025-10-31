@@ -36,8 +36,8 @@ def send_user_confirmation(user_email: str, short_id: str, category: str, messag
     # --- Configuration ---
     SMTP_SERVER = os.getenv("SMTP_HOST", "mail.optimal.com.ng")
     SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-    SMTP_USER = os.getenv("SMTP_USER", "support@lantopinfotech.com")
-    SMTP_PASS = os.getenv("SMTP_PASSWORD", "Lantopsupport@")
+    SMTP_USER = os.getenv("SMTP_USER", "aygunaliyeva@anas.az")
+    SMTP_PASS = os.getenv("SMTP_PASSWORD", "0SWQH3D!")
     SENDER_NAME = os.getenv("SMTP_SENDER_NAME", "Synesthetica Support")
     USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 
@@ -1058,3 +1058,4 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
