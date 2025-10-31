@@ -678,6 +678,37 @@ def support():
     user = session.get('user')
     return render_template("support.html", user=user)
 
+@app.route("/admin")
+def admin():
+    conn = get_db_connection()
+    if not conn:
+        return "Database error", 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT short_id, ticket_uuid, user_email, category, status, created_at
+            FROM SupportTickets
+            ORDER BY created_at DESC
+        """)
+        tickets = []
+        for row in cur.fetchall():
+            tickets.append({
+                "short_id": row[0],
+                "uuid": str(row[1]),
+                "email": row[2],
+                "category": row[3],
+                "status": row[4],
+                "created": row[5].strftime("%b %d, %Y %I:%M %p") if row[5] else "Unknown"
+            })
+        return render_template("admin.html", tickets=tickets)
+    except Exception as e:
+        logger.error(f"Admin page error: {e}")
+        return "Server error", 500
+    finally:
+        cur.close()
+        conn.close()
+
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
     data = request.get_json()
@@ -857,11 +888,10 @@ def add_reply(short_id):
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
 
-    # --------------------------------------------------------------
-    #  ADMIN CHECK – you can change the condition to whatever you use
-    # --------------------------------------------------------------
-    is_admin = session.get('is_admin', False)          # <-- set True for admins
-    # --------------------------------------------------------------
+    # --- Determine sender ---
+    is_admin = request.path.startswith('/admin') or session.get('is_admin', False)
+    # If accessed from /admin or has admin session → support message
+    # Otherwise → user message
 
     conn = get_db_connection()
     try:
@@ -870,9 +900,9 @@ def add_reply(short_id):
 
         new_message = {
             "time": now,
-            "sender": "user" if not is_admin else "support",
-            "user": reply if not is_admin else None,
-            "assistant": reply if is_admin else None
+            "sender": "support" if is_admin else "user",
+            "assistant": reply if is_admin else None,
+            "user": reply if not is_admin else None
         }
 
         sql = """
@@ -1066,5 +1096,6 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
