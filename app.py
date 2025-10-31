@@ -34,12 +34,20 @@ def send_user_confirmation(user_email: str, short_id: str, category: str, messag
     Template styled like SportyBet emails (green accents, bold CTA, sports energy).
     """
     # --- Configuration ---
-    SMTP_SERVER = os.getenv("SMTP_HOST", "mail.optimal.com.ng")
+    SMTP_SERVER = os.getenv("SMTP_HOST")  # Required: No default
     SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-    SMTP_USER = os.getenv("SMTP_USER", "aygunaliyeva@anas.az")
-    SMTP_PASS = os.getenv("SMTP_PASSWORD", "0SWQH3D!")
+    SMTP_USER = os.getenv("SMTP_USER")    # Required: No default
+    SMTP_PASS = os.getenv("SMTP_PASSWORD")  # Required: No default
     SENDER_NAME = os.getenv("SMTP_SENDER_NAME", "Synesthetica Support")
     USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+
+    # Validate required env vars
+    if not all([SMTP_SERVER, SMTP_USER, SMTP_PASS]):
+        logger.error("❌ Missing required SMTP env vars: SMTP_HOST, SMTP_USER, SMTP_PASSWORD")
+        return False
+
+    # Rest of your function stays EXACTLY the same...
+    # (subject, plain_body, html_body, msg setup, try/except block)
 
     if not all([SMTP_SERVER, SMTP_USER, SMTP_PASS]):
         logger.warning("SMTP configuration missing in .env")
@@ -1058,4 +1066,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
