@@ -140,67 +140,120 @@
   <div id="replyResult" class="hidden p-2"></div>
 
   <!-- JavaScript ------------------------------------------------ -->
-  <script>
+<script>
   const shortId = "{{ short_id|default('') }}";
-  const isAdmin = {{ (request.args.get('admin') == '1')|tojson }};   // <-- detect admin view
+  const isAdmin = {{ (request.args.get('admin') == '1')|tojson }};
 
   const eventSource = new EventSource(`/api/support/${shortId}/stream`);
+  let isSending = false;          // <-- NEW: prevent double-send
 
-  /* ---------- Receive ---------- */
+  /* ---------- Receive messages & typing ---------- */
   eventSource.onmessage = e => {
     const data = JSON.parse(e.data);
-    if (data.type === 'message'){
+    if (data.type === 'message') {
       const isUser = data.sender === 'user';
-      const txt    = isUser ? data.user : data.assistant;
+      const txt = isUser ? data.user : data.assistant;
       addBubble(txt, isUser);
-    } else if (data.type === 'typing'){
+    } else if (data.type === 'typing') {
       const typing = document.getElementById('typingIndicator');
       typing.classList.toggle('hidden', !data.is_typing);
     }
   };
 
-  /* ---------- Send reply ---------- */
-  async function sendReply(){
-    const txt = document.getElementById('replyText').value.trim();
-    if (!txt) return;
-    addBubble(txt, true);                     // optimistic UI
-    document.getElementById('replyText').value='';
-
-    await fetch(`/api/support/${shortId}/reply`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({reply:txt, is_admin:isAdmin})
-    });
+  /* ---------- Add a chat bubble ---------- */
+  function addBubble(text, isUser) {
+    const box = document.getElementById('chatBox');
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const html = `
+      <div class="flex ${isUser ? 'justify-end mb-4' : 'justify-start mb-4'}">
+        <div class="max-w-[75%]">
+          <div class="msg-bubble ${isUser ? 'msg-user' : 'msg-admin'} text-gray-900 shadow-sm">
+            <div class="msg-time">${time}</div>
+            ${escapeHtml(text)}
+          </div>
+        </div>
+      </div>`;
+    box.insertAdjacentHTML('beforeend', html);
+    box.scrollTop = box.scrollHeight;
   }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /* ---------- Send reply (button OR Enter) ---------- */
+  async function sendReply() {
+    if (isSending) return;                     // <-- prevent double-send
+    const textarea = document.getElementById('replyText');
+    const txt = textarea.value.trim();
+    if (!txt) return;
+
+    isSending = true;
+    addBubble(txt, true);                      // optimistic UI
+    textarea.value = '';
+    textarea.style.height = 'auto';            // reset height
+
+    try {
+      await fetch(`/api/support/${shortId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply: txt, is_admin: isAdmin })
+      });
+    } catch (err) {
+      console.error('Send failed:', err);
+      // optionally show error bubble
+    } finally {
+      isSending = false;
+    }
+  }
+
+  /* ---------- Button click ---------- */
+  document.getElementById('replyForm').addEventListener('submit', e => {
+    e.preventDefault();
+    sendReply();
+  });
+
+  /* ---------- Enter key (but NOT Shift+Enter) ---------- */
+  const textarea = document.getElementById('replyText');
+  textarea.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();     // stop newline
+      sendReply();
+    }
+  });
+
+  /* ---------- Auto-resize textarea ---------- */
+  textarea.addEventListener('input', () => {
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+  });
 
   /* ---------- Typing indicator ---------- */
   let typingTimer, typingSent = false;
-  const textarea = document.getElementById('replyText');
-
-  textarea.addEventListener('input',()=>{
-    if (!typingSent){
-      fetch(`/api/support/${shortId}/typing`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({is_typing:true, is_admin:isAdmin})
+  textarea.addEventListener('input', () => {
+    if (!typingSent) {
+      fetch(`/api/support/${shortId}/typing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_typing: true, is_admin: isAdmin })
       });
       typingSent = true;
     }
     clearTimeout(typingTimer);
-    typingTimer = setTimeout(()=>{
-      fetch(`/api/support/${shortId}/typing`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({is_typing:false, is_admin:isAdmin})
+    typingTimer = setTimeout(() => {
+      fetch(`/api/support/${shortId}/typing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_typing: false, is_admin: isAdmin })
       });
       typingSent = false;
-    },1500);
+    }, 1500);
   });
 
-  document.getElementById('replyForm').addEventListener('submit', e=>{
-    e.preventDefault();
-    sendReply();
-  });
+  // Initial scroll
+  document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
 </script>
 </body>
 </html>
