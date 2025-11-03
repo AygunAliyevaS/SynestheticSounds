@@ -141,13 +141,11 @@
 
   <!-- JavaScript ------------------------------------------------ -->
 <script>
-  const shortId = "{{ short_id|default('') }}";
+ const shortId = "{{ short_id|default('') }}";
   const isAdmin = {{ (request.args.get('admin') == '1')|tojson }};
-
   const eventSource = new EventSource(`/api/support/${shortId}/stream`);
-  let isSending = false;          // <-- NEW: prevent double-send
+  let isSending = false;
 
-  /* ---------- Receive messages & typing ---------- */
   eventSource.onmessage = e => {
     const data = JSON.parse(e.data);
     if (data.type === 'message') {
@@ -155,9 +153,16 @@
       const txt = isUser ? data.user : data.assistant;
       addBubble(txt, isUser);
     } else if (data.type === 'typing') {
-      const typing = document.getElementById('typingIndicator');
-      typing.classList.toggle('hidden', !data.is_typing);
+      document.getElementById('typingIndicator').classList.toggle('hidden', !data.is_typing);
+    } else if (data.type === 'heartbeat') {
+      console.log('Heartbeat received');  // Keep alive
     }
+  };
+
+  eventSource.onerror = e => {
+    console.error('SSE error:', e);
+    // Auto-reconnect in 5s
+    setTimeout(() => location.reload(), 5000);
   };
 
   /* ---------- Add a chat bubble ---------- */
