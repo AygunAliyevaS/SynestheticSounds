@@ -22,6 +22,8 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import queue
+from threading import Thread
 
 message_bus = {}          # short_id → list of queues
 typing_bus  = {}
@@ -30,6 +32,24 @@ def _get_queue(short_id):
     if short_id not in message_bus:
         message_bus[short_id] = []
     return message_bus[short_id]
+
+def broadcast(short_id, payload):
+    queue = _get_queue(short_id)
+    payload_str = json.dumps(payload) + "\n"
+    for q in queue[:]:
+        try:
+            q.put_nowait(payload_str)
+        except:
+            queue.remove(q)
+
+def heartbeat():
+    while True:
+        time.sleep(20)
+        for short_id in list(message_bus.keys()):
+            broadcast(short_id, {"type": "heartbeat", "time": time.time()})
+
+Thread(target=heartbeat, daemon=True).start()
+
 
 
 load_dotenv()
@@ -932,14 +952,6 @@ def add_reply(short_id):
         cur.close()
         conn.close()
 
-def broadcast(short_id, payload):
-    queue = _get_queue(short_id)
-    payload_str = json.dumps(payload) + "\n"
-    for q in queue[:]:               # copy because we may remove while iterating
-        try:
-            q.put_nowait(payload_str)
-        except Exception:
-            queue.remove(q)
 
 @app.route("/api/support/<short_id>/stream")
 def sse_stream(short_id):
@@ -1152,4 +1164,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
