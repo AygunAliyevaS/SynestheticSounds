@@ -25,12 +25,11 @@ from email.mime.multipart import MIMEMultipart
 import threading
 from queue import Queue
 
-
+# --- Real-time chat globals ---
 _TicketStreams = {}
 _lock = threading.Lock()
 
 def _get_ticket(short_id):
-    """Create or return ticket stream entry."""
     with _lock:
         if short_id not in _TicketStreams:
             _TicketStreams[short_id] = {'clients': [], 'typing': set()}
@@ -1170,6 +1169,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
