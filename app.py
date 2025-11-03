@@ -7,7 +7,7 @@ import numpy as np
 from scipy.io.wavfile import write as write_wav
 from scipy import signal
 from PIL import Image
-from flask import Flask, request, render_template, jsonify, send_from_directory, session, redirect, url_for
+from flask import Flask, request, render_template, jsonify, send_from_directory, session, redirect, url_for, Response, stream_with_context
 from colorsys import rgb_to_hsv
 from dotenv import load_dotenv
 import msal
@@ -22,7 +22,19 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import threading
+from queue import Queue
 
+
+_TicketStreams = {}
+_lock = threading.Lock()
+
+def _get_ticket(short_id):
+    """Create or return ticket stream entry."""
+    with _lock:
+        if short_id not in _TicketStreams:
+            _TicketStreams[short_id] = {'clients': [], 'typing': set()}
+        return _TicketStreams[short_id]
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -797,6 +809,7 @@ def list_tickets():
 
 @app.route("/support/<short_id>")
 def chat_page(short_id):
+    is_admin = request.args.get('admin') == '1'
     user = session.get('user')
     ticket_uuid = short_to_uuid(short_id)
     
@@ -848,6 +861,7 @@ def chat_page(short_id):
             category=row[2] or "Unknown",
             status=row[3] or "Open",
             chat=chat
+            is_admin=is_admin
         )
     except Exception as e:
         logger.error(f"Error in chat_page: {e}")
@@ -877,10 +891,48 @@ def short_to_uuid(short: str) -> str | None:
         cur.close()
         conn.close()
 
+@app.route("/api/support/<short_id>/stream")
+def chat_stream(short_id):
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        return "Invalid ticket", 404
+
+    def generate():
+        ticket = _get_ticket(short_id)
+        q = Queue()
+        with _lock:
+            ticket['clients'].append(q)
+        try:
+            while True:
+                data = q.get()
+                if data is None:
+                    break
+                yield f"data: {json.dumps(data)}\n\n"
+        except GeneratorExit:
+            pass
+        finally:
+            with _lock:
+                ticket['clients'] = [c for c in ticket['clients'] if c != q]
+
+    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
+def _broadcast(short_id, payload):
+    ticket = _get_ticket(short_id)
+    with _lock:
+        for q in ticket['clients'][:]:
+            try:
+                q.put(payload)
+            except:
+                pass
+
+
+
 @app.route("/api/support/<short_id>/reply", methods=['POST'])
-def add_reply(short_id):
+def add_reply_realtime(short_id):
+    # --- Use your existing logic but add broadcast ---
     data = request.get_json()
     reply = data.get('reply')
+    is_admin = data.get('is_admin', False)
     if not reply:
         return jsonify({"error": "reply required"}), 400
 
@@ -888,37 +940,59 @@ def add_reply(short_id):
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
 
-    # --- Determine sender ---
-    is_admin = request.path.startswith('/admin') or session.get('is_admin', False)
-    # If accessed from /admin or has admin session → support message
-    # Otherwise → user message
-
     conn = get_db_connection()
     try:
         cur = conn.cursor()
         now = datetime.utcnow().isoformat() + "Z"
-
-        new_message = {
+        new_msg = {
             "time": now,
             "sender": "support" if is_admin else "user",
             "assistant": reply if is_admin else None,
             "user": reply if not is_admin else None
         }
-
-        sql = """
+        
+        cur.execute("""
             UPDATE SupportTickets
             SET messages = JSON_MODIFY(messages, 'append $.', ?)
             WHERE ticket_uuid = ?
-        """
-        cur.execute(sql, (json.dumps(new_message), ticket_uuid))
+        """, (json.dumps(new_msg), ticket_uuid))
         conn.commit()
-        return jsonify({"message": "Reply added"}), 200
+
+        # --- BROADCAST TO ALL LIVE CLIENTS ---
+        payload = {
+            "type": "message",
+            "sender": new_msg["sender"],
+            "user": new_msg.get("user"),
+            "assistant": new_msg.get("assistant")
+        }
+        _broadcast(short_id, payload)
+
+        return jsonify({"message": "sent"}), 200
     except Exception as e:
-        logger.error(f"Error adding reply: {e}")
+        logger.error(f"Reply error: {e}")
         return jsonify({"error": "Failed"}), 500
     finally:
         cur.close()
         conn.close()
+
+@app.route("/api/support/<short_id>/typing", methods=['POST'])
+def typing_indicator(short_id):
+    data = request.get_json()
+    is_typing = data.get('is_typing', False)
+    is_admin = data.get('is_admin', False)
+
+    ticket = _get_ticket(short_id)
+    typist = "admin" if is_admin else "user"
+
+    with _lock:
+        if is_typing:
+            ticket['typing'].add(typist)
+        else:
+            ticket['typing'].discard(typist)
+        any_typing = bool(ticket['typing'])
+
+    _broadcast(short_id, {"type": "typing", "is_typing": any_typing})
+    return "", 204
 
 @app.route("/submit", methods=['POST'])
 def submit():
@@ -1096,6 +1170,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
