@@ -859,7 +859,7 @@ def chat_page(short_id):
             short_id=short_id,
             category=row[2] or "Unknown",
             status=row[3] or "Open",
-            chat=chat
+            chat=chat,
             is_admin=is_admin
         )
     except Exception as e:
@@ -1169,6 +1169,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
