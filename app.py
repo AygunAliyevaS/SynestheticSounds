@@ -7,7 +7,7 @@ import numpy as np
 from scipy.io.wavfile import write as write_wav
 from scipy import signal
 from PIL import Image
-from flask import Flask, request, render_template, jsonify, send_from_directory, session, redirect, url_for
+from flask import Flask, request, render_template, jsonify, send_from_directory, session, redirect, url_for,Response,stream_with_context
 from colorsys import rgb_to_hsv
 from dotenv import load_dotenv
 import msal
@@ -22,6 +22,14 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+message_bus = {}          # short_id → list of queues
+typing_bus  = {}
+
+def _get_queue(short_id):
+    if short_id not in message_bus:
+        message_bus[short_id] = []
+    return message_bus[short_id]
 
 
 load_dotenv()
@@ -888,10 +896,9 @@ def add_reply(short_id):
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
 
-    # --- Determine sender ---
-    is_admin = request.path.startswith('/admin') or session.get('is_admin', False)
-    # If accessed from /admin or has admin session → support message
-    # Otherwise → user message
+    # ---- determine sender (admin vs user) ----
+    is_admin = data.get('is_admin', False)          # <-- NEW
+    # (you can also keep your old session-based logic)
 
     conn = get_db_connection()
     try:
@@ -905,6 +912,7 @@ def add_reply(short_id):
             "user": reply if not is_admin else None
         }
 
+        # ---- DB UPDATE (JSON_MODIFY) ----
         sql = """
             UPDATE SupportTickets
             SET messages = JSON_MODIFY(messages, 'append $.', ?)
@@ -912,6 +920,10 @@ def add_reply(short_id):
         """
         cur.execute(sql, (json.dumps(new_message), ticket_uuid))
         conn.commit()
+
+        # ---- REAL-TIME PUSH ----
+        broadcast(short_id, {"type": "message", **new_message})
+
         return jsonify({"message": "Reply added"}), 200
     except Exception as e:
         logger.error(f"Error adding reply: {e}")
@@ -919,6 +931,50 @@ def add_reply(short_id):
     finally:
         cur.close()
         conn.close()
+
+def broadcast(short_id, payload):
+    queue = _get_queue(short_id)
+    payload_str = json.dumps(payload) + "\n"
+    for q in queue[:]:               # copy because we may remove while iterating
+        try:
+            q.put_nowait(payload_str)
+        except Exception:
+            queue.remove(q)
+
+@app.route("/api/support/<short_id>/stream")
+def sse_stream(short_id):
+    import queue
+    q = queue.Queue()
+    _get_queue(short_id).append(q)
+
+    def event_stream():
+        try:
+            while True:
+                data = q.get()                 # blocks until something arrives
+                yield f"data: {data}\n\n"
+        except GeneratorExit:
+            _get_queue(short_id).remove(q)
+
+    response = Response(stream_with_context(event_stream()), mimetype="text/event-stream")
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Accel-Buffering"] = "no"   # important for Azure
+    return response
+
+@app.route("/api/support/<short_id>/typing", methods=["POST"])
+def typing_indicator(short_id):
+    data = request.get_json() or {}
+    is_typing = data.get("is_typing", False)
+    is_admin  = data.get("is_admin", False)
+
+    if is_typing:
+        typing_bus.setdefault(short_id, set()).add((is_admin, time.time()))
+    else:
+        typing_bus.setdefault(short_id, set()).discard((is_admin, time.time()))
+
+    # Broadcast the *current* typing state to everyone
+    any_typing = any(t[0] != is_admin for t in typing_bus.get(short_id, set()))
+    broadcast(short_id, {"type": "typing", "is_typing": any_typing})
+    return "", 204
 
 @app.route("/submit", methods=['POST'])
 def submit():
@@ -1096,3 +1152,4 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
