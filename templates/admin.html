@@ -2,65 +2,226 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Admin – All Support Tickets</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Chat – #{{ short_id|default('Ticket') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    .table-row:hover { background-color: #f9fafb; }
-    .badge-open { @apply bg-green-100 text-green-800; }
-    .badge-closed { @apply bg-red-100 text-red-800; }
+    /* Same styles as support_chat.html for bubbles/typing */
+    .msg-bubble { min-height: 44px; position: relative; padding: 12px 16px; border-radius: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .msg-user { background: #DCF8C6; border-top-right-radius: 0; color: #333; }  /* User messages: green */
+    .msg-admin { background: #E3F2FD; border-top-left-radius: 0; color: #1976D2; }  /* Admin replies: blue */
+
+    .msg-time { display: block; margin-bottom: 4px; font-size: 11px; color: #666; line-height: 1; }
+    .msg-user .msg-time { text-align: right; }
+    .msg-admin .msg-time { text-align: left; }
+
+    .typing-dots span { display: inline-block; width: 6px; height: 6px; background: #999; border-radius: 50%; animation: typing 1.4s infinite; }
+    .typing-dots span:nth-child(2) { animation-delay: .2s; }
+    .typing-dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes typing { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-  <div class="max-w-6xl mx-auto p-6">
-    <div class="flex justify-between items-center mb-8">
-      <h1 class="text-3xl font-bold text-gray-800">Admin Panel – Support Tickets</h1>
-      <a href="/" class="text-blue-600 hover:underline">← Back to Home</a>
-    </div>
+<body class="flex flex-col h-screen m-0 p-0 bg-gray-100">
 
-    {% if tickets|length == 0 %}
-      <p class="text-center text-gray-500 py-10">No tickets yet.</p>
-    {% else %}
-      <div class="bg-white shadow overflow-hidden rounded-lg">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            {% for t in tickets %}
-            <tr class="table-row transition">
-              <td class="px-6 py-4 whitespace-nowrap">
-                <a href="/support/{{ t.short_id }}" class="text-blue-600 font-medium hover:underline">
-                  #{{ t.short_id }}
-                </a>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ t.email }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ t.category }}</td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                  {% if t.status == 'Open' %}badge-open{% else %}badge-closed{% endif %}">
-                  {{ t.status }}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ t.created }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm">
-<a href="/support/{{ t.short_id }}?admin=1" class="text-green-600 hover:text-green-800 font-medium">
-  Open Chat →
-</a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+  <!-- Admin Header (Different: Shows all tickets link) -->
+  <header class="bg-blue-900 text-white p-3 flex items-center justify-between shadow-lg">
+    <div class="flex items-center space-x-3">
+      <a href="/admin" class="text-white hover:opacity-80">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </a>
+      <div class="flex items-center space-x-2">
+        <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-lg">
+          👤  <!-- Admin icon -->
+        </div>
+        <div>
+          <p class="font-semibold">Admin Reply – Ticket #{{ short_id|default('????') }}</p>
+          <p class="text-xs opacity-80">{{ category|default('Unknown') }} • {{ status|default('Open') }}</p>
+        </div>
       </div>
+    </div>
+    <a href="/admin" class="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded text-sm">← All Tickets</a>
+  </header>
+
+  <!-- Chat Box (Same structure, but user messages highlighted differently) -->
+  <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4" style="max-height: calc(100vh - 120px);">
+    {% if chat and chat|length > 0 %}
+      {% for msg in chat %}
+        {% if msg.sender == 'user' %}
+          <div class="flex justify-start mb-4">  <!-- Users left-aligned -->
+            <div class="max-w-[75%]">
+              <div class="msg-bubble msg-user shadow-sm">
+                <div class="msg-time">{% if msg.time %}{{ msg.time.split('T')[1][:5] }}{% else %}Now{% endif %}</div>
+                {{ msg.user | safe }}
+              </div>
+            </div>
+          </div>
+        {% elif msg.sender == 'support' %}
+          <div class="flex justify-end mb-4">  <!-- Admin right-aligned -->
+            <div class="max-w-[75%]">
+              <div class="msg-bubble msg-admin shadow-sm">
+                <div class="msg-time">{% if msg.time %}{{ msg.time.split('T')[1][:5] }}{% else %}Now{% endif %}</div>
+                {{ msg.assistant | safe }}
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% else %}
+      <p class="text-center text-gray-600 italic mt-10">Select a ticket to start replying.</p>
     {% endif %}
+
+    <!-- Typing indicator (shows user typing) -->
+    <div id="typingIndicator" class="flex justify-start mb-4 hidden">
+      <div class="max-w-[75%]">
+        <div class="msg-bubble msg-user text-gray-900 shadow-sm">
+          <div class="msg-time">Now</div>
+          <span class="typing-dots"><span></span><span></span><span></span></span>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <!-- Admin Reply Input (Reply-only label, no confusion) -->
+  <form id="replyForm" class="bg-gray-200 border-t p-3 flex items-center space-x-2">
+    <div class="flex-1 bg-white rounded-full shadow-sm flex items-center px-3 py-2">
+      <textarea id="replyText" rows="1" placeholder="Type your reply as admin..."
+                class="flex-1 resize-none border-none outline-none text-sm text-gray-800 overflow-hidden"
+                style="min-height: 40px; max-height: 120px;" required></textarea>
+    </div>
+    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-md transition">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+      </svg>
+    </button>
+  </form>
+
+  <!-- Same JS as user, but isAdmin=true always -->
+  <script>
+    const shortId = "{{ short_id|default('') }}";
+    const isAdmin = true;  // Always admin here
+    const eventSource = new EventSource(`/api/support/${shortId}/stream`);
+    let isSending = false;
+
+const shortId = "{{ short_id|default('') }}";
+  const isAdmin = {{ (request.args.get('admin') == '1')|tojson }};
+  const eventSource = new EventSource(`/api/support/${shortId}/stream`);
+  let isSending = false;
+
+  eventSource.onmessage = e => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'message') {
+      const isUser = data.sender === 'user';
+      const txt = isUser ? data.user : data.assistant;
+      addBubble(txt, isUser);
+    } else if (data.type === 'typing') {
+      document.getElementById('typingIndicator').classList.toggle('hidden', !data.is_typing);
+    } else if (data.type === 'heartbeat') {
+      console.log('Heartbeat received');  // Keep alive
+    }
+  };
+
+  eventSource.onerror = e => {
+    console.error('SSE error:', e);
+    // Auto-reconnect in 5s
+    setTimeout(() => location.reload(), 5000);
+  };
+
+  /* ---------- Add a chat bubble ---------- */
+  function addBubble(text, isUser) {
+    const box = document.getElementById('chatBox');
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const html = `
+      <div class="flex ${isUser ? 'justify-end mb-4' : 'justify-start mb-4'}">
+        <div class="max-w-[75%]">
+          <div class="msg-bubble ${isUser ? 'msg-user' : 'msg-admin'} text-gray-900 shadow-sm">
+            <div class="msg-time">${time}</div>
+            ${escapeHtml(text)}
+          </div>
+        </div>
+      </div>`;
+    box.insertAdjacentHTML('beforeend', html);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /* ---------- Send reply (button OR Enter) ---------- */
+  async function sendReply() {
+    if (isSending) return;                     // <-- prevent double-send
+    const textarea = document.getElementById('replyText');
+    const txt = textarea.value.trim();
+    if (!txt) return;
+
+    isSending = true;
+    addBubble(txt, true);                      // optimistic UI
+    textarea.value = '';
+    textarea.style.height = 'auto';            // reset height
+
+    try {
+      await fetch(`/api/support/${shortId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply: txt, is_admin: isAdmin })
+      });
+    } catch (err) {
+      console.error('Send failed:', err);
+      // optionally show error bubble
+    } finally {
+      isSending = false;
+    }
+  }
+
+  /* ---------- Button click ---------- */
+  document.getElementById('replyForm').addEventListener('submit', e => {
+    e.preventDefault();
+    sendReply();
+  });
+
+  /* ---------- Enter key (but NOT Shift+Enter) ---------- */
+  const textarea = document.getElementById('replyText');
+  textarea.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();     // stop newline
+      sendReply();
+    }
+  });
+
+  /* ---------- Auto-resize textarea ---------- */
+  textarea.addEventListener('input', () => {
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+  });
+
+  /* ---------- Typing indicator ---------- */
+  let typingTimer, typingSent = false;
+  textarea.addEventListener('input', () => {
+    if (!typingSent) {
+      fetch(`/api/support/${shortId}/typing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_typing: true, is_admin: isAdmin })
+      });
+      typingSent = true;
+    }
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+      fetch(`/api/support/${shortId}/typing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_typing: false, is_admin: isAdmin })
+      });
+      typingSent = false;
+    }, 1500);
+  });
+
+  // Initial scroll
+  document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+  </script>
 </body>
 </html>
