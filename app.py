@@ -34,12 +34,11 @@ def send_user_confirmation(user_email: str, short_id: str, category: str, messag
     Template styled like SportyBet emails (green accents, bold CTA, sports energy).
     """
     # --- Configuration ---
-    SMTP_SERVER = os.getenv("SMTP_HOST")  # Required: No default
-    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-    SMTP_USER = os.getenv("SMTP_USER")    # Required: No default
-    SMTP_PASS = os.getenv("SMTP_PASSWORD")  # Required: No default
-    SENDER_NAME = os.getenv("SMTP_SENDER_NAME", "Synesthetica Support")
-    USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+SMTP_SERVER = "smtp.gmail.com"
+    SMTP_PORT   = 587
+    SMTP_USER   = "lindacont6@gmail.com"                     # <-- your Gmail address
+    SMTP_PASS   = "rpkjefefgdjifbkh"                         # <-- 16-char App Password
+    SENDER_NAME = "Synesthetica Support"
 
     # Validate required env vars
     if not all([SMTP_SERVER, SMTP_USER, SMTP_PASS]):
@@ -143,23 +142,22 @@ aygunaliyeva@anas.az
     msg.attach(MIMEText(html_body, "html"))
 
     # --- Send Email ---
-    try:
+try:
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            if USE_TLS:
-                server.starttls()
+            server.starttls()                # enable TLS
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
-            logger.info(f"✅ Confirmation email sent to {user_email} for ticket {short_id}")
-            return True
+        logger.info(f"Confirmation email sent to {user_email} for ticket {short_id}")
+        return True
     except smtplib.SMTPAuthenticationError as e:
-        logger.error(f"❌ SMTP Authentication failed: {e}")
-        logger.error("Check SMTP_USER and SMTP_PASSWORD in .env")
+        logger.error(f"SMTP auth failed: {e}")
+        logger.error("Check USERNAME / App-Password")
         return False
     except smtplib.SMTPRecipientsRefused:
-        logger.error(f"❌ Recipient refused: {user_email}")
+        logger.error(f"Recipient refused: {user_email}")
         return False
     except Exception as e:
-        logger.error(f"❌ Email sending failed: {type(e).__name__}: {e}")
+        logger.error(f"Email sending failed: {type(e).__name__}: {e}")
         return False
 
 def _ensure_welcome_message(chat: list) -> list:
@@ -1096,3 +1094,4 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
