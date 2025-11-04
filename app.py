@@ -30,47 +30,35 @@ logger = logging.getLogger(__name__)
 
 def send_user_confirmation(user_email: str, short_id: str, category: str, message: str) -> bool:
     """
-    Send confirmation email to the user's email from the support form using custom SMTP server.
-    Template styled like SportyBet emails (green accents, bold CTA, sports energy).
+    Send confirmation email via Gmail SMTP.
+    The SportyBet-styled HTML template is unchanged.
     """
-    # --- Configuration ---
-SMTP_SERVER = "smtp.gmail.com"
+    # ---------- Gmail SMTP (hard-coded for testing) ----------
+    SMTP_SERVER = "smtp.gmail.com"
     SMTP_PORT   = 587
-    SMTP_USER   = "lindacont6@gmail.com"                     # <-- your Gmail address
-    SMTP_PASS   = "rpkjefefgdjifbkh"                         # <-- 16-char App Password
+    SMTP_USER   = "lindacont6@gmail.com"          # your Gmail address
+    SMTP_PASS   = "rpkjefefgdjifbkh"              # 16-char App Password
     SENDER_NAME = "Synesthetica Support"
 
-    # Validate required env vars
+    # Quick sanity check – if any of the hard-coded values are empty the function will fail early
     if not all([SMTP_SERVER, SMTP_USER, SMTP_PASS]):
-        logger.error("❌ Missing required SMTP env vars: SMTP_HOST, SMTP_USER, SMTP_PASSWORD")
+        logger.error("Missing Gmail SMTP credentials")
         return False
 
-    # Rest of your function stays EXACTLY the same...
-    # (subject, plain_body, html_body, msg setup, try/except block)
+    # ---------- Email Content (exactly the same as before) ----------
+    subject = f"Ticket #{short_id} - We've Got You Covered!"
 
-    if not all([SMTP_SERVER, SMTP_USER, SMTP_PASS]):
-        logger.warning("SMTP configuration missing in .env")
-        return False
-
-    # --- Email Content ---
-    subject = f"🎫 Ticket #{short_id} - We've Got You Covered!"
-    
-    # Updated plain-text message (your exact request)
     plain_body = f"""We have received your report ticket number {short_id}. Our team will be with you shortly.
-
 Ticket Details:
 - ID: {short_id}
 - Category: {category}
 - Status: Open
-
 Open Chat: https://synes.azurewebsites.net/support/{short_id}
-
 Best regards,
 {SENDER_NAME}
 aygunaliyeva@anas.az
 """
 
-    # SportyBet-inspired HTML template
     html_body = f"""
     <!DOCTYPE html>
     <html>
@@ -86,7 +74,7 @@ aygunaliyeva@anas.az
             .content {{ padding: 30px 20px; }}
             .ticket-card {{ background: #fff; border: 2px solid #00C851; border-radius: 10px; padding: 20px; margin: 20px 0; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }}
             .ticket-card h2 {{ color: #00C851; margin-top: 0; font-size: 22px; display: flex; align-items: center; }}
-            .ticket-card h2::before {{ content: '🎫'; margin-right: 10px; }}
+            .ticket-card h2::before {{ content: 'Ticket'; margin-right: 10px; }}
             .ticket-details {{ list-style: none; padding: 0; }}
             .ticket-details li {{ padding: 8px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }}
             .ticket-details li:last-child {{ border-bottom: none; }}
@@ -104,22 +92,22 @@ aygunaliyeva@anas.az
         <div class="container">
             <div class="header">
                 <h1>Synesthetica Support</h1>
-                <p>Turning Your Support Into Victory! ⚡</p>
+                <p>Turning Your Support Into Victory!</p>
             </div>
             <div class="content">
                 <div class="ticket-card">
                     <h2>Ticket Confirmation</h2>
                     <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
-                        We have received your report ticket number <strong>{short_id}</strong>. Our team will be with you shortly. 🚀
+                        We have received your report ticket number <strong>{short_id}</strong>. Our team will be with you shortly.
                     </p>
                     <ul class="ticket-details">
                         <li><span class="label">Ticket ID:</span> <span class="value"><strong>{short_id}</strong></span></li>
                         <li><span class="label">Category:</span> <span class="value">{category}</span></li>
-                        <li><span class="label">Status:</span> <span class="value" style="color: #00C851; font-weight: bold;">Open & Active</span></li>
+                        <li><span class="label">Status:</span> <span class="value" style="color: #00C851; font-weight: bold;">Open &amp; Active</span></li>
                     </ul>
                 </div>
                 <div class="cta">
-                    <a href="https://synes.azurewebsites.net/support/{short_id}" class="cta-button">Open Chat Now →</a>
+                    <a href="https://synes.azurewebsites.net/support/{short_id}" class="cta-button">Open Chat Now</a>
                 </div>
             </div>
             <div class="footer">
@@ -132,33 +120,33 @@ aygunaliyeva@anas.az
     </html>
     """
 
-    # --- Compose Email ---
+    # ---------- Compose & Send ----------
     msg = MIMEMultipart("alternative")
     msg["From"] = f"{SENDER_NAME} <{SMTP_USER}>"
-    msg["To"] = user_email  # Dynamic email from support form
+    msg["To"]   = user_email
     msg["Subject"] = subject
 
     msg.attach(MIMEText(plain_body, "plain"))
     msg.attach(MIMEText(html_body, "html"))
 
-    # --- Send Email ---
-try:
+    try:
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()                # enable TLS
+            server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
-        logger.info(f"Confirmation email sent to {user_email} for ticket {short_id}")
+        logger.info(f"Confirmation email sent to {user_email} (ticket {short_id})")
         return True
     except smtplib.SMTPAuthenticationError as e:
-        logger.error(f"SMTP auth failed: {e}")
-        logger.error("Check USERNAME / App-Password")
+        logger.error(f"Gmail auth failed: {e}")
+        logger.error("Double-check the Gmail address & 16-char App Password")
         return False
     except smtplib.SMTPRecipientsRefused:
         logger.error(f"Recipient refused: {user_email}")
         return False
     except Exception as e:
-        logger.error(f"Email sending failed: {type(e).__name__}: {e}")
+        logger.error(f"Email failed: {type(e).__name__}: {e}")
         return False
+
 
 def _ensure_welcome_message(chat: list) -> list:
     """
@@ -1094,4 +1082,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
