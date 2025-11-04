@@ -1177,4 +1177,5 @@ if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)), debug=True)
 else:
     # Production: Azure App Service + Gunicorn
-    application = WSGIApp(socketio, app)  # Correct
+     application = WSGIApp(socketio, app)
+
