@@ -26,32 +26,6 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 import eventlet
 eventlet.monkey_patch()
 
-# SocketIO – async_mode = "eventlet" works on Azure Linux App Service
-socketio = SocketIO(
-    app,
-    cors_allowed_origins="*",
-    async_mode="eventlet",
-    logger=True,
-    engineio_logger=True,
-    manage_session=False          # we keep Flask-Session for auth
-)
-
-def current_user():
-    u = session.get('user')
-    if not u:
-        return None
-    # you can add a real admin list in DB later
-    ADMIN_EMAILS = {"admin@example.com"}   # <-- change / load from DB
-    return {
-        "email": u.get('email'),
-        "name" : u.get('name'),
-        "is_admin": u.get('email') in ADMIN_EMAILS
-    }
-
-
-
-
-
 load_dotenv()
 logger = logging.getLogger(__name__)
 
@@ -243,6 +217,29 @@ msal_client = msal.ConfidentialClientApplication(
     authority=AUTHORITY,
     client_credential=CLIENT_SECRET
 )
+
+# SocketIO – async_mode = "eventlet" works on Azure Linux App Service
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode="eventlet",
+    logger=True,
+    engineio_logger=True,
+    manage_session=False          # we keep Flask-Session for auth
+)
+
+def current_user():
+    u = session.get('user')
+    if not u:
+        return None
+    # you can add a real admin list in DB later
+    ADMIN_EMAILS = {"admin@example.com"}   # <-- change / load from DB
+    return {
+        "email": u.get('email'),
+        "name" : u.get('name'),
+        "is_admin": u.get('email') in ADMIN_EMAILS
+    }
+
 
 # Audio generation configuration
 OUTPUT_DIR = "static/audio"
@@ -1181,5 +1178,6 @@ if __name__ == "__main__":
 else:
     # Azure / Gunicorn
     application = socketio.WSGIApp(socketio, app)
+
 
 
