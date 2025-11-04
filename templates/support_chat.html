@@ -2,116 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Support – #{{ short_id|default('Ticket') }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Support Chat – #{{ short_id }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .msg-bubble {
       min-height: 44px;
-      position: relative;
       padding: 12px 16px;
       border-radius: 1.5rem;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .msg-user   { background:#DCF8C6; border-top-right-radius:0; }
-    .msg-admin  { background:#FFFFFF; border-top-left-radius:0; }
-
-    .msg-time {
-      display: block;
-      margin-bottom: 4px;
-      font-size:11px;
-      color:#666;
-      line-height:1;
-    }
-    .msg-user .msg-time   { text-align: right; }
-    .msg-admin .msg-time  { text-align: left; }
-
+    .msg-user { background: #DCF8C6; border-top-right-radius: 0; color: #333; }
+    .msg-admin { background: #E3F2FD; border-top-left-radius: 0; color: #1976D2; }
+    .msg-time { display: block; margin-bottom: 4px; font-size: 11px; color: #666; }
+    .msg-user .msg-time { text-align: right; }
+    .msg-admin .msg-time { text-align: left; }
     .typing-dots span {
       display: inline-block;
       width: 6px; height: 6px;
-      background:#999;
+      background: #999;
       border-radius: 50%;
       animation: typing 1.4s infinite;
     }
-    .typing-dots span:nth-child(2){animation-delay:.2s;}
-    .typing-dots span:nth-child(3){animation-delay:.4s;}
-    @keyframes typing{
-      0%,100%{transform:translateY(0);}
-      50%{transform:translateY(-4px);}
+    .typing-dots span:nth-child(2) { animation-delay: .2s; }
+    .typing-dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes typing {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
     }
   </style>
 </head>
-<body class="flex flex-col h-screen m-0 p-0">
+<body class="flex flex-col h-screen bg-gray-100 m-0">
 
-  <!-- Header ---------------------------------------------------- -->
-  <header class="bg-[#075E54] text-white p-3 flex items-center justify-between shadow-lg">
+  <!-- HEADER -->
+  <header class="bg-indigo-700 text-white p-3 flex items-center justify-between shadow">
     <div class="flex items-center space-x-3">
-      <a href="/support" class="text-white hover:opacity-80">
+      <a href="{% if is_admin %}{{ url_for('admin') }}{% else %}/support{% endif %}"
+         class="text-white hover:opacity-80">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
         </svg>
       </a>
-      <div class="flex items-center space-x-2">
-        <div class="w-10 h-10 rounded-full bg-[#128C7E] flex items-center justify-center font-bold text-lg">
-          {{ (short_id|default('?'))[0]|upper }}
-        </div>
-        <div>
-          <p class="font-semibold">Ticket #{{ short_id|default('????') }}</p>
-          <p class="text-xs opacity-80">{{ category|default('Unknown') }} • {{ status|default('Open') }}</p>
-        </div>
+      <div>
+        <p class="font-semibold">Ticket #{{ short_id }}</p>
+        <p class="text-xs opacity-80">{{ category }} • {{ status }}</p>
       </div>
     </div>
 
-    <div class="flex items-center space-x-3 text-sm">
-      {% if user %}
-        <span class="hidden sm:inline">Hi, {{ user.name }}</span>
-        <a href="/logout" class="hover:underline">Logout</a>
-      {% else %}
-        <a href="/auth" class="hover:underline">Login</a>
-      {% endif %}
-    </div>
+    {% if is_admin %}
+      <span class="bg-yellow-400 text-gray-800 px-2 py-1 rounded text-xs font-bold">ADMIN</span>
+    {% else %}
+      <div class="flex items-center space-x-2 text-sm">
+        {% if user %}
+          <span>Hi, {{ user.name }}</span>
+          <a href="/logout" class="hover:underline">Logout</a>
+        {% else %}
+          <a href="/auth" class="hover:underline">Login</a>
+        {% endif %}
+      </div>
+    {% endif %}
   </header>
 
-  <!-- Chat Box -------------------------------------------------- -->
-  <div id="chatBox"
-       class="flex-1 overflow-y-auto p-4 space-y-4"
-       style="max-height: calc(100vh - 120px);">
-
-    {% if chat and chat|length > 0 %}
-      {% for msg in chat %}
-        {% if msg.sender == 'user' %}
-          <div class="flex justify-end mb-4">
-            <div class="max-w-[75%]">
-              <div class="msg-bubble msg-user text-gray-900 shadow-sm">
-                <div class="msg-time">
-                  {% if msg.time %}{{ msg.time.split('T')[1][:5] }}{% else %}Now{% endif %}
-                </div>
-                {{ msg.user | safe }}
-              </div>
+  <!-- CHAT MESSAGES -->
+  <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4" style="max-height: calc(100vh - 120px);">
+    {% for msg in chat %}
+      {% set is_user = msg.sender == 'user' %}
+      <div class="flex {% if is_user %}justify-end{% else %}justify-start{% endif %} mb-4">
+        <div class="max-w-[75%]">
+          <div class="msg-bubble {% if is_user %}msg-user{% else %}msg-admin{% endif %} shadow-sm">
+            <div class="msg-time">
+              {{ (msg.time|default(''))|split('T')[1][:5] if msg.time else 'Now' }}
             </div>
+            {{ (msg.user if is_user else msg.assistant)|safe }}
           </div>
+        </div>
+      </div>
+    {% endfor %}
 
-        {% elif msg.sender == 'support' %}
-          <div class="flex justify-start mb-4">
-            <div class="max-w-[75%]">
-              <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
-                <div class="msg-time">
-                  {% if msg.time %}{{ msg.time.split('T')[1][:5] }}{% else %}Now{% endif %}
-                </div>
-                {{ msg.assistant | safe }}
-              </div>
-            </div>
-          </div>
-        {% endif %}
-      {% endfor %}
-    {% else %}
-      <p class="text-center text-gray-600 italic mt-10">No messages yet. Start the conversation!</p>
-    {% endif %}
-
-    <!-- Typing indicator (appears on the opposite side) -->
-    <div id="typingIndicator" class="flex justify-start mb-4 hidden">
+    <!-- TYPING INDICATOR (opposite side) -->
+    <div id="typingIndicator" class="flex {% if is_admin %}justify-end{% else %}justify-start{% endif %} mb-4 hidden">
       <div class="max-w-[75%]">
-        <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
+        <div class="msg-bubble {% if is_admin %}msg-user{% else %}msg-admin{% endif %} shadow-sm">
           <div class="msg-time">Now</div>
           <span class="typing-dots"><span></span><span></span><span></span></span>
         </div>
@@ -119,17 +90,16 @@
     </div>
   </div>
 
-  <!-- Reply Input ----------------------------------------------- -->
-  <form id="replyForm" class="bg-[#F0F0F0] border-t border-gray-300 p-3 flex items-center space-x-2">
-    <div class="flex-1 bg-white rounded-full shadow-sm flex items-center px-3 py-2">
-      <textarea id="replyText"
-                rows="1"
-                placeholder="Type a message..."
-                class="flex-1 resize-none border-none outline-none text-sm text-gray-800"
+  <!-- INPUT -->
+  <form id="replyForm" class="bg-white border-t p-3 flex items-center space-x-2">
+    <div class="flex-1 bg-gray-100 rounded-full flex items-center px-3 py-2">
+      <textarea id="replyText" rows="1"
+                placeholder="{% if is_admin %}Reply as admin…{% else %}Type a message…{% endif %}"
+                class="flex-1 resize-none border-none outline-none text-sm"
                 required></textarea>
     </div>
     <button type="submit"
-            class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3 shadow-md transition">
+            class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-3">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
@@ -137,128 +107,81 @@
     </button>
   </form>
 
-  <div id="replyResult" class="hidden p-2"></div>
+  <!-- JAVASCRIPT -->
+  <script>
+    const shortId = "{{ short_id }}";
+    const isAdmin = {{ is_admin|tojson }};
+    const es = new EventSource(`/api/support/${shortId}/stream`);
+    let sending = false;
 
-  <!-- JavaScript ------------------------------------------------ -->
-<script>
- const shortId = "{{ short_id|default('') }}";
-  const isAdmin = {{ (request.args.get('admin') == '1')|tojson }};
-  const eventSource = new EventSource(`/api/support/${shortId}/stream`);
-  let isSending = false;
+    es.onmessage = e => {
+      const d = JSON.parse(e.data);
+      if (d.type === 'message') {
+        const txt = d.sender === 'user' ? d.user : d.assistant;
+        addBubble(txt, d.sender === 'user');
+      } else if (d.type === 'typing') {
+        document.getElementById('typingIndicator').classList.toggle('hidden', !d.is_typing);
+      } else if (d.type === 'heartbeat') {
+        console.log('heartbeat');
+      }
+    };
 
-  eventSource.onmessage = e => {
-    const data = JSON.parse(e.data);
-    if (data.type === 'message') {
-      const isUser = data.sender === 'user';
-      const txt = isUser ? data.user : data.assistant;
-      addBubble(txt, isUser);
-    } else if (data.type === 'typing') {
-      document.getElementById('typingIndicator').classList.toggle('hidden', !data.is_typing);
-    } else if (data.type === 'heartbeat') {
-      console.log('Heartbeat received');  // Keep alive
-    }
-  };
+    es.onerror = () => setTimeout(() => location.reload(), 5000);
 
-  eventSource.onerror = e => {
-    console.error('SSE error:', e);
-    // Auto-reconnect in 5s
-    setTimeout(() => location.reload(), 5000);
-  };
-
-  /* ---------- Add a chat bubble ---------- */
-  function addBubble(text, isUser) {
-    const box = document.getElementById('chatBox');
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const html = `
-      <div class="flex ${isUser ? 'justify-end mb-4' : 'justify-start mb-4'}">
-        <div class="max-w-[75%]">
-          <div class="msg-bubble ${isUser ? 'msg-user' : 'msg-admin'} text-gray-900 shadow-sm">
-            <div class="msg-time">${time}</div>
-            ${escapeHtml(text)}
+    function addBubble(text, isUser) {
+      const box = document.getElementById('chatBox');
+      const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      const html = `
+        <div class="flex ${isUser?'justify-end':'justify-start'} mb-4">
+          <div class="max-w-[75%]">
+            <div class="msg-bubble ${isUser?'msg-user':'msg-admin'} shadow-sm">
+              <div class="msg-time">${time}</div>
+              ${escape(text)}
+            </div>
           </div>
-        </div>
-      </div>`;
-    box.insertAdjacentHTML('beforeend', html);
-    box.scrollTop = box.scrollHeight;
-  }
-
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  /* ---------- Send reply (button OR Enter) ---------- */
-  async function sendReply() {
-    if (isSending) return;                     // <-- prevent double-send
-    const textarea = document.getElementById('replyText');
-    const txt = textarea.value.trim();
-    if (!txt) return;
-
-    isSending = true;
-    addBubble(txt, true);                      // optimistic UI
-    textarea.value = '';
-    textarea.style.height = 'auto';            // reset height
-
-    try {
-      await fetch(`/api/support/${shortId}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reply: txt, is_admin: isAdmin })
-      });
-    } catch (err) {
-      console.error('Send failed:', err);
-      // optionally show error bubble
-    } finally {
-      isSending = false;
+        </div>`;
+      box.insertAdjacentHTML('beforeend', html);
+      box.scrollTop = box.scrollHeight;
     }
-  }
+    function escape(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 
-  /* ---------- Button click ---------- */
-  document.getElementById('replyForm').addEventListener('submit', e => {
-    e.preventDefault();
-    sendReply();
-  });
-
-  /* ---------- Enter key (but NOT Shift+Enter) ---------- */
-  const textarea = document.getElementById('replyText');
-  textarea.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();     // stop newline
-      sendReply();
+    async function send() {
+      if (sending) return;
+      const ta = document.getElementById('replyText');
+      const txt = ta.value.trim();
+      if (!txt) return;
+      sending = true;
+      addBubble(txt, true);
+      ta.value=''; ta.style.height='auto';
+      try {
+        await fetch(`/api/support/${shortId}/reply`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({reply:txt, is_admin:isAdmin})
+        });
+      } catch(e){ console.error(e); }
+      sending = false;
     }
-  });
 
-  /* ---------- Auto-resize textarea ---------- */
-  textarea.addEventListener('input', () => {
-    textarea.style.height = 'auto';
-    textarea.style.height = textarea.scrollHeight + 'px';
-  });
+    document.getElementById('replyForm').onsubmit = e => { e.preventDefault(); send(); };
+    const ta = document.getElementById('replyText');
+    ta.onkeydown = e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }};
+    ta.oninput = () => {
+      ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px';
+      // typing
+      if (!window.typingSent) {
+        fetch(`/api/support/${shortId}/typing`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({is_typing:true, is_admin:isAdmin})});
+        window.typingSent = true;
+      }
+      clearTimeout(window.typingTimer);
+      window.typingTimer = setTimeout(() => {
+        fetch(`/api/support/${shortId}/typing`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({is_typing:false, is_admin:isAdmin})});
+        window.typingSent = false;
+      }, 1500);
+    };
 
-  /* ---------- Typing indicator ---------- */
-  let typingTimer, typingSent = false;
-  textarea.addEventListener('input', () => {
-    if (!typingSent) {
-      fetch(`/api/support/${shortId}/typing`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_typing: true, is_admin: isAdmin })
-      });
-      typingSent = true;
-    }
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => {
-      fetch(`/api/support/${shortId}/typing`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_typing: false, is_admin: isAdmin })
-      });
-      typingSent = false;
-    }, 1500);
-  });
-
-  // Initial scroll
-  document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
-</script>
+    // initial scroll
+    document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+  </script>
 </body>
 </html>
