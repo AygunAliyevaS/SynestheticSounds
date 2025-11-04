@@ -22,7 +22,7 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask_socketio import SocketIO, WSGIApp, emit, join_room, leave_room
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import eventlet
 eventlet.monkey_patch()
 
@@ -1177,5 +1177,6 @@ if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)), debug=True)
 else:
     # Production: Azure App Service + Gunicorn
-     application = WSGIApp(socketio, app)
+    application = socketio  # This is the WSGI app
+
 
