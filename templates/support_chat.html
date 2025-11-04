@@ -1,16 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Support – #{{ short_id }}</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support – #{{ short_id|default('Ticket') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
+    /* -------------------------------------------------
+       SportyBet-style bubbles
+       ------------------------------------------------- */
+    .msg-bubble {
+      min-height: 44px;
+      position: relative;
+      padding: 10px 14px 20px 14px;   /* extra bottom space for time */
+      border-radius: 1.3rem;
+    }
+    .msg-user   { background:#DCF8C6; border-top-right-radius:0; }
+    .msg-admin  { background:#FFFFFF; border-top-left-radius:0; }
 
-.msg-bubble{min-height:44px;position:relative;padding:10px 14px 20px 14px;border-radius:1.3rem;}
-    .msg-user{background:#DCF8C6;border-top-right-radius:0;}
-    .msg-admin{background:#FFF;border-top-left-radius:0;}
-    .msg-time{position:absolute;bottom:4px;right:10px;font-size:11px;color:#666;}
+    .msg-time {
+      position:absolute;
+      bottom:4px;
+      right:10px;
+      font-size:11px;
+      color:#666;
+      line-height:1;
+    }
   </style>
 </head>
 <body class="flex flex-col h-screen m-0 p-0">
@@ -112,74 +127,61 @@
 
   <!-- JavaScript -->
   <script>
-const socket = io();                     // connects to same host
-    const shortId = "{{ short_id }}";
-    const isAdmin = {{ (user and user.get('email') in {'admin@example.com'})|tojson }};
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
 
-    // -----------------------------------------------------------------
-    // 1. Join the ticket room
-    // -----------------------------------------------------------------
-    socket.emit('join_ticket', {short_id: shortId});
-
-    // -----------------------------------------------------------------
-    // 2. Render existing DB messages (same loop you already have)
-    // -----------------------------------------------------------------
-    const chatBox = document.getElementById('chatBox');
-    function addBubble(msg) {
-      const isUser = msg.sender === 'user';
+    function addBubble(text, isUser) {
+      const box = document.getElementById('chatBox');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const bubble = `
-        <div class="flex ${isUser?'justify-end':'justify-start'} mb-3">
+        <div class="flex ${isUser ? 'justify-end mb-3' : 'justify-start mb-3'}">
           <div class="max-w-[75%]">
-            <div class="msg-bubble ${isUser?'msg-user':'msg-admin'} text-gray-900 shadow-sm">
-              ${msg.text||msg.user||msg.assistant}
-              <div class="msg-time">${msg.time||'Now'}</div>
+            <div class="msg-bubble ${isUser ? 'msg-user text-gray-900' : 'msg-admin text-gray-900'} shadow-sm">
+              ${escapeHtml(text)}
+              <div class="msg-time">${time}</div>
             </div>
           </div>
         </div>`;
-      chatBox.insertAdjacentHTML('beforeend', bubble);
-      chatBox.scrollTop = chatBox.scrollHeight;
+      box.insertAdjacentHTML('beforeend', bubble);
+      box.scrollTop = box.scrollHeight;
     }
 
-    {% if chat %}
-      {% for m in chat %}
-        addBubble({{ m|tojson }});
-      {% endfor %}
-    {% endif %}
+    async function sendReply() {
+      const txt = document.getElementById('replyText').value.trim();
+      if (!txt) return;
 
-    // -----------------------------------------------------------------
-    // 3. Send message
-    // -----------------------------------------------------------------
-    const sendBtn = document.getElementById('sendBtn');
-    const input    = document.getElementById('msgInput');
+      addBubble(txt, true);
+      document.getElementById('replyText').value = '';
 
-    function send() {
-      const text = input.value.trim();
-      if (!text) return;
-      socket.emit('chat_message', {short_id: shortId, message: text});
-      input.value = '';
+      try {
+        const res = await fetch('/api/support/{{ short_id|default("") }}/reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reply: txt })
+        });
+        const data = await res.json();
+        const result = document.getElementById('replyResult');
+
+        if (!res.ok) {
+          result.classList.remove('hidden');
+          result.innerHTML = `<p class="text-red-600">${data.error || 'Failed'}</p>`;
+          setTimeout(() => result.classList.add('hidden'), 4000);
+        }
+      } catch (err) {
+        console.error(err);
+      }
     }
-    sendBtn.addEventListener('click', send);
-    input.addEventListener('keypress', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }});
 
-    // -----------------------------------------------------------------
-    // 4. Receive real-time messages
-    // -----------------------------------------------------------------
-    socket.on('new_message', data => {
-      // data = {sender:'user'|'support', text:'...', time:'12:34', name:'...'}
-      addBubble({
-        sender: data.sender,
-        text  : data.text,
-        time  : data.time
-      });
+    document.getElementById('replyForm').addEventListener('submit', e => {
+      e.preventDefault();
+      sendReply();
     });
 
-    socket.on('status', data => console.log('[status]', data.msg));
-    socket.on('error',  data => alert(data.msg));
-
-    // Leave room on page unload
-    window.addEventListener('beforeunload', () => {
-      socket.emit('leave_ticket', {short_id: shortId});
-    });
+    // Scroll to bottom
+    document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
   </script>
 </body>
 </html>
