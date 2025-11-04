@@ -7,7 +7,7 @@ import numpy as np
 from scipy.io.wavfile import write as write_wav
 from scipy import signal
 from PIL import Image
-from flask import Flask, request, render_template, jsonify, send_from_directory, session, redirect, url_for,Response,stream_with_context
+from flask import Flask, request, render_template, jsonify, send_from_directory, session, redirect, url_for
 from colorsys import rgb_to_hsv
 from dotenv import load_dotenv
 import msal
@@ -22,34 +22,6 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import queue
-from threading import Thread
-
-message_bus = {}          # short_id → list of queues
-typing_bus  = {}
-
-def _get_queue(short_id):
-    if short_id not in message_bus:
-        message_bus[short_id] = []
-    return message_bus[short_id]
-
-def broadcast(short_id, payload):
-    queue = _get_queue(short_id)
-    payload_str = json.dumps(payload) + "\n"
-    for q in queue[:]:
-        try:
-            q.put_nowait(payload_str)
-        except:
-            queue.remove(q)
-
-def heartbeat():
-    while True:
-        time.sleep(20)
-        for short_id in list(message_bus.keys()):
-            broadcast(short_id, {"type": "heartbeat", "time": time.time()})
-
-Thread(target=heartbeat, daemon=True).start()
-
 
 
 load_dotenv()
@@ -711,6 +683,7 @@ def admin():
     conn = get_db_connection()
     if not conn:
         return "Database error", 500
+
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -728,17 +701,13 @@ def admin():
                 "status": row[4],
                 "created": row[5].strftime("%b %d, %Y %I:%M %p") if row[5] else "Unknown"
             })
-        cur.close()
-        conn.close()
         return render_template("admin.html", tickets=tickets)
     except Exception as e:
         logger.error(f"Admin page error: {e}")
         return "Server error", 500
-
-@app.route("/admin/<short_id>")
-def admin_chat(short_id):
-    # Re-use the *same* chat page, just tell the template we are admin
-    return chat_page(short_id, admin=True)
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
@@ -827,15 +796,17 @@ def list_tickets():
         conn.close()
 
 @app.route("/support/<short_id>")
-def chat_page(short_id, admin=False):
+def chat_page(short_id):
     user = session.get('user')
     ticket_uuid = short_to_uuid(short_id)
-    if not ticket_uuid:
+    
+    if not ticket_uuid or not short_id:
         return render_template("error.html", error="Invalid ticket"), 404
 
     conn = get_db_connection()
     if not conn:
         return render_template("error.html", error="Database error"), 500
+
     try:
         cur = conn.cursor()
         cur.execute(
@@ -846,16 +817,29 @@ def chat_page(short_id, admin=False):
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
-        chat = json.loads(row[4]) if row[4] else []
-        # ----- guarantee welcome message (same for user & admin) -----
-        _ensure_welcome_message(chat)
+        chat = json.loads(row[4]) if row[4] else []          # <-- messages column
 
-        # Persist the (maybe new) welcome message
-        cur.execute(
-            "UPDATE SupportTickets SET messages = ? WHERE ticket_uuid = ?",
-            (json.dumps(chat), ticket_uuid)
-        )
-        conn.commit()
+        # --------------------------------------------------------------
+        #  INSERT / UPDATE WELCOME MESSAGE WITH TIMESTAMP
+        # --------------------------------------------------------------
+        now_iso = datetime.utcnow().isoformat() + "Z"
+        WELCOME = {
+            "sender": "support",
+            "assistant": "Welcome to support! How can we help you today?",
+            "time": now_iso
+        }
+
+        if not chat or chat[0].get("sender") != "support":
+            chat.insert(0, WELCOME)
+            # persist the welcome so it survives reloads
+            cur.execute(
+                """UPDATE SupportTickets
+                   SET messages = ?
+                   WHERE ticket_uuid = ?""",
+                (json.dumps(chat), ticket_uuid)
+            )
+            conn.commit()
+        # --------------------------------------------------------------
 
         return render_template(
             "support_chat.html",
@@ -863,9 +847,32 @@ def chat_page(short_id, admin=False):
             short_id=short_id,
             category=row[2] or "Unknown",
             status=row[3] or "Open",
-            chat=chat,
-            is_admin=admin                     # <-- NEW
+            chat=chat
         )
+    except Exception as e:
+        logger.error(f"Error in chat_page: {e}")
+        return render_template("error.html", error="Server error"), 500
+    finally:
+        cur.close()
+        conn.close()
+
+def short_to_uuid(short: str) -> str | None:
+    if not short or len(short) != 8:
+        return None
+    conn = get_db_connection()
+    if not conn:
+        return None
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT ticket_uuid FROM SupportTickets WHERE LEFT(REPLACE(CAST(ticket_uuid AS varchar(36)), '-', ''), 8) = ?",
+            (short.upper(),)
+        )
+        row = cur.fetchone()
+        return str(row[0]) if row else None
+    except Exception as e:
+        logger.error(f"Error in short_to_uuid: {e}")
+        return None
     finally:
         cur.close()
         conn.close()
@@ -881,12 +888,16 @@ def add_reply(short_id):
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
 
-    is_admin = data.get('is_admin', False)          # <-- client tells us who we are
+    # --- Determine sender ---
+    is_admin = request.path.startswith('/admin') or session.get('is_admin', False)
+    # If accessed from /admin or has admin session → support message
+    # Otherwise → user message
 
     conn = get_db_connection()
     try:
         cur = conn.cursor()
         now = datetime.utcnow().isoformat() + "Z"
+
         new_message = {
             "time": now,
             "sender": "support" if is_admin else "user",
@@ -894,16 +905,13 @@ def add_reply(short_id):
             "user": reply if not is_admin else None
         }
 
-        # Append with JSON_MODIFY (SQL Server)
-        cur.execute("""
+        sql = """
             UPDATE SupportTickets
             SET messages = JSON_MODIFY(messages, 'append $.', ?)
             WHERE ticket_uuid = ?
-        """, (json.dumps(new_message), ticket_uuid))
+        """
+        cur.execute(sql, (json.dumps(new_message), ticket_uuid))
         conn.commit()
-
-        # ----- REAL-TIME PUSH -----
-        broadcast(short_id, {"type": "message", **new_message})
         return jsonify({"message": "Reply added"}), 200
     except Exception as e:
         logger.error(f"Error adding reply: {e}")
@@ -911,42 +919,6 @@ def add_reply(short_id):
     finally:
         cur.close()
         conn.close()
-
-
-@app.route("/api/support/<short_id>/stream")
-def sse_stream(short_id):
-    import queue
-    q = queue.Queue()
-    _get_queue(short_id).append(q)
-
-    def event_stream():
-        try:
-            while True:
-                data = q.get()                 # blocks until something arrives
-                yield f"data: {data}\n\n"
-        except GeneratorExit:
-            _get_queue(short_id).remove(q)
-
-    response = Response(stream_with_context(event_stream()), mimetype="text/event-stream")
-    response.headers["Cache-Control"] = "no-cache"
-    response.headers["X-Accel-Buffering"] = "no"   # important for Azure
-    return response
-
-@app.route("/api/support/<short_id>/typing", methods=["POST"])
-def typing_indicator(short_id):
-    data = request.get_json() or {}
-    is_typing = data.get("is_typing", False)
-    is_admin  = data.get("is_admin", False)
-
-    if is_typing:
-        typing_bus.setdefault(short_id, set()).add((is_admin, time.time()))
-    else:
-        typing_bus.setdefault(short_id, set()).discard((is_admin, time.time()))
-
-    # Broadcast the *current* typing state to everyone
-    any_typing = any(t[0] != is_admin for t in typing_bus.get(short_id, set()))
-    broadcast(short_id, {"type": "typing", "is_typing": any_typing})
-    return "", 204
 
 @app.route("/submit", methods=['POST'])
 def submit():
@@ -1124,6 +1096,3 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
-
-
-
