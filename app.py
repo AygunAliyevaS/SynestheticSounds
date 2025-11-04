@@ -711,7 +711,6 @@ def admin():
     conn = get_db_connection()
     if not conn:
         return "Database error", 500
-
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -729,13 +728,17 @@ def admin():
                 "status": row[4],
                 "created": row[5].strftime("%b %d, %Y %I:%M %p") if row[5] else "Unknown"
             })
+        cur.close()
+        conn.close()
         return render_template("admin.html", tickets=tickets)
     except Exception as e:
         logger.error(f"Admin page error: {e}")
         return "Server error", 500
-    finally:
-        cur.close()
-        conn.close()
+
+@app.route("/admin/<short_id>")
+def admin_chat(short_id):
+    # Re-use the *same* chat page, just tell the template we are admin
+    return chat_page(short_id, admin=True)
 
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
@@ -824,17 +827,15 @@ def list_tickets():
         conn.close()
 
 @app.route("/support/<short_id>")
-def chat_page(short_id):
+def chat_page(short_id, admin=False):
     user = session.get('user')
     ticket_uuid = short_to_uuid(short_id)
-    
-    if not ticket_uuid or not short_id:
+    if not ticket_uuid:
         return render_template("error.html", error="Invalid ticket"), 404
 
     conn = get_db_connection()
     if not conn:
         return render_template("error.html", error="Database error"), 500
-
     try:
         cur = conn.cursor()
         cur.execute(
@@ -845,29 +846,16 @@ def chat_page(short_id):
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
-        chat = json.loads(row[4]) if row[4] else []          # <-- messages column
+        chat = json.loads(row[4]) if row[4] else []
+        # ----- guarantee welcome message (same for user & admin) -----
+        _ensure_welcome_message(chat)
 
-        # --------------------------------------------------------------
-        #  INSERT / UPDATE WELCOME MESSAGE WITH TIMESTAMP
-        # --------------------------------------------------------------
-        now_iso = datetime.utcnow().isoformat() + "Z"
-        WELCOME = {
-            "sender": "support",
-            "assistant": "Welcome to support! How can we help you today?",
-            "time": now_iso
-        }
-
-        if not chat or chat[0].get("sender") != "support":
-            chat.insert(0, WELCOME)
-            # persist the welcome so it survives reloads
-            cur.execute(
-                """UPDATE SupportTickets
-                   SET messages = ?
-                   WHERE ticket_uuid = ?""",
-                (json.dumps(chat), ticket_uuid)
-            )
-            conn.commit()
-        # --------------------------------------------------------------
+        # Persist the (maybe new) welcome message
+        cur.execute(
+            "UPDATE SupportTickets SET messages = ? WHERE ticket_uuid = ?",
+            (json.dumps(chat), ticket_uuid)
+        )
+        conn.commit()
 
         return render_template(
             "support_chat.html",
@@ -875,32 +863,9 @@ def chat_page(short_id):
             short_id=short_id,
             category=row[2] or "Unknown",
             status=row[3] or "Open",
-            chat=chat
+            chat=chat,
+            is_admin=admin                     # <-- NEW
         )
-    except Exception as e:
-        logger.error(f"Error in chat_page: {e}")
-        return render_template("error.html", error="Server error"), 500
-    finally:
-        cur.close()
-        conn.close()
-
-def short_to_uuid(short: str) -> str | None:
-    if not short or len(short) != 8:
-        return None
-    conn = get_db_connection()
-    if not conn:
-        return None
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT ticket_uuid FROM SupportTickets WHERE LEFT(REPLACE(CAST(ticket_uuid AS varchar(36)), '-', ''), 8) = ?",
-            (short.upper(),)
-        )
-        row = cur.fetchone()
-        return str(row[0]) if row else None
-    except Exception as e:
-        logger.error(f"Error in short_to_uuid: {e}")
-        return None
     finally:
         cur.close()
         conn.close()
@@ -916,15 +881,12 @@ def add_reply(short_id):
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
 
-    # ---- determine sender (admin vs user) ----
-    is_admin = data.get('is_admin', False)          # <-- NEW
-    # (you can also keep your old session-based logic)
+    is_admin = data.get('is_admin', False)          # <-- client tells us who we are
 
     conn = get_db_connection()
     try:
         cur = conn.cursor()
         now = datetime.utcnow().isoformat() + "Z"
-
         new_message = {
             "time": now,
             "sender": "support" if is_admin else "user",
@@ -932,18 +894,16 @@ def add_reply(short_id):
             "user": reply if not is_admin else None
         }
 
-        # ---- DB UPDATE (JSON_MODIFY) ----
-        sql = """
+        # Append with JSON_MODIFY (SQL Server)
+        cur.execute("""
             UPDATE SupportTickets
             SET messages = JSON_MODIFY(messages, 'append $.', ?)
             WHERE ticket_uuid = ?
-        """
-        cur.execute(sql, (json.dumps(new_message), ticket_uuid))
+        """, (json.dumps(new_message), ticket_uuid))
         conn.commit()
 
-        # ---- REAL-TIME PUSH ----
+        # ----- REAL-TIME PUSH -----
         broadcast(short_id, {"type": "message", **new_message})
-
         return jsonify({"message": "Reply added"}), 200
     except Exception as e:
         logger.error(f"Error adding reply: {e}")
@@ -1164,5 +1124,6 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
