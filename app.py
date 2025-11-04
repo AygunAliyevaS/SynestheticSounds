@@ -1173,11 +1173,7 @@ def serve_audio(filename):
     return send_from_directory(OUTPUT_DIR, filename)
 
 if __name__ == "__main__":
-    # Local development
     socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)), debug=True)
 else:
-    # Production: Azure App Service + Gunicorn
-    application = socketio.wsgi_app  # This is the correct WSGI callable
-
-
-
+    # Production: Gunicorn on Azure
+    application = socketio.wsgi_app  # Correct for v5+
