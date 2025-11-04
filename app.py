@@ -22,9 +22,7 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask_socketio import SocketIO, emit, join_room, leave_room
-import eventlet
-eventlet.monkey_patch()
+
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -38,8 +36,8 @@ def send_user_confirmation(user_email: str, short_id: str, category: str, messag
     # ---------- Gmail SMTP (hard-coded for testing) ----------
     SMTP_SERVER = "smtp.gmail.com"
     SMTP_PORT   = 587
-    SMTP_USER   = "lindacont6@gmail.com"          # your Gmail address
-    SMTP_PASS   = "rpkjefefgdjifbkh"              # 16-char App Password
+    SMTP_USER   = "adamsamal28@gmail.com"          # your Gmail address
+    SMTP_PASS   = "pyfmcdsquihyeemc"              # 16-char App Password
     SENDER_NAME = "Synesthetica Support"
 
     # Quick sanity check – if any of the hard-coded values are empty the function will fail early
@@ -217,29 +215,6 @@ msal_client = msal.ConfidentialClientApplication(
     authority=AUTHORITY,
     client_credential=CLIENT_SECRET
 )
-
-# SocketIO – async_mode = "eventlet" works on Azure Linux App Service
-socketio = SocketIO(
-    app,
-    cors_allowed_origins="*",
-    async_mode="eventlet",
-    logger=True,
-    engineio_logger=True,
-    manage_session=False          # we keep Flask-Session for auth
-)
-
-def current_user():
-    u = session.get('user')
-    if not u:
-        return None
-    # you can add a real admin list in DB later
-    ADMIN_EMAILS = {"admin@example.com"}   # <-- change / load from DB
-    return {
-        "email": u.get('email'),
-        "name" : u.get('name'),
-        "is_admin": u.get('email') in ADMIN_EMAILS
-    }
-
 
 # Audio generation configuration
 OUTPUT_DIR = "static/audio"
@@ -854,7 +829,7 @@ def chat_page(short_id):
 
         return render_template(
             "support_chat.html",
-            user=session.get('user'),
+            user=user,
             short_id=short_id,
             category=row[2] or "Unknown",
             status=row[3] or "Open",
@@ -930,77 +905,6 @@ def add_reply(short_id):
     finally:
         cur.close()
         conn.close()
-
-@socketio.on('join_ticket')
-def on_join(data):
-    """User or admin joins a ticket room (room = short_id)"""
-    short_id = data.get('short_id')
-    if not short_id:
-        return
-    join_room(short_id)
-    user = current_user()
-    role = "admin" if user and user["is_admin"] else "user"
-    emit('status', {'msg': f'{role.title()} joined'}, room=short_id)
-
-@socketio.on('leave_ticket')
-def on_leave(data):
-    short_id = data.get('short_id')
-    if short_id:
-        leave_room(short_id)
-
-@socketio.on('chat_message')
-def on_chat_message(data):
-    """
-    data = {
-        "short_id": "AB12CD34",
-        "message" : "Hello ..."
-    }
-    """
-    short_id = data.get('short_id')
-    message  = data.get('message', '').strip()
-    if not short_id or not message:
-        return
-
-    user = current_user()
-    if not user:
-        emit('error', {'msg': 'Authentication required'})
-        return
-
-    # ----- 1. Persist in SQL Server (same table you already use) -----
-    conn = get_db_connection()
-    try:
-        cur = conn.cursor()
-        now_iso = datetime.utcnow().isoformat() + "Z"
-
-        new_msg = {
-            "time"   : now_iso,
-            "sender" : "support" if user["is_admin"] else "user",
-            "assistant" if user["is_admin"] else "user": message
-        }
-
-        # JSON_MODIFY works only on NVARCHAR(MAX) column `messages`
-        cur.execute("""
-            UPDATE SupportTickets
-            SET messages = JSON_MODIFY(messages, 'append $.', ?)
-            WHERE short_id = ?
-        """, (json.dumps(new_msg), short_id))
-        conn.commit()
-    except Exception as e:
-        logger.error(f"DB error on chat_message: {e}")
-        emit('error', {'msg': 'Failed to save message'})
-        return
-    finally:
-        cur.close()
-        conn.close()
-
-    # ----- 2. Broadcast to the room (including sender) -----
-    payload = {
-        "sender" : "support" if user["is_admin"] else "user",
-        "text"   : message,
-        "time"   : now_iso.split('T')[1][:5],
-        "name"   : user["name"]
-    }
-    emit('new_message', payload, room=short_id, include_self=True)
 
 @app.route("/submit", methods=['POST'])
 def submit():
@@ -1173,7 +1077,9 @@ def serve_audio(filename):
     return send_from_directory(OUTPUT_DIR, filename)
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)), debug=True)
+    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    port = int(os.getenv('PORT', 8000))
+    app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
-    # Production: Gunicorn on Azure
-    application = socketio.wsgi_app  # Correct for v5+
+    application = app  # For Gunicorn
+
