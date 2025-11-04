@@ -9,4 +9,5 @@ flask-session
 redis
 pyodbc
 gevent
-freeze
+
+
