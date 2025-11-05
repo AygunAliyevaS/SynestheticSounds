@@ -3,119 +3,138 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Support – #{{ short_id }}</title>
+  <title>Support – #{{ short_id|default('Ticket') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
-    .msg-bubble{min-height:44px;position:relative;padding:10px 14px 20px 14px;border-radius:1.3rem;}
-    .msg-user{background:#DCF8C6;border-top-right-radius:0;}
-    .msg-admin{background:#FFFFFF;border-top-left-radius:0;}
-    .msg-time{position:absolute;bottom:4px;right:10px;font-size:11px;color:#666;}
+    .msg-bubble {
+      min-height: 44px;
+      position: relative;
+      padding: 10px 14px 20px 14px;
+      border-radius: 1.3rem;
+    }
+    .msg-user { background: #DCF8C6; border-top-right-radius: 0; }
+    .msg-admin { background: #FFFFFF; border-top-left-radius: 0; }
+    .msg-time {
+      position: absolute;
+      bottom: 4px;
+      right: 10px;
+      font-size: 11px;
+      color: #666;
+      line-height: 1;
+    }
   </style>
 </head>
 <body class="flex flex-col h-screen m-0 p-0">
-<header class="bg-[#075E54] text-white p-3 flex items-center justify-between shadow-lg">
-  <div class="flex items-center space-x-3">
-    <a href="/support" class="text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></a>
-    <div class="flex items-center space-x-2">
-      <div class="w-10 h-10 rounded-full bg-[#128C7E] flex items-center justify-center font-bold text-lg">
-        {{ (short_id|default('?'))[0]|upper }}
-      </div>
-      <div>
-        <p class="font-semibold">Ticket #{{ short_id }}</p>
-        <p class="text-xs opacity-80">{{ category }} • {{ status }}</p>
+
+  <header class="bg-[#075E54] text-white p-3 flex items-center justify-between shadow-lg">
+    <div class="flex items-center space-x-3">
+      <a href="/support" class="text-white hover:opacity-80">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </a>
+      <div class="flex items-center space-x-2">
+        <div class="w-10 h-10 rounded-full bg-[#128C7E] flex items-center justify-center font-bold text-lg">
+          {{ (short_id|default('?'))[0]|upper }}
+        </div>
+        <div>
+          <p class="font-semibold">Ticket #{{ short_id|default('????') }}</p>
+          <p class="text-xs opacity-80">{{ category|default('Unknown') }} • {{ status|default('Open') }}</p>
+        </div>
       </div>
     </div>
-  </div>
-  <div class="flex items-center space-x-3 text-sm">
-    {% if user %}
-      <span class="hidden sm:inline">Hi, {{ user.name }}</span>
-      <a href="/logout" class="hover:underline">Logout</a>
+
+    <div class="flex items-center space-x-3 text-sm">
+      {% if user %}
+        <span class="hidden sm:inline">Hi, {{ user.name }}</span>
+        <a href="/logout" class="hover:underline">Logout</a>
+      {% else %}
+        <a href="/auth" class="hover:underline">Login</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- Chat Messages -->
+  <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4" style="max-height: calc(100vh - 120px);">
+    {% if chat and chat|length > 0 %}
+      {% for msg in chat %}
+        {% if msg.sender == 'user' %}
+          <div class="flex justify-end mb-3">
+            <div class="max-w-[75%]">
+              <div class="msg-bubble msg-user text-gray-900 shadow-sm">
+                {{ msg.user or msg.text | safe }}
+                <div class="msg-time">
+                  {% if msg.time %}{{ msg.time.split('T')[1][:5] }}{% else %}Now{% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% elif msg.sender == 'support' %}
+          <div class="flex justify-start mb-3">
+            <div class="max-w-[75%]">
+              <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
+                {{ msg.assistant or msg.text | safe }}
+                <div class="msg-time">
+                  {% if msg.time %}{{ msg.time.split('T')[1][:5] }}{% else %}Now{% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
     {% else %}
-      <a href="/auth" class="hover:underline">Login</a>
+      <p class="text-center text-gray-600 italic mt-10">No messages yet. Start the conversation!</p>
     {% endif %}
   </div>
-</header>
 
-<div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4">
-  {% for msg in chat %}
-    <div class="flex {% if msg.sender == 'user' %}justify-end{% else %}justify-start{% endif %} mb-3">
-      <div class="max-w-[75%]">
-        <div class="msg-bubble {% if msg.sender == 'user' %}msg-user{% else %}msg-admin{% endif %} text-gray-900 shadow-sm">
-          {{ msg.text | safe }}
-          <div class="msg-time">{{ msg.timestamp | default('') | slice(11, 16) }}</div>
-        </div>
-      </div>
+  <!-- Reply Input -->
+  <form id="replyForm" class="bg-[#F0F0F0] border-t border-gray-300 p-3 flex items-center space-x-2">
+    <div class="flex-1 bg-white rounded-full shadow-sm flex items-center px-3 py-2">
+      <textarea id="replyText" rows="1" placeholder="Type a message..." class="flex-1 resize-none border-none outline-none text-sm text-gray-800" required></textarea>
     </div>
-  {% endfor %}
-</div>
+    <button type="submit" class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3 shadow-md transition">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+      </svg>
+    </button>
+  </form>
 
-<form id="replyForm" class="bg-[#F0F0F0] border-t border-gray-300 p-3 flex items-center space-x-2">
-  <div class="flex-1 bg-white rounded-full shadow-sm flex items-center px-3 py-2">
-    <textarea id="replyText" rows="1" placeholder="Type a message..."
-              class="flex-1 resize-none border-none outline-none text-sm text-gray-800" required></textarea>
-  </div>
-  <button type="submit"
-          class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3 shadow-md transition">
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-    </svg>
-  </button>
-</form>
+  <script>
+    const socket = io();
+    const room = "{{ short_id }}";
 
-<script>
-  const socket = io();
-  const shortId = "{{ short_id }}";
-  const isAdmin = {{ 'true' if 'admin' in request.path else 'false' }};
+    socket.emit("join", { room });
 
-  socket.emit('join_ticket', { short_id: shortId });
-
-  function escapeHtml(t) {
-    const div = document.createElement('div');
-    div.textContent = t;
-    return div.innerHTML;
-  }
-
-  function timeStr(iso) {
-    return iso ? iso.split('T')[1].slice(0, 5) : 'Now';
-  }
-
-  function addBubble(msg) {
-    const box = document.getElementById('chatBox');
-    const isUser = msg.sender === 'user';
-    const html = `
-      <div class="flex ${isUser ? 'justify-end' : 'justify-start'} mb-3">
-        <div class="max-w-[75%]">
-          <div class="msg-bubble ${isUser ? 'msg-user' : 'msg-admin'} text-gray-900 shadow-sm">
-            ${escapeHtml(msg.text)}
-            <div class="msg-time">${timeStr(msg.timestamp)}</div>
+    function addBubble(text, sender, time) {
+      const isUser = sender === "user";
+      const box = document.getElementById('chatBox');
+      const bubble = `
+        <div class="flex ${isUser ? 'justify-end' : 'justify-start'} mb-3">
+          <div class="max-w-[75%]">
+            <div class="msg-bubble ${isUser ? 'msg-user' : 'msg-admin'} text-gray-900 shadow-sm">
+              ${text}
+              <div class="msg-time">${time}</div>
+            </div>
           </div>
-        </div>
-      </div>`;
-    box.insertAdjacentHTML('beforeend', html);
-    box.scrollTop = box.scrollHeight;
-  }
+        </div>`;
+      box.insertAdjacentHTML("beforeend", bubble);
+      box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+    }
 
-  socket.on('chat_history', data => {
-    const box = document.getElementById('chatBox');
-    box.innerHTML = '';
-    (data.chat || []).forEach(addBubble);
-  });
-
-  socket.on('new_message', msg => addBubble(msg));
-
-  document.getElementById('replyForm').addEventListener('submit', e => {
-    e.preventDefault();
-    const txt = document.getElementById('replyText').value.trim();
-    if (!txt) return;
-    socket.emit('send_message', {
-      short_id: shortId,
-      message: txt,
-      is_admin: isAdmin
+    socket.on("new_message", (data) => {
+      addBubble(data.text, data.sender, data.time);
     });
-    document.getElementById('replyText').value = '';
-  });
-</script>
+
+    document.getElementById("replyForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const txt = document.getElementById("replyText").value.trim();
+      if (!txt) return;
+      document.getElementById("replyText").value = "";
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      addBubble(txt, "user", time);
+      socket.emit("message", { room, text: txt, sender: "user" });
+    });
+  </script>
 </body>
 </html>
