@@ -782,47 +782,31 @@ def list_tickets():
 
 @app.route("/support/<short_id>")
 def chat_page(short_id):
-    """
-    Loads the support chat page for a given ticket short_id.
-    Ensures welcome message exists, handles missing tickets,
-    and passes all required data to the frontend.
-    """
     user = session.get('user')
-    if not short_id:
-        return render_template("error.html", error="Missing ticket ID"), 400
-
-    # Convert short_id back to full UUID
     ticket_uuid = short_to_uuid(short_id)
-    if not ticket_uuid:
-        return render_template("error.html", error="Invalid or expired ticket link"), 404
+    
+    if not ticket_uuid or not short_id:
+        return render_template("error.html", error="Invalid ticket"), 404
 
-    # Connect to database
     conn = get_db_connection()
     if not conn:
-        return render_template("error.html", error="Database connection failed"), 500
+        return render_template("error.html", error="Database error"), 500
 
     try:
         cur = conn.cursor()
-        cur.execute("""
-            SELECT ticket_uuid, user_email, category, status, messages
-            FROM SupportTickets
-            WHERE ticket_uuid = ?
-        """, (ticket_uuid,))
+        cur.execute(
+            "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
+            (ticket_uuid,)
+        )
         row = cur.fetchone()
-
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
-        # Extract data
-        ticket_uuid, user_email, category, status, messages = row
-        chat = json.loads(messages) if messages else []
+        chat = json.loads(row[4]) if row[4] else []          # <-- messages column
 
-        # Ensure user session exists
-        if not user:
-            user = {"email": user_email or "guest", "role": "guest"}
-            session['user'] = user
-
-        # Prepare welcome message
+        # --------------------------------------------------------------
+        #  INSERT / UPDATE WELCOME MESSAGE WITH TIMESTAMP
+        # --------------------------------------------------------------
         now_iso = datetime.utcnow().isoformat() + "Z"
         WELCOME = {
             "sender": "support",
@@ -830,50 +814,33 @@ def chat_page(short_id):
             "time": now_iso
         }
 
-        # Check if welcome message already exists (avoid duplicates)
-        has_welcome = any(
-            msg.get("sender") == "support" and "Welcome" in msg.get("assistant", "")
-            for msg in chat
-        )
-
-        if not has_welcome:
+        if not chat or chat[0].get("sender") != "support":
             chat.insert(0, WELCOME)
-            cur.execute("""
-                UPDATE SupportTickets
-                SET messages = ?
-                WHERE ticket_uuid = ?
-            """, (json.dumps(chat), ticket_uuid))
+            # persist the welcome so it survives reloads
+            cur.execute(
+                """UPDATE SupportTickets
+                   SET messages = ?
+                   WHERE ticket_uuid = ?""",
+                (json.dumps(chat), ticket_uuid)
+            )
             conn.commit()
+        # --------------------------------------------------------------
 
-        # Optional: update last accessed timestamp
-        cur.execute("""
-            UPDATE SupportTickets
-            SET last_opened = ?
-            WHERE ticket_uuid = ?
-        """, (datetime.utcnow().isoformat(), ticket_uuid))
-        conn.commit()
-
-        # Render chat page
         return render_template(
             "support_chat.html",
             user=user,
             short_id=short_id,
-            category=category or "General",
-            status=status or "Open",
+            category=row[2] or "Unknown",
+            status=row[3] or "Open",
             chat=chat
         )
-
     except Exception as e:
-        logger.exception("Error loading chat_page:")
-        return render_template("error.html", error="Server error while loading chat"), 500
-
+        logger.error(f"Error in chat_page: {e}")
+        return render_template("error.html", error="Server error"), 500
     finally:
-        try:
-            cur.close()
-            conn.close()
-        except:
-            pass
-
+        cur.close()
+        conn.close()
+        
 def short_to_uuid(short: str) -> str | None:
     if not short or len(short) != 8:
         return None
@@ -1182,4 +1149,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
