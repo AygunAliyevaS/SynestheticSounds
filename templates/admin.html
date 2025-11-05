@@ -15,7 +15,7 @@
   <div class="max-w-6xl mx-auto p-6">
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-3xl font-bold text-gray-800">Admin Panel – Support Tickets</h1>
-      <a href="/" class="text-blue-600 hover:underline">← Back to Home</a>
+      <a href="/" class="text-blue-600 hover:underline">Back to Home</a>
     </div>
 
     {% if tickets|length == 0 %}
@@ -36,12 +36,7 @@
           <tbody class="bg-white divide-y divide-gray-200">
             {% for t in tickets %}
             <tr class="table-row transition">
-<!-- inside the <td> for Action -->
-<td class="px-6 py-4 whitespace-nowrap text-sm">
-  <a href="{{ url_for('chat_page', short_id=t.short_id) }}" class="text-green-600 hover:text-green-800 font-medium">
-    Open Chat (real-time) →
-  </a>
-</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">#{{ t.short_id }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ t.email }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ t.category }}</td>
               <td class="px-6 py-4 whitespace-nowrap">
@@ -52,8 +47,9 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ t.created }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm">
-                <a href="/support/{{ t.short_id }}" class="text-green-600 hover:text-green-800 font-medium">
-                  Open Chat →
+                <a href="{{ url_for('admin_chat', short_id=t.short_id) }}"
+                   class="text-green-600 hover:text-green-800 font-medium">
+                  Open Real-time Chat
                 </a>
               </td>
             </tr>
