@@ -993,6 +993,36 @@ def on_message(data):
     socketio.emit('new_message', msg_obj, room=ticket_uuid)
     logger.info(f"[{ 'admin' if is_admin else 'user' }] {short_id}: {text}")
 
+@app.route("/admin/chat/<short_id>")
+def admin_chat(short_id):
+    # same validation as chat_page …
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        return "Invalid ticket", 404
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
+        (ticket_uuid,)
+    )
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not row:
+        return "Ticket not found", 404
+
+    chat = json.loads(row[3]) if row[3] else []
+    chat = _ensure_welcome_message(chat)
+
+    return render_template(
+        "admin_chat.html",
+        short_id=short_id,
+        category=row[1], status=row[2],
+        chat=chat,
+        user=session.get('user')          # admin is already logged in
+    )
+
 @app.route("/submit", methods=['POST'])
 def submit():
     connection = get_db_connection()
@@ -1168,6 +1198,7 @@ if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=int(os.getenv('PORT', 8000)), debug=debug)
 else:
     application = app
+
 
 
 
