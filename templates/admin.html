@@ -1,93 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Chat – Ticket {{ short_id }}</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin – All Support Tickets</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
-    .msg-admin {
-      background-color: #f3f4f6;
-      border-radius: 1rem;
-      padding: 0.5rem 1rem;
+    .table-row:hover { background-color: #f9fafb; }
+    .badge-open { @apply bg-green-100 text-green-800; }
+    .badge-closed { @apply bg-red-100 text-red-800; }
+
+    .msg-bubble {
+      min-height: 44px;
+      position: relative;
+      padding: 10px 14px 20px 14px;
+      border-radius: 1.3rem;
     }
-    .msg-user {
-      background-color: #2563eb;
-      color: white;
-      border-radius: 1rem;
-      padding: 0.5rem 1rem;
-    }
+    .msg-user { background: #DCF8C6; border-top-right-radius: 0; }
+    .msg-admin { background: #FFFFFF; border-top-left-radius: 0; }
     .msg-time {
-      font-size: 0.7rem;
-      color: #9ca3af;
-      text-align: right;
-      margin-top: 0.2rem;
+      position: absolute;
+      bottom: 4px;
+      right: 10px;
+      font-size: 11px;
+      color: #666;
+      line-height: 1;
     }
   </style>
 </head>
-<body class="bg-gray-50 flex flex-col h-screen">
-  <header class="bg-white border-b px-6 py-3 flex items-center justify-between">
-    <h1 class="text-lg font-semibold text-gray-800">
-      Admin Chat – Ticket #{{ short_id }}
-    </h1>
-    <a href="/admin" class="text-blue-600 hover:underline">← Back to Tickets</a>
-  </header>
+<body class="bg-gray-50 min-h-screen">
+  <div class="max-w-6xl mx-auto p-6">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-3xl font-bold text-gray-800">Admin Panel – Support Tickets</h1>
+      <a href="/" class="text-blue-600 hover:underline">← Back to Home</a>
+    </div>
 
-  <main id="chatBox" class="flex-1 overflow-y-auto p-6 space-y-3">
-    {% for msg in chat %}
-      <div class="flex {% if msg.sender == 'admin' %}justify-end{% else %}justify-start{% endif %}">
-        <div class="max-w-[70%]">
-          <div class="{% if msg.sender == 'admin' %}msg-user{% else %}msg-admin{% endif %}">
-            {{ msg.text or msg.assistant }}
-            <div class="msg-time">{{ msg.time }}</div>
-          </div>
-        </div>
+    {% if tickets|length == 0 %}
+      <p class="text-center text-gray-500 py-10">No tickets yet.</p>
+    {% else %}
+      <div class="bg-white shadow overflow-hidden rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {% for t in tickets %}
+            <tr class="table-row transition">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <a href="/support/{{ t.short_id }}" class="text-blue-600 font-medium hover:underline">
+                  #{{ t.short_id }}
+                </a>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ t.email }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ t.category }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                  {% if t.status == 'Open' %}badge-open{% else %}badge-closed{% endif %}">
+                  {{ t.status }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ t.created }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <a href="/support/{{ t.short_id }}" class="text-green-600 hover:text-green-800 font-medium">
+                  Open Chat →
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
-    {% endfor %}
-  </main>
-
-  <form id="replyForm" class="bg-white border-t flex p-4">
-    <input id="replyText" type="text" placeholder="Type your reply..." 
-      class="flex-1 border rounded-lg px-4 py-2 mr-3 focus:outline-none focus:ring-2 focus:ring-blue-400"/>
-    <button type="submit" 
-      class="bg-blue-600 text-white rounded-lg px-6 py-2 hover:bg-blue-700">Send</button>
-  </form>
-
-  <script>
-    const socket = io();
+    {% endif %}
+  </div>
+   const socket = io();
     const room = "{{ short_id }}";
 
     socket.emit("join", { room });
 
     function addBubble(text, sender, time) {
-      const isAdmin = sender === "admin";
-      const box = document.getElementById("chatBox");
+      const isUser = sender === "user";
+      const box = document.getElementById('chatBox');
       const bubble = `
-      <div class="flex ${isAdmin ? "justify-end" : "justify-start"} mb-3">
-        <div class="max-w-[75%]">
-          <div class="${isAdmin ? "msg-user" : "msg-admin"}">
-            ${text}
-            <div class="msg-time">${time}</div>
+        <div class="flex ${isUser ? 'justify-end' : 'justify-start'} mb-3">
+          <div class="max-w-[75%]">
+            <div class="msg-bubble ${isUser ? 'msg-user' : 'msg-admin'} text-gray-900 shadow-sm">
+              ${text}
+              <div class="msg-time">${time}</div>
+            </div>
           </div>
-        </div>
-      </div>`;
+        </div>`;
       box.insertAdjacentHTML("beforeend", bubble);
       box.scrollTop = box.scrollHeight;
     }
 
+    // Incoming message
     socket.on("new_message", (data) => {
       addBubble(data.text, data.sender, data.time);
     });
 
-    document.getElementById("replyForm").addEventListener("submit", (e) => {
+    // Send message
+    document.getElementById("replyForm").addEventListener("submit", e => {
       e.preventDefault();
       const txt = document.getElementById("replyText").value.trim();
       if (!txt) return;
       document.getElementById("replyText").value = "";
-      const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      addBubble(txt, "admin", time);
-      socket.emit("message", { room, text: txt, sender: "admin" });
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      addBubble(txt, "user", time);
+      socket.emit("message", { room, text: txt, sender: "user" });
     });
   </script>
 </body>
