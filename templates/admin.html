@@ -5,28 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin – All Support Tickets</title>
   <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
     .table-row:hover { background-color: #f9fafb; }
     .badge-open { @apply bg-green-100 text-green-800; }
     .badge-closed { @apply bg-red-100 text-red-800; }
-
-    .msg-bubble {
-      min-height: 44px;
-      position: relative;
-      padding: 10px 14px 20px 14px;
-      border-radius: 1.3rem;
-    }
-    .msg-user { background: #DCF8C6; border-top-right-radius: 0; }
-    .msg-admin { background: #FFFFFF; border-top-left-radius: 0; }
-    .msg-time {
-      position: absolute;
-      bottom: 4px;
-      right: 10px;
-      font-size: 11px;
-      color: #666;
-      line-height: 1;
-    }
+          .msg-bubble {
+        min-height: 44px;
+        position: relative;
+        padding: 10px 14px 20px 14px;
+        border-radius: 1.3rem;
+      }
+      .msg-user {
+        background: #dcf8c6;
+        border-top-right-radius: 0;
+      }
+      .msg-admin {
+        background: #ffffff;
+        border-top-left-radius: 0;
+      }
+      .msg-time {
+        position: absolute;
+        bottom: 4px;
+        right: 10px;
+        font-size: 11px;
+        color: #666;
+        line-height: 1;
+      }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -80,42 +85,48 @@
       </div>
     {% endif %}
   </div>
-   const socket = io();
-    const room = "{{ short_id }}";
 
-    socket.emit("join", { room });
+  <script>
+      const socket = io();
+      const room = "{{ short_id }}";
 
-    function addBubble(text, sender, time) {
-      const isUser = sender === "user";
-      const box = document.getElementById('chatBox');
-      const bubble = `
-        <div class="flex ${isUser ? 'justify-end' : 'justify-start'} mb-3">
+      socket.emit("join", { room });
+
+      function addBubble(text, sender, time) {
+        const isAdmin = sender === "admin";
+        const box = document.getElementById("chatBox");
+        const bubble = `
+        <div class="flex ${isAdmin ? "justify-end" : "justify-start"} mb-3">
           <div class="max-w-[75%]">
-            <div class="msg-bubble ${isUser ? 'msg-user' : 'msg-admin'} text-gray-900 shadow-sm">
+            <div class="msg-bubble ${
+              isAdmin ? "msg-user" : "msg-admin"
+            } text-gray-900 shadow-sm">
               ${text}
               <div class="msg-time">${time}</div>
             </div>
           </div>
         </div>`;
-      box.insertAdjacentHTML("beforeend", bubble);
-      box.scrollTop = box.scrollHeight;
-    }
+        box.insertAdjacentHTML("beforeend", bubble);
+        box.scrollTop = box.scrollHeight;
+      }
 
-    // Incoming message
-    socket.on("new_message", (data) => {
-      addBubble(data.text, data.sender, data.time);
-    });
+      socket.on("new_message", (data) => {
+        addBubble(data.text, data.sender, data.time);
+      });
 
-    // Send message
-    document.getElementById("replyForm").addEventListener("submit", e => {
-      e.preventDefault();
-      const txt = document.getElementById("replyText").value.trim();
-      if (!txt) return;
-      document.getElementById("replyText").value = "";
-      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      addBubble(txt, "user", time);
-      socket.emit("message", { room, text: txt, sender: "user" });
-    });
-  </script>
+      document.getElementById("replyForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const txt = document.getElementById("replyText").value.trim();
+        if (!txt) return;
+        document.getElementById("replyText").value = "";
+        const time = new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        addBubble(txt, "admin", time);
+        socket.emit("message", { room, text: txt, sender: "admin" });
+      });
+    </script>
+  
 </body>
 </html>
