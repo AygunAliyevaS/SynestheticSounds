@@ -8,6 +8,7 @@ from scipy.io.wavfile import write as write_wav
 from scipy import signal
 from PIL import Image
 from flask import Flask, request, render_template, jsonify, send_from_directory, session, redirect, url_for
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from colorsys import rgb_to_hsv
 from dotenv import load_dotenv
 import msal
@@ -215,6 +216,25 @@ msal_client = msal.ConfidentialClientApplication(
     authority=AUTHORITY,
     client_credential=CLIENT_SECRET
 )
+
+socketio = SocketIO(app,
+                    cors_allowed_origins="*",
+                    async_mode='eventlet',
+                    logger=True,
+                    engineio_logger=True)
+
+def _ensure_welcome_message(chat: list) -> list:
+    WELCOME = {
+        "sender": "support",
+        "text": "Welcome to support! How can we help you today?",
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+    if not chat or chat[0].get("sender") != "support":
+        chat.insert(0, WELCOME)
+    return chat
+
+
+
 
 # Audio generation configuration
 OUTPUT_DIR = "static/audio"
@@ -785,62 +805,34 @@ def list_tickets():
 def chat_page(short_id):
     user = session.get('user')
     ticket_uuid = short_to_uuid(short_id)
-    
-    if not ticket_uuid or not short_id:
+    if not ticket_uuid:
         return render_template("error.html", error="Invalid ticket"), 404
 
     conn = get_db_connection()
-    if not conn:
-        return render_template("error.html", error="Database error"), 500
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
+        (ticket_uuid,)
+    )
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
 
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
-            (ticket_uuid,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return render_template("error.html", error="Ticket not found"), 404
+    if not row:
+        return render_template("error.html", error="Ticket not found"), 404
 
-        chat = json.loads(row[4]) if row[4] else []          # <-- messages column
+    chat = json.loads(row[4]) if row[4] else []
+    chat = _ensure_welcome_message(chat)
 
-        # --------------------------------------------------------------
-        #  INSERT / UPDATE WELCOME MESSAGE WITH TIMESTAMP
-        # --------------------------------------------------------------
-        now_iso = datetime.utcnow().isoformat() + "Z"
-        WELCOME = {
-            "sender": "support",
-            "assistant": "Welcome to support! How can we help you today?",
-            "time": now_iso
-        }
-
-        if not chat or chat[0].get("sender") != "support":
-            chat.insert(0, WELCOME)
-            # persist the welcome so it survives reloads
-            cur.execute(
-                """UPDATE SupportTickets
-                   SET messages = ?
-                   WHERE ticket_uuid = ?""",
-                (json.dumps(chat), ticket_uuid)
-            )
-            conn.commit()
-        # --------------------------------------------------------------
-
-        return render_template(
-            "support_chat.html",
-            user=user,
-            short_id=short_id,
-            category=row[2] or "Unknown",
-            status=row[3] or "Open",
-            chat=chat
-        )
-    except Exception as e:
-        logger.error(f"Error in chat_page: {e}")
-        return render_template("error.html", error="Server error"), 500
-    finally:
-        cur.close()
-        conn.close()
+    return render_template(
+        "support_chat.html",
+        user=user,
+        short_id=short_id,
+        category=row[2] or "Unknown",
+        status=row[3] or "Open",
+        chat=chat,
+        ticket_uuid=ticket_uuid
+    )
 
 def short_to_uuid(short: str) -> str | None:
     if not short or len(short) != 8:
@@ -905,6 +897,108 @@ def add_reply(short_id):
     finally:
         cur.close()
         conn.close()
+
+@socketio.on('join_ticket')
+def on_join(data):
+    """User or admin joins a ticket room."""
+    short_id = data.get('short_id')
+    if not short_id:
+        return
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        emit('error', {'msg': 'Invalid ticket'})
+        return
+
+    # room name = ticket UUID
+    join_room(ticket_uuid)
+    logger.info(f"Socket {request.sid} joined room {ticket_uuid}")
+
+    # send current chat history to the newcomer
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT messages FROM SupportTickets WHERE ticket_uuid = ?",
+        (ticket_uuid,)
+    )
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    chat = json.loads(row[0]) if row and row[0] else []
+    chat = _ensure_welcome_message(chat)
+    emit('chat_history', {'chat': chat}, room=ticket_uuid)
+
+@socketio.on('join_ticket')
+def on_join(data):
+    """User or admin joins a ticket room."""
+    short_id = data.get('short_id')
+    if not short_id:
+        return
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        emit('error', {'msg': 'Invalid ticket'})
+        return
+
+    # room name = ticket UUID
+    join_room(ticket_uuid)
+    logger.info(f"Socket {request.sid} joined room {ticket_uuid}")
+
+    # send current chat history to the newcomer
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT messages FROM SupportTickets WHERE ticket_uuid = ?",
+        (ticket_uuid,)
+    )
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    chat = json.loads(row[0]) if row and row[0] else []
+    chat = _ensure_welcome_message(chat)
+    emit('chat_history', {'chat': chat}, room=ticket_uuid)
+
+@socketio.on('send_message')
+def on_message(data):
+    """User or admin sends a message."""
+    short_id = data.get('short_id')
+    message  = data.get('message', '').strip()
+    is_admin = data.get('is_admin', False)   # true only from admin page
+
+    if not short_id or not message:
+        return
+
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        emit('error', {'msg': 'Invalid ticket'})
+        return
+
+    # ---------- build message object ----------
+    now = datetime.utcnow().isoformat() + "Z"
+    msg_obj = {
+        "sender": "support" if is_admin else "user",
+        "text": message,
+        "timestamp": now
+    }
+
+    # ---------- persist in DB ----------
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE SupportTickets
+        SET messages = JSON_MODIFY(messages, 'append $.', ?)
+        WHERE ticket_uuid = ?
+        """,
+        (json.dumps(msg_obj), ticket_uuid)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    # ---------- broadcast to room ----------
+    socketio.emit('new_message', msg_obj, room=ticket_uuid)
+    logger.info(f"Message in {short_id} ({'admin' if is_admin else 'user'}): {message}")
 
 @app.route("/submit", methods=['POST'])
 def submit():
@@ -1078,8 +1172,8 @@ def serve_audio(filename):
 
 if __name__ == "__main__":
     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-    port = int(os.getenv('PORT', 8000))
-    app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
+    socketio.run(app, host="0.0.0.0", port=int(os.getenv('PORT', 8000)), debug=debug)
 else:
-    application = app  # For Gunicorn
+    application = app
+
 
