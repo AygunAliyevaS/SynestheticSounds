@@ -1155,6 +1155,3 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
-
-
-
