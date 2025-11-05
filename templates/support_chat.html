@@ -3,185 +3,107 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Support – #{{ short_id|default('Ticket') }}</title>
+  <title>Support – #{{ short_id }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
-    /* -------------------------------------------------
-       SportyBet-style bubbles
-       ------------------------------------------------- */
-    .msg-bubble {
-      min-height: 44px;
-      position: relative;
-      padding: 10px 14px 20px 14px;   /* extra bottom space for time */
-      border-radius: 1.3rem;
-    }
-    .msg-user   { background:#DCF8C6; border-top-right-radius:0; }
-    .msg-admin  { background:#FFFFFF; border-top-left-radius:0; }
-
-    .msg-time {
-      position:absolute;
-      bottom:4px;
-      right:10px;
-      font-size:11px;
-      color:#666;
-      line-height:1;
-    }
+    .msg-bubble{min-height:44px;position:relative;padding:10px 14px 20px 14px;border-radius:1.3rem;}
+    .msg-user{background:#DCF8C6;border-top-right-radius:0;}
+    .msg-admin{background:#FFFFFF;border-top-left-radius:0;}
+    .msg-time{position:absolute;bottom:4px;right:10px;font-size:11px;color:#666;}
   </style>
 </head>
 <body class="flex flex-col h-screen m-0 p-0">
 
-  <!-- WhatsApp Header -->
-  <header class="bg-[#075E54] text-white p-3 flex items-center justify-between shadow-lg">
-    <div class="flex items-center space-x-3">
-      <a href="/support" class="text-white hover:opacity-80">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-        </svg>
-      </a>
-      <div class="flex items-center space-x-2">
-        <div class="w-10 h-10 rounded-full bg-[#128C7E] flex items-center justify-center font-bold text-lg">
-          {{ (short_id|default('?'))[0]|upper }}
-        </div>
-        <div>
-          <p class="font-semibold">Ticket #{{ short_id|default('????') }}</p>
-          <p class="text-xs opacity-80">{{ category|default('Unknown') }} • {{ status|default('Open') }}</p>
-        </div>
+<header class="bg-[#075E54] text-white p-3 flex items-center justify-between shadow-lg">
+  <div class="flex items-center space-x-3">
+    <a href="/support" class="text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></a>
+    <div class="flex items-center space-x-2">
+      <div class="w-10 h-10 rounded-full bg-[#128C7E] flex items-center justify-center font-bold text-lg">
+        {{ (short_id|default('?'))[0]|upper }}
+      </div>
+      <div>
+        <p class="font-semibold">Ticket #{{ short_id }}</p>
+        <p class="text-xs opacity-80">{{ category }} • {{ status }}</p>
       </div>
     </div>
-
-    <div class="flex items-center space-x-3 text-sm">
-      {% if user %}
-        <span class="hidden sm:inline">Hi, {{ user.name }}</span>
-        <a href="/logout" class="hover:underline">Logout</a>
-      {% else %}
-        <a href="/auth" class="hover:underline">Login</a>
-      {% endif %}
-    </div>
-  </header>
-
-  <!-- Chat Messages -->
-  <div id="chatBox"
-       class="flex-1 overflow-y-auto p-4 space-y-4"
-       style="max-height: calc(100vh - 120px);">
-    {% if chat and chat|length > 0 %}
-      {% for msg in chat %}
-        {% if msg.sender == 'user' %}
-          <!-- USER (right) -->
-          <div class="flex justify-end mb-3">
-            <div class="max-w-[75%]">
-              <div class="msg-bubble msg-user text-gray-900 shadow-sm">
-                {{ msg.user | safe }}
-                <div class="msg-time">
-                  {% if msg.time %}
-                    {{ msg.time.split('T')[1][:5] }}
-                  {% else %}
-                    Now
-                  {% endif %}
-                </div>
-              </div>
-            </div>
-          </div>
-
-        {% elif msg.sender == 'support' %}
-          <!-- ADMIN / WELCOME (left) -->
-          <div class="flex justify-start mb-3">
-            <div class="max-w-[75%]">
-              <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
-                {{ msg.assistant | safe }}
-                <div class="msg-time">
-                  {% if msg.time %}
-                    {{ msg.time.split('T')[1][:5] }}
-                  {% else %}
-                    Now
-                  {% endif %}
-                </div>
-              </div>
-            </div>
-          </div>
-        {% endif %}
-      {% endfor %}
+  </div>
+  <div class="flex items-center space-x-3 text-sm">
+    {% if user %}
+      <span class="hidden sm:inline">Hi, {{ user.name }}</span>
+      <a href="/logout" class="hover:underline">Logout</a>
     {% else %}
-      <p class="text-center text-gray-600 italic mt-10">No messages yet. Start the conversation!</p>
+      <a href="/auth" class="hover:underline">Login</a>
     {% endif %}
   </div>
+</header>
 
-  <!-- Reply Input -->
-  <form id="replyForm" class="bg-[#F0F0F0] border-t border-gray-300 p-3 flex items-center space-x-2">
-    <div class="flex-1 bg-white rounded-full shadow-sm flex items-center px-3 py-2">
-      <textarea id="replyText"
-                rows="1"
-                placeholder="Type a message..."
-                class="flex-1 resize-none border-none outline-none text-sm text-gray-800"
-                required></textarea>
-    </div>
-    <button type="submit"
-            class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3 shadow-md transition">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-      </svg>
-    </button>
-  </form>
+<div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
 
-  <div id="replyResult" class="hidden p-2"></div>
+<form id="replyForm" class="bg-[#F0F0F0] border-t border-gray-300 p-3 flex items-center space-x-2">
+  <div class="flex-1 bg-white rounded-full shadow-sm flex items-center px-3 py-2">
+    <textarea id="replyText" rows="1" placeholder="Type a message..."
+              class="flex-1 resize-none border-none outline-none text-sm text-gray-800" required></textarea>
+  </div>
+  <button type="submit"
+          class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3 shadow-md transition">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+    </svg>
+  </button>
+</form>
 
-  <!-- JavaScript -->
-  <script>
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
+<script>
+  const socket = io();
+  const shortId = "{{ short_id }}";
+  const isAdmin = {{ 'true' if 'admin' in request.path else 'false' }};
 
-    function addBubble(text, isUser) {
-      const box = document.getElementById('chatBox');
-      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const bubble = `
-        <div class="flex ${isUser ? 'justify-end mb-3' : 'justify-start mb-3'}">
-          <div class="max-w-[75%]">
-            <div class="msg-bubble ${isUser ? 'msg-user text-gray-900' : 'msg-admin text-gray-900'} shadow-sm">
-              ${escapeHtml(text)}
-              <div class="msg-time">${time}</div>
-            </div>
+  // ----- join room -----
+  socket.emit('join_ticket', { short_id: shortId });
+
+  // ----- helpers -----
+  function escapeHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+  function timeStr(iso){return iso?iso.split('T')[1].slice(0,5):'Now';}
+  function addBubble(msg){
+    const box = document.getElementById('chatBox');
+    const isUser = msg.sender === 'user';
+    const html = `
+      <div class="flex ${isUser?'justify-end mb-3':'justify-start mb-3'}">
+        <div class="max-w-[75%]">
+          <div class="msg-bubble ${isUser?'msg-user':'msg-admin'} text-gray-900 shadow-sm">
+            ${escapeHtml(msg.text)}
+            <div class="msg-time">${timeStr(msg.timestamp)}</div>
           </div>
-        </div>`;
-      box.insertAdjacentHTML('beforeend', bubble);
-      box.scrollTop = box.scrollHeight;
-    }
+        </div>
+      </div>`;
+    box.insertAdjacentHTML('beforeend', html);
+    box.scrollTop = box.scrollHeight;
+  }
 
-    async function sendReply() {
-      const txt = document.getElementById('replyText').value.trim();
-      if (!txt) return;
+  // ----- receive history -----
+  socket.on('chat_history', data => {
+    const chat = data.chat || [];
+    const box = document.getElementById('chatBox');
+    box.innerHTML = '';
+    chat.forEach(addBubble);
+  });
 
-      addBubble(txt, true);
-      document.getElementById('replyText').value = '';
+  // ----- new message from server -----
+  socket.on('new_message', msg => addBubble(msg));
 
-      try {
-        const res = await fetch('/api/support/{{ short_id|default("") }}/reply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reply: txt })
-        });
-        const data = await res.json();
-        const result = document.getElementById('replyResult');
-
-        if (!res.ok) {
-          result.classList.remove('hidden');
-          result.innerHTML = `<p class="text-red-600">${data.error || 'Failed'}</p>`;
-          setTimeout(() => result.classList.add('hidden'), 4000);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    document.getElementById('replyForm').addEventListener('submit', e => {
-      e.preventDefault();
-      sendReply();
+  // ----- send message -----
+  document.getElementById('replyForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const txt = document.getElementById('replyText').value.trim();
+    if (!txt) return;
+    socket.emit('send_message', {
+      short_id: shortId,
+      message: txt,
+      is_admin: isAdmin
     });
-
-    // Scroll to bottom
-    document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
-  </script>
+    document.getElementById('replyText').value = '';
+  });
+</script>
 </body>
 </html>
