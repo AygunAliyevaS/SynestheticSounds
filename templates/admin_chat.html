@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Chat – #{{ short_id }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    .msg-bubble {
+      min-height: 44px;
+      position: relative;
+      padding: 10px 14px 20px 14px;
+      border-radius: 1.3rem;
+    }
+    .msg-admin { background: #DCF8C6; border-top-right-radius: 0; } /* admin = right */
+    .msg-user { background: #FFFFFF; border-top-left-radius: 0; }  /* user = left */
+    .msg-time {
+      position: absolute;
+      bottom: 4px;
+      right: 10px;
+      font-size: 11px;
+      color: #666;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen bg-gray-50">
+
+  <header class="bg-[#075E54] text-white p-3 flex justify-between items-center shadow-lg">
+    <h1 class="font-bold text-lg">Admin – Ticket #{{ short_id }}</h1>
+    <a href="/admin" class="hover:underline">← Back</a>
+  </header>
+
+  <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4">
+    {% for msg in chat %}
+      {% if msg.sender == 'admin' %}
+      <div class="flex justify-end mb-3">
+        <div class="max-w-[75%]">
+          <div class="msg-bubble msg-admin">
+            {{ msg.assistant }}
+            <div class="msg-time">{{ msg.time.split('T')[1][:5] if msg.time else 'Now' }}</div>
+          </div>
+        </div>
+      </div>
+      {% elif msg.sender == 'user' %}
+      <div class="flex justify-start mb-3">
+        <div class="max-w-[75%]">
+          <div class="msg-bubble msg-user">
+            {{ msg.user }}
+            <div class="msg-time">{{ msg.time.split('T')[1][:5] if msg.time else 'Now' }}</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <form id="replyForm" class="bg-gray-100 p-3 flex items-center space-x-2 border-t">
+    <textarea id="replyText" rows="1" placeholder="Type reply..." class="flex-1 resize-none border rounded-full px-3 py-2 outline-none"></textarea>
+    <button type="submit" class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3">
+      Send
+    </button>
+  </form>
+
+  <script>
+    const socket = io();
+    const room = "{{ short_id }}";
+    socket.emit("join_room", { room });
+
+    function addBubble(text, sender, time) {
+      const isAdmin = sender === "admin";
+      const box = document.getElementById("chatBox");
+      const bubble = `
+        <div class="flex ${isAdmin ? "justify-end" : "justify-start"} mb-3">
+          <div class="max-w-[75%]">
+            <div class="msg-bubble ${isAdmin ? "msg-admin" : "msg-user"}">
+              ${text}
+              <div class="msg-time">${time}</div>
+            </div>
+          </div>
+        </div>`;
+      box.insertAdjacentHTML("beforeend", bubble);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // Receive message from user
+    socket.on("receive_message", (data) => {
+      if (data.sender !== "admin") {
+        addBubble(data.text, data.sender, data.time);
+      }
+    });
+
+    // Send message from admin
+    document.getElementById("replyForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const txt = document.getElementById("replyText").value.trim();
+      if (!txt) return;
+      document.getElementById("replyText").value = "";
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      addBubble(txt, "admin", time);
+      socket.emit("send_message", { room, text: txt, sender: "admin", time });
+    });
+  </script>
+</body>
+</html>
