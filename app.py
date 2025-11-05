@@ -906,33 +906,41 @@ def add_reply(short_id):
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
 
-    # --- Determine sender ---
-    is_admin = request.path.startswith('/admin') or session.get('is_admin', False)
-    # If accessed from /admin or has admin session → support message
-    # Otherwise → user message
+    # Detect if request is from admin
+    is_admin = (
+        request.path.startswith('/admin') or 
+        request.referrer and 'admin' in request.referrer or
+        session.get('is_admin', False)
+    )
 
     conn = get_db_connection()
     try:
         cur = conn.cursor()
         now = datetime.utcnow().isoformat() + "Z"
-
-        new_message = {
+        new_msg = {
             "time": now,
             "sender": "support" if is_admin else "user",
             "assistant": reply if is_admin else None,
             "user": reply if not is_admin else None
         }
 
-        sql = """
+        cur.execute("""
             UPDATE SupportTickets
             SET messages = JSON_MODIFY(messages, 'append $.', ?)
             WHERE ticket_uuid = ?
-        """
-        cur.execute(sql, (json.dumps(new_message), ticket_uuid))
+        """, (json.dumps(new_msg), ticket_uuid))
         conn.commit()
-        return jsonify({"message": "Reply added"}), 200
+
+        # Emit via SocketIO
+        socketio.emit("new_message", {
+            "text": reply,
+            "sender": "admin" if is_admin else "user",
+            "time": now[11:16]
+        }, room=short_id)
+
+        return jsonify({"status": "sent"})
     except Exception as e:
-        logger.error(f"Error adding reply: {e}")
+        logger.error(f"Reply error: {e}")
         return jsonify({"error": "Failed"}), 500
     finally:
         cur.close()
@@ -940,11 +948,37 @@ def add_reply(short_id):
 
 @app.route("/admin/<short_id>")
 def admin_chat(short_id):
-    """Render the admin chat page for the same ticket."""
-    if short_id not in tickets:
-        tickets[short_id] = {"chat": []}
-    chat = tickets[short_id]["chat"]
-    return render_template("admin.html", short_id=short_id, chat=chat)
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        return render_template("error.html", error="Invalid ticket"), 404
+
+    conn = get_db_connection()
+    if not conn:
+        return "DB error", 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT user_email, category, status, messages
+            FROM SupportTickets WHERE ticket_uuid = ?
+        """, (ticket_uuid,))
+        row = cur.fetchone()
+        if not row:
+            return "Ticket not found", 404
+
+        user_email, category, status, messages = row
+        chat = json.loads(messages) if messages else []
+        chat = _ensure_welcome_message(chat)
+
+        return render_template("admin_chat.html",
+                             short_id=short_id,
+                             user_email=user_email,
+                             category=category,
+                             status=status,
+                             chat=chat)
+    finally:
+        cur.close()
+        conn.close()
 
 @socketio.on("join")
 def handle_join(data):
@@ -1148,3 +1182,4 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
