@@ -123,46 +123,45 @@
   <div id="replyResult" class="hidden p-2"></div>
 
   <!-- JavaScript -->
-  <script>
-     const socket = io();
-     const room = "{{ short_id }}";
+<script>
+  const socket = io();
+  const room = "{{ short_id }}"; // Ticket room identifier
 
-     socket.emit("join", { room });
-    
+  // Join room
+  socket.emit("join_room", room);
 
-
-function addBubble(text, sender, time) {
-      const isUser = sender === "user";
-      const box = document.getElementById('chatBox');
-      const bubble = `
-        <div class="flex ${isUser ? 'justify-end' : 'justify-start'} mb-3">
-          <div class="max-w-[75%]">
-            <div class="msg-bubble ${isUser ? 'msg-user' : 'msg-admin'} text-gray-900 shadow-sm">
-              ${text}
-              <div class="msg-time">${time}</div>
-            </div>
+  function addBubble(text, sender, time) {
+    const isUser = sender === "user";
+    const box = document.getElementById('chatBox');
+    const bubble = `
+      <div class="flex ${isUser ? 'justify-end' : 'justify-start'} mb-3">
+        <div class="max-w-[75%]">
+          <div class="msg-bubble ${isUser ? 'msg-user' : 'msg-admin'} text-gray-900 shadow-sm">
+            ${text}
+            <div class="msg-time">${time}</div>
           </div>
-        </div>`;
-      box.insertAdjacentHTML("beforeend", bubble);
-      box.scrollTop = box.scrollHeight;
-    }
+        </div>
+      </div>`;
+    box.insertAdjacentHTML("beforeend", bubble);
+    box.scrollTop = box.scrollHeight;
+  }
 
-        // Incoming message
-    socket.on("new_message", (data) => {
-      addBubble(data.text, data.sender, data.time);
-    });
+  // Incoming message (from admin)
+  socket.on("receive_message", (data) => {
+    addBubble(data.text, data.sender, data.time);
+  });
 
-    // Send message
-    document.getElementById("replyForm").addEventListener("submit", e => {
-      e.preventDefault();
-      const txt = document.getElementById("replyText").value.trim();
-      if (!txt) return;
-      document.getElementById("replyText").value = "";
-      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      addBubble(txt, "user", time);
-      socket.emit("message", { room, text: txt, sender: "user" });
-    });
+  // Send message (from user)
+  document.getElementById("replyForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const txt = document.getElementById("replyText").value.trim();
+    if (!txt) return;
+    document.getElementById("replyText").value = "";
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    addBubble(txt, "user", time);
+    socket.emit("send_message", { room, text: txt, sender: "user", time });
+  });
+</script>
 
-  </script>
 </body>
 </html>
