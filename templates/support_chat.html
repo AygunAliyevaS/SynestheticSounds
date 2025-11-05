@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Support – #{{ short_id|default('Ticket') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
     .msg-bubble {
       min-height: 44px;
@@ -27,6 +27,7 @@
 </head>
 <body class="flex flex-col h-screen m-0 p-0">
 
+  <!-- WhatsApp Header -->
   <header class="bg-[#075E54] text-white p-3 flex items-center justify-between shadow-lg">
     <div class="flex items-center space-x-3">
       <a href="/support" class="text-white hover:opacity-80">
@@ -56,27 +57,40 @@
   </header>
 
   <!-- Chat Messages -->
-  <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4" style="max-height: calc(100vh - 120px);">
+  <div id="chatBox"
+       class="flex-1 overflow-y-auto p-4 space-y-4"
+       style="max-height: calc(100vh - 120px);">
     {% if chat and chat|length > 0 %}
       {% for msg in chat %}
         {% if msg.sender == 'user' %}
+          <!-- USER (right) -->
           <div class="flex justify-end mb-3">
             <div class="max-w-[75%]">
               <div class="msg-bubble msg-user text-gray-900 shadow-sm">
-                {{ msg.user or msg.text | safe }}
+                {{ msg.user | safe }}
                 <div class="msg-time">
-                  {% if msg.time %}{{ msg.time.split('T')[1][:5] }}{% else %}Now{% endif %}
+                  {% if msg.time %}
+                    {{ msg.time.split('T')[1][:5] }}
+                  {% else %}
+                    Now
+                  {% endif %}
                 </div>
               </div>
             </div>
           </div>
+
         {% elif msg.sender == 'support' %}
+          <!-- ADMIN / WELCOME (left) -->
           <div class="flex justify-start mb-3">
             <div class="max-w-[75%]">
               <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
-                {{ msg.assistant or msg.text | safe }}
+                {{ msg.assistant | safe }}
                 <div class="msg-time">
-                  {% if msg.time %}{{ msg.time.split('T')[1][:5] }}{% else %}Now{% endif %}
+                  {% if msg.time %}
+                    {{ msg.time.split('T')[1][:5] }}
+                  {% else %}
+                    Now
+                  {% endif %}
                 </div>
               </div>
             </div>
@@ -91,22 +105,33 @@
   <!-- Reply Input -->
   <form id="replyForm" class="bg-[#F0F0F0] border-t border-gray-300 p-3 flex items-center space-x-2">
     <div class="flex-1 bg-white rounded-full shadow-sm flex items-center px-3 py-2">
-      <textarea id="replyText" rows="1" placeholder="Type a message..." class="flex-1 resize-none border-none outline-none text-sm text-gray-800" required></textarea>
+      <textarea id="replyText"
+                rows="1"
+                placeholder="Type a message..."
+                class="flex-1 resize-none border-none outline-none text-sm text-gray-800"
+                required></textarea>
     </div>
-    <button type="submit" class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3 shadow-md transition">
+    <button type="submit"
+            class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3 shadow-md transition">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
       </svg>
     </button>
   </form>
 
+  <div id="replyResult" class="hidden p-2"></div>
+
+  <!-- JavaScript -->
   <script>
-    const socket = io();
-    const room = "{{ short_id }}";
+     const socket = io();
+     const room = "{{ short_id }}";
 
-    socket.emit("join", { room });
+     socket.emit("join", { room });
+    
 
-    function addBubble(text, sender, time) {
+
+function addBubble(text, sender, time) {
       const isUser = sender === "user";
       const box = document.getElementById('chatBox');
       const bubble = `
@@ -119,13 +144,15 @@
           </div>
         </div>`;
       box.insertAdjacentHTML("beforeend", bubble);
-      box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+      box.scrollTop = box.scrollHeight;
     }
 
+        // Incoming message
     socket.on("new_message", (data) => {
       addBubble(data.text, data.sender, data.time);
     });
 
+    // Send message
     document.getElementById("replyForm").addEventListener("submit", e => {
       e.preventDefault();
       const txt = document.getElementById("replyText").value.trim();
@@ -135,6 +162,7 @@
       addBubble(txt, "user", time);
       socket.emit("message", { room, text: txt, sender: "user" });
     });
+
   </script>
 </body>
 </html>
