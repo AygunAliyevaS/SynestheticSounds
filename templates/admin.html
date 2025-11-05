@@ -36,11 +36,12 @@
           <tbody class="bg-white divide-y divide-gray-200">
             {% for t in tickets %}
             <tr class="table-row transition">
-              <td class="px-6 py-4 whitespace-nowrap">
-                <a href="/support/{{ t.short_id }}" class="text-blue-600 font-medium hover:underline">
-                  #{{ t.short_id }}
-                </a>
-              </td>
+<!-- inside the <td> for Action -->
+<td class="px-6 py-4 whitespace-nowrap text-sm">
+  <a href="{{ url_for('chat_page', short_id=t.short_id) }}" class="text-green-600 hover:text-green-800 font-medium">
+    Open Chat (real-time) →
+  </a>
+</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ t.email }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ t.category }}</td>
               <td class="px-6 py-4 whitespace-nowrap">
