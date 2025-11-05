@@ -701,7 +701,6 @@ def admin():
 
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
-    """API endpoint to create new support ticket."""
     data = request.get_json()
     if not data:
         return jsonify({"error": "No data"}), 400
@@ -720,18 +719,25 @@ def create_ticket():
     try:
         cur = conn.cursor()
         ticket_uuid = str(uuid.uuid4())
-        short_id = uuid_to_short(ticket_uuid)
         now = datetime.utcnow().isoformat() + "Z"
 
-        messages = [{"time": now, "sender": "user", "user": user_message, "assistant": None}]
+        messages = [{"time": now, "user": user_message, "assistant": None}]
         messages_json = json.dumps(messages)
 
         sql = """
-            INSERT INTO SupportTickets (ticket_uuid, short_id, user_email, category, messages, status, created_at)
-            VALUES (?, ?, ?, ?, ?, 'Open', GETDATE())
+            INSERT INTO SupportTickets 
+                (ticket_uuid, user_email, category, messages, status, created_at)
+            VALUES (?, ?, ?, ?, 'Open', GETDATE())
         """
-        cur.execute(sql, (ticket_uuid, short_id, user_email, category, messages_json))
+        cur.execute(sql, (ticket_uuid, user_email, category, messages_json))
         conn.commit()
+
+        # Get short_id
+        cur.execute("SELECT short_id FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
+        short_id = cur.fetchone()[0]
+
+        # SEND CONFIRMATION EMAIL TO USER
+        send_user_confirmation(user_email, short_id, category, user_message)
 
         return jsonify({
             "ticket_uuid": ticket_uuid,
@@ -742,7 +748,7 @@ def create_ticket():
         }), 201
 
     except Exception as e:
-        logger.error(f"Error creating ticket: {e}")
+        logger.error(f"Error: {e}")
         return jsonify({"error": "Failed to create ticket"}), 500
     finally:
         cur.close()
@@ -1149,5 +1155,6 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
