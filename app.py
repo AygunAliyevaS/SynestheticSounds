@@ -900,26 +900,23 @@ def add_reply(short_id):
 
 @socketio.on('join_ticket')
 def on_join(data):
-    """User or admin joins a ticket room."""
     short_id = data.get('short_id')
     if not short_id:
+        emit('error', {'msg': 'Missing short_id'})
         return
+
     ticket_uuid = short_to_uuid(short_id)
     if not ticket_uuid:
         emit('error', {'msg': 'Invalid ticket'})
         return
 
-    # room name = ticket UUID
     join_room(ticket_uuid)
     logger.info(f"Socket {request.sid} joined room {ticket_uuid}")
 
-    # send current chat history to the newcomer
+    # ---- send full chat history to the newcomer ----
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT messages FROM SupportTickets WHERE ticket_uuid = ?",
-        (ticket_uuid,)
-    )
+    cur.execute("SELECT messages FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
     row = cur.fetchone()
     cur.close()
     conn.close()
@@ -960,12 +957,11 @@ def on_join(data):
 
 @socketio.on('send_message')
 def on_message(data):
-    """User or admin sends a message."""
     short_id = data.get('short_id')
-    message  = data.get('message', '').strip()
-    is_admin = data.get('is_admin', False)   # true only from admin page
+    text     = data.get('message', '').strip()
+    is_admin = data.get('is_admin', False)      # <-- **READ THE FLAG**
 
-    if not short_id or not message:
+    if not short_id or not text:
         return
 
     ticket_uuid = short_to_uuid(short_id)
@@ -973,32 +969,29 @@ def on_message(data):
         emit('error', {'msg': 'Invalid ticket'})
         return
 
-    # ---------- build message object ----------
     now = datetime.utcnow().isoformat() + "Z"
     msg_obj = {
         "sender": "support" if is_admin else "user",
-        "text": message,
+        "text": text,
         "timestamp": now
     }
 
-    # ---------- persist in DB ----------
+    # ---- persist ----
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        """
-        UPDATE SupportTickets
-        SET messages = JSON_MODIFY(messages, 'append $.', ?)
-        WHERE ticket_uuid = ?
-        """,
+        """UPDATE SupportTickets
+           SET messages = JSON_MODIFY(messages, 'append $.', ?)
+           WHERE ticket_uuid = ?""",
         (json.dumps(msg_obj), ticket_uuid)
     )
     conn.commit()
     cur.close()
     conn.close()
 
-    # ---------- broadcast to room ----------
+    # ---- broadcast to EVERYONE in the room (user + admin) ----
     socketio.emit('new_message', msg_obj, room=ticket_uuid)
-    logger.info(f"Message in {short_id} ({'admin' if is_admin else 'user'}): {message}")
+    logger.info(f"[{ 'admin' if is_admin else 'user' }] {short_id}: {text}")
 
 @app.route("/submit", methods=['POST'])
 def submit():
@@ -1175,5 +1168,6 @@ if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=int(os.getenv('PORT', 8000)), debug=debug)
 else:
     application = app
+
 
 
