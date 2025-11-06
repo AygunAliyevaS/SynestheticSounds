@@ -963,21 +963,57 @@ def handle_join(data):
 
 @socketio.on("message")
 def handle_message(data):
-    """When user/admin sends a message."""
-    room = data["room"]
-    text = data["text"]
-    sender = data["sender"]
-    time = datetime.datetime.now().strftime("%H:%M")
+    """Handle real-time chat and save message to DB."""
+    room = data.get("room")
+    text = data.get("text")
+    sender = data.get("sender")  # "admin" or "user"
+    short_id = room
 
-    # Store message in memory
-    tickets.setdefault(room, {"chat": []})["chat"].append({
-        "sender": sender,
-        "text": text,
-        "time": time
-    })
+    if not room or not text:
+        return
 
-    # Broadcast to everyone in that room
-    emit("new_message", {"text": text, "sender": sender, "time": time}, room=room)
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        emit("error", {"msg": "Invalid ticket"})
+        return
+
+    conn = get_db_connection()
+    if not conn:
+        emit("error", {"msg": "Database connection failed"})
+        return
+
+    try:
+        cur = conn.cursor()
+        now = datetime.utcnow().isoformat() + "Z"
+
+        new_msg = {
+            "time": now,
+            "sender": sender,
+            "assistant": text if sender == "admin" else None,
+            "user": text if sender == "user" else None
+        }
+
+        # Update messages JSON in DB
+        cur.execute("""
+            UPDATE SupportTickets
+            SET messages = JSON_MODIFY(messages, 'append $.', ?)
+            WHERE ticket_uuid = ?
+        """, (json.dumps(new_msg), ticket_uuid))
+        conn.commit()
+
+        # Broadcast the message to everyone in the room
+        emit("new_message", {
+            "text": text,
+            "sender": sender,
+            "time": now[11:16]
+        }, room=room)
+    except Exception as e:
+        print("DB update error:", e)
+        emit("error", {"msg": "Failed to save message"})
+    finally:
+        cur.close()
+        conn.close()
+
 
 @app.route("/submit", methods=['POST'])
 def submit():
@@ -1155,3 +1191,4 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
