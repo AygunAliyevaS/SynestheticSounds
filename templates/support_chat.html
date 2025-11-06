@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Support – #{{ short_id|default('Ticket') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
     .msg-bubble {
       min-height: 44px;
@@ -27,7 +27,7 @@
 </head>
 <body class="flex flex-col h-screen m-0 p-0">
 
-  <!-- WhatsApp Header -->
+  <!-- Header -->
   <header class="bg-[#075E54] text-white p-3 flex items-center justify-between shadow-lg">
     <div class="flex items-center space-x-3">
       <a href="/support" class="text-white hover:opacity-80">
@@ -45,25 +45,14 @@
         </div>
       </div>
     </div>
-
-    <div class="flex items-center space-x-3 text-sm">
-      {% if user %}
-        <span class="hidden sm:inline">Hi, {{ user.name }}</span>
-        <a href="/logout" class="hover:underline">Logout</a>
-      {% else %}
-        <a href="/auth" class="hover:underline">Login</a>
-      {% endif %}
-    </div>
   </header>
 
-  <!-- Chat Messages -->
-  <div id="chatBox"
-       class="flex-1 overflow-y-auto p-4 space-y-4"
-       style="max-height: calc(100vh - 120px);">
-    {% if chat and chat|length > 0 %}
+  <!-- Chat Area -->
+  <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+    {% if chat %}
       {% for msg in chat %}
         {% if msg.sender == 'user' %}
-          <!-- USER (right) -->
+          <!-- USER -->
           <div class="flex justify-end mb-3">
             <div class="max-w-[75%]">
               <div class="msg-bubble msg-user text-gray-900 shadow-sm">
@@ -71,16 +60,13 @@
                 <div class="msg-time">
                   {% if msg.time %}
                     {{ msg.time.split('T')[1][:5] }}
-                  {% else %}
-                    Now
-                  {% endif %}
+                  {% else %} Now {% endif %}
                 </div>
               </div>
             </div>
           </div>
-
         {% elif msg.sender == 'support' %}
-          <!-- ADMIN / WELCOME (left) -->
+          <!-- ADMIN -->
           <div class="flex justify-start mb-3">
             <div class="max-w-[75%]">
               <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
@@ -88,9 +74,7 @@
                 <div class="msg-time">
                   {% if msg.time %}
                     {{ msg.time.split('T')[1][:5] }}
-                  {% else %}
-                    Now
-                  {% endif %}
+                  {% else %} Now {% endif %}
                 </div>
               </div>
             </div>
@@ -102,14 +86,11 @@
     {% endif %}
   </div>
 
-  <!-- Reply Input -->
+  <!-- Message Input -->
   <form id="replyForm" class="bg-[#F0F0F0] border-t border-gray-300 p-3 flex items-center space-x-2">
     <div class="flex-1 bg-white rounded-full shadow-sm flex items-center px-3 py-2">
-      <textarea id="replyText"
-                rows="1"
-                placeholder="Type a message..."
-                class="flex-1 resize-none border-none outline-none text-sm text-gray-800"
-                required></textarea>
+      <textarea id="replyText" rows="1" placeholder="Type a message..."
+                class="flex-1 resize-none border-none outline-none text-sm text-gray-800" required></textarea>
     </div>
     <button type="submit"
             class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3 shadow-md transition">
@@ -120,48 +101,45 @@
     </button>
   </form>
 
-  <div id="replyResult" class="hidden p-2"></div>
+  <script>
+    const socket = io({ transports: ["websocket"] });
+    const room = "{{ short_id }}";
 
-  <!-- JavaScript -->
-<script>
-  const socket = io();
-  const room = "{{ short_id }}"; // Ticket room identifier
+    // Join the specific ticket room
+    socket.emit("join_room", room);
 
-  // Join room
-  socket.emit("join_room", room);
-
-  function addBubble(text, sender, time) {
-    const isUser = sender === "user";
-    const box = document.getElementById('chatBox');
-    const bubble = `
-      <div class="flex ${isUser ? 'justify-end' : 'justify-start'} mb-3">
-        <div class="max-w-[75%]">
-          <div class="msg-bubble ${isUser ? 'msg-user' : 'msg-admin'} text-gray-900 shadow-sm">
-            ${text}
-            <div class="msg-time">${time}</div>
+    // Helper to render chat bubbles
+    function addBubble(text, sender, time) {
+      const isUser = sender === "user";
+      const box = document.getElementById("chatBox");
+      const bubble = `
+        <div class="flex ${isUser ? "justify-end" : "justify-start"} mb-3">
+          <div class="max-w-[75%]">
+            <div class="msg-bubble ${isUser ? "msg-user" : "msg-admin"} text-gray-900 shadow-sm">
+              ${text}
+              <div class="msg-time">${time}</div>
+            </div>
           </div>
-        </div>
-      </div>`;
-    box.insertAdjacentHTML("beforeend", bubble);
-    box.scrollTop = box.scrollHeight;
-  }
+        </div>`;
+      box.insertAdjacentHTML("beforeend", bubble);
+      box.scrollTop = box.scrollHeight;
+    }
 
-  // Incoming message (from admin)
-  socket.on("receive_message", (data) => {
-    addBubble(data.text, data.sender, data.time);
-  });
+    // Receive message (from admin)
+    socket.on("receive_message", (data) => {
+      addBubble(data.text, data.sender, data.time);
+    });
 
-  // Send message (from user)
-  document.getElementById("replyForm").addEventListener("submit", e => {
-    e.preventDefault();
-    const txt = document.getElementById("replyText").value.trim();
-    if (!txt) return;
-    document.getElementById("replyText").value = "";
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    addBubble(txt, "user", time);
-    socket.emit("send_message", { room, text: txt, sender: "user", time });
-  });
-</script>
-
+    // Handle user sending message
+    document.getElementById("replyForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = document.getElementById("replyText").value.trim();
+      if (!text) return;
+      document.getElementById("replyText").value = "";
+      const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      addBubble(text, "user", time);
+      socket.emit("send_message", { room, text, sender: "user", time });
+    });
+  </script>
 </body>
 </html>
