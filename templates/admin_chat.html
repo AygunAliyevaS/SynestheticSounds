@@ -1,38 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Chat – Ticket #{{ short_id }}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <style>
-    .msg-bubble {
-      min-height: 44px;
-      position: relative;
-      padding: 10px 14px 20px 14px;
-      border-radius: 1.3rem;
-    }
-    .msg-admin { background: #DCF8C6; border-top-right-radius: 0; }
-    .msg-user { background: #FFFFFF; border-top-left-radius: 0; }
-    .msg-time {
-      position: absolute;
-      bottom: 4px;
-      right: 10px;
-      font-size: 11px;
-      color: #666;
-      line-height: 1;
-    }
-  </style>
-</head>
-<body class="flex flex-col h-screen bg-gray-50">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+      .msg-bubble {
+        min-height: 44px;
+        position: relative;
+        padding: 10px 14px 20px 14px;
+        border-radius: 1.3rem;
+      }
+      .msg-admin {
+        background: #dcf8c6;
+        border-top-right-radius: 0;
+      }
+      .msg-user {
+        background: #ffffff;
+        border-top-left-radius: 0;
+      }
+      .msg-time {
+        position: absolute;
+        bottom: 4px;
+        right: 10px;
+        font-size: 11px;
+        color: #666;
+        line-height: 1;
+      }
+    </style>
+  </head>
+  <body class="flex flex-col h-screen bg-gray-50">
+    <header
+      class="bg-[#0b4f3e] text-white p-3 flex justify-between items-center shadow"
+    >
+      <h1 class="text-lg font-semibold">Admin Chat – Ticket #{{ short_id }}</h1>
+      <a href="/admin" class="underline text-sm">← Back to Admin Panel</a>
+    </header>
 
-  <header class="bg-[#0b4f3e] text-white p-3 flex justify-between items-center shadow">
-    <h1 class="text-lg font-semibold">Admin Chat – Ticket #{{ short_id }}</h1>
-    <a href="/admin" class="underline text-sm">← Back to Admin Panel</a>
-  </header>
-
-  <!-- Chat Messages -->
     <div
       id="chatBox"
       class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-100"
@@ -66,7 +72,7 @@
       </button>
     </form>
 
-  <script>
+    <script>
       const socket = io({ transports: ["websocket"] });
       const room = "{{ short_id }}";
       socket.emit("join", { room });
@@ -105,5 +111,6 @@
         addBubble(txt, "admin", time);
         socket.emit("message", { room, text: txt, sender: "admin" });
       });
-</body>
+    </script>
+  </body>
 </html>
