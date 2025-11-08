@@ -953,62 +953,60 @@ def admin_chat(short_id):
         cur.close()
         conn.close()
 
+@socketio.on('connect')
+def handle_connect():
+    print(f"Client connected: {request.sid}")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"Client disconnected: {request.sid}")
+
+
 @socketio.on("join")
 def handle_join(data):
-    """When a user/admin joins a chat room."""
     room = data["room"]
     join_room(room)
     print(f"{request.sid} joined room {room}")
-    emit("status", {"msg": f"Someone joined room {room}"}, room=room)
+    emit("status", {"msg": f"Joined room {room}"}, room=room)  # For debugging
 
 @socketio.on("message")
 def handle_message(data):
-    """Handle real-time chat and save message to DB."""
     room = data.get("room")
     text = data.get("text")
-    sender = data.get("sender")  # "admin" or "user"
-    short_id = room
-
+    sender = data.get("sender")
     if not room or not text:
         return
-
-    ticket_uuid = short_to_uuid(short_id)
+    ticket_uuid = short_to_uuid(room)
     if not ticket_uuid:
         emit("error", {"msg": "Invalid ticket"})
         return
-
     conn = get_db_connection()
     if not conn:
         emit("error", {"msg": "Database connection failed"})
         return
-
     try:
         cur = conn.cursor()
         now = datetime.utcnow().isoformat() + "Z"
-
         new_msg = {
             "time": now,
             "sender": sender,
             "assistant": text if sender == "admin" else None,
             "user": text if sender == "user" else None
         }
-
-        # Update messages JSON in DB
         cur.execute("""
             UPDATE SupportTickets
             SET messages = JSON_MODIFY(messages, 'append $.', ?)
             WHERE ticket_uuid = ?
         """, (json.dumps(new_msg), ticket_uuid))
         conn.commit()
-
-        # Broadcast the message to everyone in the room
+        print(f"Message saved and emitting to room {room}: {text} from {sender}")
         emit("new_message", {
             "text": text,
             "sender": sender,
-            "time": now[11:16]
+            "time": now[11:16]  # Match client format
         }, room=room)
     except Exception as e:
-        print("DB update error:", e)
+        print(f"DB update error: {e}")
         emit("error", {"msg": "Failed to save message"})
     finally:
         cur.close()
@@ -1188,7 +1186,6 @@ def serve_audio(filename):
 if __name__ == "__main__":
     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.getenv('PORT', 8000))
-    app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
+    socketio.run(app, host="0.0.0.0", port=port, debug=debug, allow_unsafe_werkzeug=True)
 else:
-    application = app  # For Gunicorn
-
+    application = app
