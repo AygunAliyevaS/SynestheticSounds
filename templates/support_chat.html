@@ -34,6 +34,11 @@
     </form>
 
     <script>
+
+      socket.on('connect', () => console.log('Connected to SocketIO'));
+      socket.on('connect_error', (err) => console.error('Connection error:', err));
+      socket.on('disconnect', (reason) => console.log('Disconnected:', reason));
+      
       const socket = io({ transports: ["websocket"] });
       const room = "{{ short_id }}";
       socket.emit("join", { room });
