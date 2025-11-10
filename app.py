@@ -174,7 +174,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__, static_folder='static')
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False)
 
 # Session Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(24).hex())
@@ -850,23 +850,27 @@ def chat_page(short_id):
 def short_to_uuid(short: str) -> str | None:
     if not short or len(short) != 8:
         return None
-    conn = get_db_connection()
-    if not conn:
-        return None
-    try:
+    with get_db() as conn:
         cur = conn.cursor()
-        cur.execute(
-            "SELECT ticket_uuid FROM SupportTickets WHERE LEFT(REPLACE(CAST(ticket_uuid AS varchar(36)), '-', ''), 8) = ?",
-            (short.upper(),)
-        )
+        cur.execute("SELECT ticket_uuid FROM SupportTickets WHERE short_id = ?", (short.upper(),))
         row = cur.fetchone()
-        return str(row[0]) if row else None
-    except Exception as e:
-        logger.error(f"Error in short_to_uuid: {e}")
-        return None
-    finally:
-        cur.close()
-        conn.close()
+        return row['ticket_uuid'] if row else None
+
+def safe_load_messages(raw):
+    if not raw:
+        return []
+    try:
+        msgs = json.loads(raw)
+        if not isinstance(msgs, list):
+            return []
+        # make sure every entry has the three fields we need
+        for m in msgs:
+            m.setdefault('sender', 'unknown')
+            m.setdefault('text',   '')
+            m.setdefault('time',   datetime.utcnow().isoformat() + "Z")
+        return msgs
+    except Exception:
+        return []
 
 @app.route("/api/support/<short_id>/reply", methods=['POST'])
 def add_reply(short_id):
@@ -963,54 +967,47 @@ def handle_disconnect():
 
 
 @socketio.on("join")
-def handle_join(data):
+def on_join(data):
     room = data["room"]
     join_room(room)
-    print(f"{request.sid} joined room {room}")
-    emit("status", {"msg": f"Joined room {room}"}, room=room)  # For debugging
+    logger.info(f"Client joined room: {room}")
 
 @socketio.on("message")
-def handle_message(data):
+def on_message(data):
     room = data.get("room")
     text = data.get("text")
-    sender = data.get("sender")
-    if not room or not text:
+    sender = data.get("sender")  # "user" or "admin"
+
+    if not room or not text or sender not in ["user", "admin"]:
         return
-    ticket_uuid = short_to_uuid(room)
-    if not ticket_uuid:
-        emit("error", {"msg": "Invalid ticket"})
-        return
-    conn = get_db_connection()
-    if not conn:
-        emit("error", {"msg": "Database connection failed"})
-        return
-    try:
+
+    with get_db() as conn:
         cur = conn.cursor()
+        cur.execute("SELECT ticket_uuid FROM SupportTickets WHERE short_id = ?", (room,))
+        if not cur.fetchone():
+            return
+
         now = datetime.utcnow().isoformat() + "Z"
         new_msg = {
-            "time": now,
             "sender": sender,
-            "assistant": text if sender == "admin" else None,
-            "user": text if sender == "user" else None
+            "text": text,
+            "time": now
         }
+
         cur.execute("""
             UPDATE SupportTickets
-            SET messages = JSON_MODIFY(messages, 'append $.', ?)
-            WHERE ticket_uuid = ?
-        """, (json.dumps(new_msg), ticket_uuid))
+            SET messages = json_insert(messages, '$[' || json_array_length(messages) || ']', ?)
+            WHERE short_id = ?
+        """, (json.dumps(new_msg), room))
         conn.commit()
-        print(f"Message saved and emitting to room {room}: {text} from {sender}")
+
+        # Send to both sides
         emit("new_message", {
             "text": text,
-            "sender": sender,
-            "time": now[11:16]  # Match client format
+            "sender": sender,  # ← This must be "user" or "admin"
+            "time": now[11:16]
         }, room=room)
-    except Exception as e:
-        print(f"DB update error: {e}")
-        emit("error", {"msg": "Failed to save message"})
-    finally:
-        cur.close()
-        conn.close()
+
 
 
 @app.route("/submit", methods=['POST'])
@@ -1189,3 +1186,4 @@ if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=port, debug=debug, allow_unsafe_werkzeug=True)
 else:
     application = app
+
