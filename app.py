@@ -918,48 +918,6 @@ def add_reply(short_id):
         cur.close()
         conn.close()
 
-@app.route("/admin/<short_id>")
-def admin_chat(short_id):
-    ticket_uuid = short_to_uuid(short_id)
-    if not ticket_uuid:
-        return render_template("error.html", error="Invalid ticket"), 404
-
-    conn = get_db_connection()
-    if not conn:
-        return "DB error", 500
-
-    try:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT user_email, category, status, messages
-            FROM SupportTickets WHERE ticket_uuid = ?
-        """, (ticket_uuid,))
-        row = cur.fetchone()
-        if not row:
-            return "Ticket not found", 404
-
-        user_email, category, status, messages = row
-        chat = json.loads(messages) if messages else []
-        chat = _ensure_welcome_message(chat)
-
-        return render_template("admin_chat.html",
-                             short_id=short_id,
-                             user_email=user_email,
-                             category=category,
-                             status=status,
-                             chat=chat)
-    finally:
-        cur.close()
-        conn.close()
-
-@socketio.on('connect')
-def handle_connect():
-    print(f"Client connected: {request.sid}")
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print(f"Client disconnected: {request.sid}")
-
 
 @socketio.on("join")
 def on_join(data):
@@ -1187,5 +1145,6 @@ if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=port, debug=debug, allow_unsafe_werkzeug=True)
 else:
     application = app
+
 
 
