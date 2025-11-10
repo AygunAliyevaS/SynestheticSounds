@@ -15,6 +15,7 @@ import requests
 from flask_session import Session
 from flask_socketio import SocketIO, join_room, emit
 from datetime import datetime
+import eventlet
 import pyodbc
 import uuid
 import string
@@ -174,7 +175,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__, static_folder='static')
-socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False)
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 
 # Session Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(24).hex())
@@ -911,61 +912,43 @@ def add_reply(short_id):
         cur.close()
         conn.close()
 
-@socketio.on("join")
+@socketio.on('join')
 def on_join(data):
-    room = data.get("room")
-    if room:
-        join_room(room)
-        logger.info(f"Socket joined room {room}")
+    room = data['room']
+    join_room(room)
+    # Send existing chat history to the client that just joined
+    if room in chat_store:
+        for msg in chat_store[room]:
+            emit('new_message', msg, to=request.sid)   # only to the new client
+    print(f"Client joined room: {room}")
 
-@socketio.on("message")
+@socketio.on('message')
 def on_message(data):
-    room = data.get("room")
-    text = data.get("text")
-    sender = data.get("sender")          # "user" or "admin"
-    if not all([room, text, sender in ("user", "admin")]):
+    room = data['room']
+    text = data['text'].strip()
+    sender = data['sender']        # "user" or "admin"
+    if not text:
         return
 
-    conn = get_db_connection()
-    if not conn:
-        return
-    try:
-        cur = conn.cursor()
-        # verify the ticket exists
-        cur.execute("SELECT ticket_uuid FROM SupportTickets WHERE short_id = ?", (room.upper(),))
-        if not cur.fetchone():
-            return
+    # Normalise sender for consistency
+    if sender in ('support', 'assistant'):
+        sender = 'admin'
 
-        now = datetime.utcnow().isoformat() + "Z"
-        new_msg = {"sender": sender, "text": text, "time": now}
+    # Create message object
+    msg = {
+        'text': text,
+        'sender': sender,
+        'time': datetime.utcnow().strftime('%H:%M')   # HH:MM only
+    }
 
-        # JSON_MODIFY works on Azure SQL; for local SQLite we fall back to json_insert
-        try:
-            cur.execute("""
-                UPDATE SupportTickets
-                SET messages = JSON_MODIFY(messages, 'append $.', ?)
-                WHERE short_id = ?
-            """, (json.dumps(new_msg), room.upper()))
-        except pyodbc.ProgrammingError:
-            # SQLite fallback
-            cur.execute("""
-                UPDATE SupportTickets
-                SET messages = json_insert(messages, '$[' || json_array_length(messages) || ']', ?)
-                WHERE short_id = ?
-            """, (json.dumps(new_msg), room.upper()))
+    # Store once
+    if room not in chat_store:
+        chat_store[room] = []
+    chat_store[room].append(msg)
 
-        conn.commit()
-
-        # broadcast to everyone in the room (user + admin)
-        emit("new_message", {
-            "text": text,
-            "sender": sender,
-            "time": now[11:16]          # HH:MM only
-        }, room=room)
-    finally:
-        cur.close()
-        conn.close()
-
+    # Broadcast to EVERYONE in the room (including sender)
+    emit('new_message', msg, to=room, include_self=True)
+    print(f"[{room}] {sender}: {text}")
 
 @app.route("/submit", methods=['POST'])
 def submit():
@@ -1143,3 +1126,4 @@ if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=port, debug=debug, use_reloader=False)
 else:
     application = app
+
