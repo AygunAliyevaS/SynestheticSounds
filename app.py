@@ -676,7 +676,8 @@ def privacy():
 def support():
     logger.info("Rendering Support page")
     user = session.get('user')
-return render_template("support.html", user=user)
+    return render_template("support.html", user=user)   # ← FIXED
+
 
 @app.route("/admin")
 def admin():
@@ -1140,5 +1141,6 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
