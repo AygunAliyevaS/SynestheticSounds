@@ -180,102 +180,27 @@
 
     <!-- ==================== JAVASCRIPT ==================== -->
     <script>
-      function toggleNav() {
-        const nav = document.querySelector('.navigation');
-        const btn = document.querySelector('.hamburger');
-        nav.classList.toggle('active');
-        btn.textContent = nav.classList.contains('active') ? 'Close' : 'Menu';
-      }
-
-      function toggleDrawingSection() { 
-        window.location.href = '/'; 
-      }
-
-      function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-      }
-
-      // Render chat messages (user + admin)
-      function renderChat(chat) {
-        const box = document.getElementById('chatBox');
-        box.innerHTML = '';
-        chat.forEach(msg => {
-          const time = new Date(msg.time).toLocaleString();
-          if (msg.user) {
-            box.innerHTML += `
-              <div class="msg msg-user">
-                <div class="msg-bubble">${escapeHtml(msg.user)}</div>
-                <div class="msg-time">${time}</div>
-              </div>`;
-          }
-          if (msg.assistant) {
-            box.innerHTML += `
-              <div class="msg msg-admin">
-                <div class="msg-bubble">${escapeHtml(msg.assistant)}</div>
-                <div class="msg-time">${time}</div>
-              </div>`;
-          }
-        });
-        box.scrollTop = box.scrollHeight;
-      }
-
-      // Submit form
-      document.getElementById('supportForm').addEventListener('submit', async e => {
+      document.getElementById("supportForm").onsubmit = async (e) => {
         e.preventDefault();
-        const result = document.getElementById('formResult');
-        const chatContainer = document.getElementById('chatContainer');
-
         const payload = {
-          category: document.getElementById('category').value,
-          user_email: document.getElementById('user_email').value.trim(),
-          user_message: document.getElementById('user_message').value.trim()
+          category: document.getElementById("category").value,
+          user_email: document.getElementById("user_email").value,
+          user_message: document.getElementById("user_message").value,
         };
-
-        if (!payload.category || !payload.user_email || !payload.user_message) {
-          result.innerHTML = `<div class="text-red-600">Please fill all required fields.</div>`;
-          return;
+        const res = await fetch("/api/support", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        const result = document.getElementById("result");
+        if (res.ok) {
+          result.innerHTML = `<p class="text-green-600">Ticket <strong>#${data.short_id}</strong> created!</p>
+          <a href="${data.chat_url}" class="text-blue-600 underline">Open Chat</a>`;
+        } else {
+          result.innerHTML = `<p class="text-red-600">${data.error}</p>`;
         }
-
-        result.innerHTML = '<p class="text-blue-600">Submitting...</p>';
-
-        try {
-          const resp = await fetch('/api/support', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          const data = await resp.json();
-
-          if (resp.ok) {
-            result.innerHTML = `
-              <div class="text-green-600 font-semibold">${data.message}</div>
-              <div class="text-sm text-gray-600 mt-1">
-                <strong>Ticket ID:</strong>
-                <code class="bg-gray-100 px-2 py-1 rounded font-mono text-blue-700">${data.short_id}</code>
-              </div>
-              <div class="mt-3">
-                <a href="${data.chat_url}" 
-                   class="inline-block bg-blue-600 text-white font-semibold py-2 px-4 rounded-full hover:bg-blue-700 transition">
-                  Open Chat
-                </a>
-              </div>`;
-
-            renderChat(data.chat);
-            chatContainer.classList.remove('hidden');
-            document.getElementById('supportForm').reset();
-
-            // Optional: Auto-redirect after 2 seconds
-            // setTimeout(() => { window.location.href = data.chat_url; }, 2000);
-          } else {
-            result.innerHTML = `<div class="text-red-600">${data.error || 'Submission failed'}</div>`;
-          }
-        } catch (err) {
-          result.innerHTML = `<div class="text-red-600">Network error. Please try again.</div>`;
-          console.error(err);
-        }
-      });
+      };
     </script>
   </body>
 </html>
