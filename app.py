@@ -710,15 +710,16 @@ def admin():
         cur.close()
         conn.close()
 
-@app.route("/admin/login", methods=["GET","POST"])
+@app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "GET":
         return render_template("admin_login.html")
     pw = request.form.get("password")
-    if pw == os.getenv("ADMIN_PASSWORD", "changeMe!"):   # <-- set in .env
+    expected = (os.getenv("ADMIN_PASSWORD", "changeMe!") or "").strip()
+    if pw == expected:
         session["is_admin"] = True
         return redirect(url_for("admin"))
-    return "Wrong password", 403
+    return render_template("admin_login.html", error="Wrong password – please try again."), 403
 
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
@@ -1141,6 +1142,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
 
