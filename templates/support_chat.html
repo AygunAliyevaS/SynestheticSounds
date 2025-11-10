@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Support Chat #{{ short_id }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+  <div class="max-w-3xl mx-auto p-6">
+    <h2 class="text-2xl font-bold mb-4 text-gray-800">Ticket #{{ short_id }}</h2>
+    <p class="text-gray-600 mb-6">Status: {{ status }} | Category: {{ category }}</p>
+
+    <div id="chatBox" class="bg-white p-4 rounded-lg shadow overflow-y-auto h-96">
+      {% for msg in chat %}
+        {% if msg.user %}
+          <div class="text-right mb-3">
+            <div class="inline-block bg-blue-100 text-blue-800 px-3 py-2 rounded-lg">{{ msg.user }}</div>
+            <div class="text-xs text-gray-400">{{ msg.time }}</div>
+          </div>
+        {% elif msg.assistant %}
+          <div class="text-left mb-3">
+            <div class="inline-block bg-gray-200 text-gray-800 px-3 py-2 rounded-lg">{{ msg.assistant }}</div>
+            <div class="text-xs text-gray-400">{{ msg.time }}</div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <form id="replyForm" class="mt-4 flex gap-2">
+      <input id="replyInput" class="flex-1 border rounded-md p-2" placeholder="Type a message..." />
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md">Send</button>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('replyForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const reply = document.getElementById('replyInput').value.trim();
+      if (!reply) return;
+      const resp = await fetch(`/api/support/{{ short_id }}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply })
+      });
+      if (resp.ok) location.reload();
+    });
+  </script>
+</body>
+</html>
