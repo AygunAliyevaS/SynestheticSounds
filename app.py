@@ -659,8 +659,43 @@ def privacy():
 
 
 @app.route("/support")
-def support_page():
-    return render_template("support.html", user=session.get('user'))
+def support():
+    user = session.get('user')
+    user_email = user['email'] if user else None
+
+    # If not logged in → show login prompt + create form
+    if not user_email:
+        return render_template("support.html", user=None, tickets=[])
+
+    # If logged in → fetch their tickets
+    conn = get_db_connection()
+    if not conn:
+        return render_template("error.html", error="Database error"), 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT short_id, category, status, created_at
+            FROM SupportTickets
+            WHERE user_email = ?
+            ORDER BY created_at DESC
+        """, (user_email,))
+        
+        tickets = []
+        for row in cur.fetchall():
+            tickets.append({
+                "short_id": row[0],
+                "category": row[1],
+                "status": row[2],
+                "created": row[3].strftime("%b %d, %Y")
+            })
+        return render_template("support_dashboard.html", user=user, tickets=tickets)
+    except Exception as e:
+        logger.error(f"Error loading support dashboard: {e}")
+        return render_template("error.html", error="Failed to load tickets"), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route("/admin")
 def admin():
@@ -1080,4 +1115,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
