@@ -1,66 +1,175 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
   <meta charset="UTF-8" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
   <title>Admin – All Support Tickets</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
   <style>
+
     .table-row:hover { background-color: #f9fafb; }
+
     .badge-open { @apply bg-green-100 text-green-800; }
+
     .badge-closed { @apply bg-red-100 text-red-800; }
+
+          .msg-bubble {
+
+        min-height: 44px;
+
+        position: relative;
+
+        padding: 10px 14px 20px 14px;
+
+        border-radius: 1.3rem;
+
+      }
+
+      .msg-user {
+
+        background: #dcf8c6;
+
+        border-top-right-radius: 0;
+
+      }
+
+      .msg-admin {
+
+        background: #ffffff;
+
+        border-top-left-radius: 0;
+
+      }
+
+      .msg-time {
+
+        position: absolute;
+
+        bottom: 4px;
+
+        right: 10px;
+
+        font-size: 11px;
+
+        color: #666;
+
+        line-height: 1;
+
+      }
+
   </style>
+
 </head>
+
 <body class="bg-gray-50 min-h-screen">
+
   <div class="max-w-6xl mx-auto p-6">
+
     <div class="flex justify-between items-center mb-8">
+
       <h1 class="text-3xl font-bold text-gray-800">Admin Panel – Support Tickets</h1>
+
       <a href="/" class="text-blue-600 hover:underline">← Back to Home</a>
+
     </div>
 
     {% if tickets|length == 0 %}
+
       <p class="text-center text-gray-500 py-10">No tickets yet.</p>
+
     {% else %}
+
       <div class="bg-white shadow overflow-hidden rounded-lg">
+
         <table class="min-w-full divide-y divide-gray-200">
+
           <thead class="bg-gray-100">
+
             <tr>
+
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
+
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+
             </tr>
+
           </thead>
+
           <tbody class="bg-white divide-y divide-gray-200">
+
             {% for t in tickets %}
+
             <tr class="table-row transition">
+
               <td class="px-6 py-4 whitespace-nowrap">
-                <a href="/support/{{ t.short_id }}" class="text-blue-600 font-medium hover:underline">
+
+              <a href="/admin/{{ t.short_id }}" class="text-green-600 font-medium hover:underline">
+
                   #{{ t.short_id }}
+
                 </a>
+
               </td>
+
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ t.email }}</td>
+
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ t.category }}</td>
+
               <td class="px-6 py-4 whitespace-nowrap">
+
                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+
                   {% if t.status == 'Open' %}badge-open{% else %}badge-closed{% endif %}">
+
                   {{ t.status }}
+
                 </span>
+
               </td>
+
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ t.created }}</td>
+
               <td class="px-6 py-4 whitespace-nowrap text-sm">
-                <a href="/support/{{ t.short_id }}" class="text-green-600 hover:text-green-800 font-medium">
-                  Open Chat →
-                </a>
+
+            <a href="/admin/{{ t.short_id }}" class="text-green-600 hover:text-green-800 font-medium">
+
+           Open Chat →
+
+            </a>
+
               </td>
+
             </tr>
+
             {% endfor %}
+
           </tbody>
+
         </table>
+
       </div>
+
     {% endif %}
+
   </div>
+
 </body>
+
 </html>
