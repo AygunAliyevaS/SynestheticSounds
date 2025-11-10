@@ -7,7 +7,7 @@ import numpy as np
 from scipy.io.wavfile import write as write_wav
 from scipy import signal
 from PIL import Image
-from flask import Flask, request, render_template, jsonify, send_from_directory, session, redirect, url_for
+from flask import Flask, request, render_template, jsonify, send_from_directory, session, redirect, url_for,Response,stream_with_context
 from colorsys import rgb_to_hsv
 from dotenv import load_dotenv
 import msal
@@ -26,6 +26,8 @@ from email.mime.multipart import MIMEMultipart
 
 load_dotenv()
 logger = logging.getLogger(__name__)
+
+_active_streams = {}   # short_id → list of generator objects
 
 
 def send_user_confirmation(user_email: str, short_id: str, category: str, message: str) -> bool:
@@ -633,6 +635,14 @@ def authorized():
         logger.error(f"Unexpected error in auth: {str(e)}", exc_info=True)
         return render_template("error.html", error=f"Authentication failed: {str(e)}"), 500
 
+def _push_message(short_id: str, msg: dict):
+    """Send a message to every open SSE connection for this ticket."""
+    for gen in _active_streams.get(short_id, []):
+        try:
+            gen.send(json.dumps(msg) + "\n\n")
+        except Exception:
+            pass   # client disconnected
+
 @app.route("/logout")
 def logout():
     session.clear()
@@ -694,6 +704,16 @@ def admin():
     finally:
         cur.close()
         conn.close()
+
+@app.route("/admin/login", methods=["GET","POST"])
+def admin_login():
+    if request.method == "GET":
+        return render_template("admin_login.html")
+    pw = request.form.get("password")
+    if pw == os.getenv("ADMIN_PASSWORD", "changeMe!"):   # <-- set in .env
+        session["is_admin"] = True
+        return redirect(url_for("admin"))
+    return "Wrong password", 403
 
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
@@ -874,16 +894,14 @@ def add_reply(short_id):
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
 
-    # --- Determine sender ---
-    is_admin = request.path.startswith('/admin') or session.get('is_admin', False)
-    # If accessed from /admin or has admin session → support message
-    # Otherwise → user message
+    # ---- who is sending? -------------------------------------------------
+    # Admin pages call the same endpoint but set a flag in the session
+    is_admin = session.get('is_admin', False)
 
     conn = get_db_connection()
     try:
         cur = conn.cursor()
         now = datetime.utcnow().isoformat() + "Z"
-
         new_message = {
             "time": now,
             "sender": "support" if is_admin else "user",
@@ -891,13 +909,17 @@ def add_reply(short_id):
             "user": reply if not is_admin else None
         }
 
-        sql = """
+        # Append to JSON array
+        cur.execute("""
             UPDATE SupportTickets
             SET messages = JSON_MODIFY(messages, 'append $.', ?)
             WHERE ticket_uuid = ?
-        """
-        cur.execute(sql, (json.dumps(new_message), ticket_uuid))
+        """, (json.dumps(new_message), ticket_uuid))
         conn.commit()
+
+        # ---- PUSH TO ALL LISTENERS ----------------------------------------
+        _push_message(short_id, new_message)
+
         return jsonify({"message": "Reply added"}), 200
     except Exception as e:
         logger.error(f"Error adding reply: {e}")
@@ -905,6 +927,37 @@ def add_reply(short_id):
     finally:
         cur.close()
         conn.close()
+
+@app.route("/api/support/<short_id>/stream")
+def stream_chat(short_id):
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        return "invalid ticket", 404
+
+    def event_stream():
+        # register this connection
+        q = []
+        _active_streams.setdefault(short_id, []).append(q)
+
+        # send existing chat so the page starts with history
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT messages FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
+        row = cur.fetchone()
+        cur.close(); conn.close()
+        if row and row[0]:
+            for m in json.loads(row[0]):
+                yield f"data: {json.dumps(m)}\n\n"
+
+        # now wait for new messages
+        while True:
+            if q:
+                yield q.pop(0)
+            else:
+                time.sleep(0.2)
+
+    return Response(stream_with_context(event_stream()),
+                    mimetype="text/event-stream")
 
 @app.route("/submit", methods=['POST'])
 def submit():
@@ -1082,3 +1135,4 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
