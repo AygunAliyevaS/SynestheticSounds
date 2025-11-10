@@ -666,6 +666,40 @@ def support():
     user = session.get('user')
     return render_template("support.html", user=user)
 
+@app.route("/admin")
+def admin():
+    """Admin dashboard listing all support tickets."""
+    conn = get_db_connection()
+    if not conn:
+        return "Database error", 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT short_id, ticket_uuid, user_email, category, status, created_at
+            FROM SupportTickets
+            ORDER BY created_at DESC
+        """)
+        tickets = []
+        for row in cur.fetchall():
+            tickets.append({
+                "short_id": row[0],
+                "uuid": str(row[1]),
+                "email": row[2],
+                "category": row[3],
+                "status": row[4],
+                "created": row[5].strftime("%b %d, %Y %I:%M %p") if row[5] else "Unknown"
+            })
+        return render_template("admin.html", tickets=tickets)
+
+    except Exception as e:
+        logger.error(f"Admin page error: {e}")
+        return "Server error", 500
+    finally:
+        cur.close()
+        conn.close()
+
+
 @app.route("/admin/<short_id>")
 def admin_chat(short_id):
     ticket_uuid = short_to_uuid(short_id)
@@ -1132,6 +1166,7 @@ if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=port, debug=debug, allow_unsafe_werkzeug=True)
 else:
     application = app
+
 
 
 
