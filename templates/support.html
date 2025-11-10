@@ -1,206 +1,187 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Synesthetica - Support</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support – #{{ short_id|default('Ticket') }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* -------------------------------------------------
+       SportyBet-style bubbles
+       ------------------------------------------------- */
+    .msg-bubble {
+      min-height: 44px;
+      position: relative;
+      padding: 10px 14px 20px 14px;   /* extra bottom space for time */
+      border-radius: 1.3rem;
+    }
+    .msg-user   { background:#DCF8C6; border-top-right-radius:0; }
+    .msg-admin  { background:#FFFFFF; border-top-left-radius:0; }
 
-    <!-- Tailwind CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    .msg-time {
+      position:absolute;
+      bottom:4px;
+      right:10px;
+      font-size:11px;
+      color:#666;
+      line-height:1;
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen m-0 p-0">
 
-    <!-- Bootstrap 5 (optional, kept for consistency) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
-          rel="stylesheet"
-          integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65"
-          crossorigin="anonymous" />
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4"
-            crossorigin="anonymous"></script>
-
-    <style>
-      body {font-family:"Inter",Arial,sans-serif;background:#fff;display:flex;flex-direction:column;min-height:100vh;}
-      main{flex:1 0 auto;}
-      footer{flex-shrink:0;}
-      header{font-family:"Inter",Arial,sans-serif;align-items:flex-start;position:sticky;top:0;z-index:1000;}
-      header>div:first-child{margin-top:-0.3rem;}
-      header nav a,header div a{transition:all .2s ease-in-out;}
-      header nav a:hover,header div a:active{background:#f3f4f6;transform:translateY(-1px);}
-      .logo-img{height:30px;vertical-align:middle;margin-right:6px;}
-      .hamburger{display:none;font-size:24px;background:none;border:none;color:#000;cursor:pointer;padding:8px;}
-      .support-section{max-width:4xl;margin:0 auto;padding:2rem 1rem;}
-      .chat-box{max-height:400px;overflow-y:auto;background:#f9f9f9;padding:1rem;border-radius:8px;border:1px solid #e5e7eb;}
-      .msg{margin:0.5rem 0;}
-      .msg-user{text-align:right;}
-      .msg-admin{text-align:left;}
-      .msg-bubble{display:inline-block;padding:0.6rem 1rem;border-radius:1rem;max-width:80%;word-wrap:break-word;}
-      .msg-user .msg-bubble{background:#dbeafe;color:#1e40af;}
-      .msg-admin .msg-bubble{background:#e5e7eb;color:#1f2937;}
-      .msg-time{font-size:0.7rem;color:#6b7280;margin-top:0.2rem;}
-
-      @media (max-width:768px){
-        header{flex-direction:row;align-items:center;justify-content:space-between;padding:8px 12px;}
-        header>div:first-child{margin-top:0;}
-        .logo-img{height:24px;}
-        .hamburger{display:block;}
-        header .navigation{display:none;}
-        header .navigation.active{display:flex;flex-direction:column;position:absolute;top:100%;left:0;right:0;background:#fff;
-          border-bottom:1px solid #ccc;padding:12px;z-index:999;box-shadow:0 4px 8px rgba(0,0,0,.1);}
-        header .navigation.active nav,header .navigation.active div{display:flex;flex-direction:column;}
-        header .navigation nav a,header .navigation div a,header .navigation div span{
-          font-size:14px;padding:10px;text-align:left;width:100%;border:none;border-radius:0;border-bottom:1px solid #eee;}
-        header .navigation nav a:last-child,header .navigation div a:last-child,
-        header .navigation div span:last-child{border-bottom:none;}
-        .support-section{padding:1.5rem .5rem;}
-        .support-section h2{font-size:1.5rem;}
-        .support-section p{font-size:.9rem;}
-        .support-section .bg-white h3{font-size:1.25rem;}
-        .support-section .bg-white p,.support-section .bg-white ul li,
-        .support-section .bg-white label,.support-section .bg-white input,
-        .support-section .bg-white textarea,.support-section .bg-white select{font-size:.9rem;}
-      }
-      @media (max-width:480px){
-        header .navigation.active nav a,header .navigation.active div a,
-        header .navigation.active div span{font-size:12px;padding:8px;}
-        .support-section h2{font-size:1.25rem;}
-        .support-section p{font-size:.85rem;}
-        .support-section .bg-white h3{font-size:1.125rem;}
-        .support-section .bg-white p,.support-section .bg-white ul li,
-        .support-section .bg-white label,.support-section .bg-white input,
-        .support-section .bg-white textarea,.support-section .bg-white select{font-size:.85rem;}
-      }
-    </style>
-  </head>
-
-  <body class="min-h-screen flex flex-col font-sans" style="background-color:#fff;">
-    <main>
-      <!-- ==================== HEADER ==================== -->
-      <header class="bg-white border-b border-gray-200 px-8 py-2 flex flex-col sm:flex-row sm:items-start sm:justify-between sticky top-0 z-[1000]">
-        <div class="sm:mt-[-6px] flex items-center">
-          <img src="/static/logo.png" alt="Synesthetica Logo" class="logo-img" />
-          <a href="/" class="text-3xl font-extrabold text-blue-600 hover:text-blue-700 transition">Synesthetica</a>
+  <!-- WhatsApp Header -->
+  <header class="bg-[#075E54] text-white p-3 flex items-center justify-between shadow-lg">
+    <div class="flex items-center space-x-3">
+      <a href="/support" class="text-white hover:opacity-80">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </a>
+      <div class="flex items-center space-x-2">
+        <div class="w-10 h-10 rounded-full bg-[#128C7E] flex items-center justify-center font-bold text-lg">
+          {{ (short_id|default('?'))[0]|upper }}
         </div>
-        <button class="hamburger" onclick="toggleNav()">Menu</button>
-        <div class="navigation flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-2 sm:mt-0">
-          <nav class="flex gap-3 flex-wrap justify-end">
-            <a href="/about" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">About us</a>
-            <a href="/" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition flex items-center gap-1"
-               onclick="toggleDrawingSection()">Start <span>Drawing</span></a>
-            <a href="/pricing" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">Pricing</a>
-            <a href="/support" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-red-500 hover:bg-gray-100 transition">Help</a>
-          </nav>
-          <div class="flex gap-3 flex-wrap justify-end">
-            {% if user %}
-              <span class="text-sm font-semibold text-gray-800 flex items-center gap-2">Welcome, {{ user.name }}</span>
-              <a href="/logout" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">Logout</a>
-            {% else %}
-              <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">Login with Microsoft</a>
-              <a href="/auth" rel="noopener" class="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-semibold text-gray-800 flex items-center gap-2 hover:bg-gray-100 transition">Sign Up with Microsoft</a>
-            {% endif %}
+        <div>
+          <p class="font-semibold">Ticket #{{ short_id|default('????') }}</p>
+          <p class="text-xs opacity-80">{{ category|default('Unknown') }} • {{ status|default('Open') }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-3 text-sm">
+      {% if user %}
+        <span class="hidden sm:inline">Hi, {{ user.name }}</span>
+        <a href="/logout" class="hover:underline">Logout</a>
+      {% else %}
+        <a href="/auth" class="hover:underline">Login</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- Chat Messages -->
+  <div id="chatBox"
+       class="flex-1 overflow-y-auto p-4 space-y-4"
+       style="max-height: calc(100vh - 120px);">
+    {% if chat and chat|length > 0 %}
+      {% for msg in chat %}
+        {% if msg.sender == 'user' %}
+          <!-- USER (right) -->
+          <div class="flex justify-end mb-3">
+            <div class="max-w-[75%]">
+              <div class="msg-bubble msg-user text-gray-900 shadow-sm">
+                {{ msg.user | safe }}
+                <div class="msg-time">
+                  {% if msg.time %}
+                    {{ msg.time.split('T')[1][:5] }}
+                  {% else %}
+                    Now
+                  {% endif %}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </header>
 
-      <!-- ==================== MAIN CONTENT ==================== -->
-      <section class="support-section">
-        <h2 class="text-3xl font-semibold mb-8 text-black">Get Help</h2>
-        <p class="text-lg mb-12 text-black">Need assistance? Submit a ticket or explore our resources.</p>
-
-        <!-- ---------- CONTACT FORM ---------- -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-          <h3 class="text-xl font-semibold mb-4 text-black">Submit a Support Ticket</h3>
-          <form id="supportForm" class="space-y-4">
-            <!-- 1. Category -->
-            <div>
-              <label for="category" class="block text-sm font-medium text-black">Category <span class="text-red-500">*</span></label>
-              <select id="category" required class="mt-1 block w-full p-2 border rounded-md">
-                <option value="">Select a category</option>
-                <option value="technical">Technical Issue</option>
-                <option value="billing">Billing Question</option>
-                <option value="other">Other</option>
-              </select>
+        {% elif msg.sender == 'support' %}
+          <!-- ADMIN / WELCOME (left) -->
+          <div class="flex justify-start mb-3">
+            <div class="max-w-[75%]">
+              <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
+                {{ msg.assistant | safe }}
+                <div class="msg-time">
+                  {% if msg.time %}
+                    {{ msg.time.split('T')[1][:5] }}
+                  {% else %}
+                    Now
+                  {% endif %}
+                </div>
+              </div>
             </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% else %}
+      <p class="text-center text-gray-600 italic mt-10">No messages yet. Start the conversation!</p>
+    {% endif %}
+  </div>
 
-            <!-- 2. Email -->
-            <div>
-              <label for="user_email" class="block text-sm font-medium text-black">Your Email <span class="text-red-500">*</span></label>
-              <input type="email" id="user_email" required class="mt-1 block w-full p-2 border rounded-md"
-                     placeholder="you@example.com">
+  <!-- Reply Input -->
+  <form id="replyForm" class="bg-[#F0F0F0] border-t border-gray-300 p-3 flex items-center space-x-2">
+    <div class="flex-1 bg-white rounded-full shadow-sm flex items-center px-3 py-2">
+      <textarea id="replyText"
+                rows="1"
+                placeholder="Type a message..."
+                class="flex-1 resize-none border-none outline-none text-sm text-gray-800"
+                required></textarea>
+    </div>
+    <button type="submit"
+            class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3 shadow-md transition">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+      </svg>
+    </button>
+  </form>
+
+  <div id="replyResult" class="hidden p-2"></div>
+
+  <!-- JavaScript -->
+  <script>
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function addBubble(text, isUser) {
+      const box = document.getElementById('chatBox');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = `
+        <div class="flex ${isUser ? 'justify-end mb-3' : 'justify-start mb-3'}">
+          <div class="max-w-[75%]">
+            <div class="msg-bubble ${isUser ? 'msg-user text-gray-900' : 'msg-admin text-gray-900'} shadow-sm">
+              ${escapeHtml(text)}
+              <div class="msg-time">${time}</div>
             </div>
+          </div>
+        </div>`;
+      box.insertAdjacentHTML('beforeend', bubble);
+      box.scrollTop = box.scrollHeight;
+    }
 
-            <!-- 3. Message -->
-            <div>
-              <label for="user_message" class="block text-sm font-medium text-black">Your Message <span class="text-red-500">*</span></label>
-              <textarea id="user_message" required class="mt-1 block w-full p-2 border rounded-md" rows="6"
-                        placeholder="Describe your issue in detail..."></textarea>
-            </div>
+    async function sendReply() {
+      const txt = document.getElementById('replyText').value.trim();
+      if (!txt) return;
 
-            <button type="submit"
-                    class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-blue-700 transition duration-300 w-full sm:w-auto">
-              Submit Ticket
-            </button>
-          </form>
+      addBubble(txt, true);
+      document.getElementById('replyText').value = '';
 
-          <div id="formResult" class="mt-4"></div>
-        </div>
-
-        <!-- ---------- CHAT PREVIEW ---------- -->
-        <div id="chatContainer" class="bg-white p-6 rounded-lg shadow-md mb-6 hidden">
-          <h3 class="text-xl font-semibold mb-4 text-black">Your Message (Saved)</h3>
-          <div id="chatBox" class="chat-box"></div>
-        </div>
-
-        <!-- ---------- CONTACT INFO ---------- -->
-<div class="bg-white p-6 rounded-lg shadow-md">
-  <h3 class="text-xl font-semibold mb-4 text-black">Contact Us</h3>
-  <ul class="list-disc list-inside text-black space-y-2">
-    <li><a href="/privacy" class="text-blue-600 hover:text-blue-800">Privacy Policy</a></li>
-    <li><strong>Primary Support:</strong><br>
-      <a href="mailto:aygunaliyeva@anas.az" class="text-blue-600 hover:text-blue-800 font-semibold">
-        📧 aygunaliyeva@anas.az
-      </a>
-    </li>
-    <li><strong>Backup:</strong><br>
-      <a href="mailto:support.synesthetica@gmail.com" class="text-red-600 hover:text-red-800 font-medium">
-        support.synesthetica@gmail.com
-      </a>
-    </li>
-  </ul>
-</div>
-      </section>
-    </main>
-
-    <!-- ==================== FOOTER ==================== -->
-    <footer class="py-6 text-center">
-      <p class="text-sm text-black">© 2025 Synesthetica. All rights reserved.</p>
-      <p class="text-sm text-black">
-        <a href="/privacy" class="text-blue-600 hover:text-blue-800">Privacy Policy</a> |
-        <a href="/support" class="text-blue-600 hover:text-blue-800">Support</a>
-      </p>
-    </footer>
-
-    <!-- ==================== JAVASCRIPT ==================== -->
-    <script>
-      document.getElementById("supportForm").onsubmit = async (e) => {
-        e.preventDefault();
-        const payload = {
-          category: document.getElementById("category").value,
-          user_email: document.getElementById("user_email").value,
-          user_message: document.getElementById("user_message").value,
-        };
-        const res = await fetch("/api/support", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+      try {
+        const res = await fetch('/api/support/{{ short_id|default("") }}/reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reply: txt })
         });
         const data = await res.json();
-        const result = document.getElementById("result");
-        if (res.ok) {
-          result.innerHTML = `<p class="text-green-600">Ticket <strong>#${data.short_id}</strong> created!</p>
-          <a href="${data.chat_url}" class="text-blue-600 underline">Open Chat</a>`;
-        } else {
-          result.innerHTML = `<p class="text-red-600">${data.error}</p>`;
+        const result = document.getElementById('replyResult');
+
+        if (!res.ok) {
+          result.classList.remove('hidden');
+          result.innerHTML = `<p class="text-red-600">${data.error || 'Failed'}</p>`;
+          setTimeout(() => result.classList.add('hidden'), 4000);
         }
-      };
-    </script>
-  </body>
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    document.getElementById('replyForm').addEventListener('submit', e => {
+      e.preventDefault();
+      sendReply();
+    });
+
+    // Scroll to bottom
+    document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+  </script>
+</body>
 </html>
