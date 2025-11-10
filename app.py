@@ -152,18 +152,17 @@ aygunaliyeva@anas.az
 
 def _ensure_welcome_message(chat: list) -> list:
     """
-    Guarantees that the first entry in `chat` is the support‑team welcome.
+    Guarantees that the first entry in `chat` is the support-team welcome.
     If the list is empty or the first entry is not the welcome, prepend it.
     """
     WELCOME = {
-        "sender": "support",
         "text": "Welcome to support! How can we help you today?",
-        "timestamp": None  # will be filled by the client or left null
+        "sender": "support",
+        "time": datetime.utcnow().strftime('%H:%M')
     }
     if not chat or chat[0].get("sender") != "support":
         chat.insert(0, WELCOME)
     return chat
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -176,6 +175,8 @@ logging.basicConfig(
 
 app = Flask(__name__, static_folder='static')
 socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
+
+chat_store = {}   # {short_id: [{'text':..., 'sender': 'user'|'admin', 'time':...}, ...]}
 
 # Session Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(24).hex())
@@ -916,37 +917,77 @@ def add_reply(short_id):
 def on_join(data):
     room = data['room']
     join_room(room)
-    # Send existing chat history to the client that just joined
-    if room in chat_store:
-        for msg in chat_store[room]:
-            emit('new_message', msg, to=request.sid)   # only to the new client
+
+    # Load chat from DB (or in-memory store)
+    ticket_uuid = short_to_uuid(room)
+    if not ticket_uuid:
+        return
+
+    conn = get_db_connection()
+    if not conn:
+        return
+
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT messages FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
+        row = cur.fetchone()
+        chat = json.loads(row[0]) if row and row[0] else []
+        chat = _ensure_welcome_message(chat)          # <-- guarantee welcome
+        chat_store[room] = chat                       # cache for fast broadcast
+
+        # Send full history to the client that just joined
+        for msg in chat:
+            emit('new_message', msg, to=request.sid)
+    finally:
+        cur.close()
+        conn.close()
+
     print(f"Client joined room: {room}")
+
 
 @socketio.on('message')
 def on_message(data):
     room = data['room']
     text = data['text'].strip()
-    sender = data['sender']        # "user" or "admin"
+    sender = data['sender']          # "user" or "admin"
     if not text:
         return
 
-    # Normalise sender for consistency
+    # Normalise sender
     if sender in ('support', 'assistant'):
         sender = 'admin'
 
-    # Create message object
+    # Create message
     msg = {
         'text': text,
         'sender': sender,
-        'time': datetime.utcnow().strftime('%H:%M')   # HH:MM only
+        'time': datetime.utcnow().strftime('%H:%M')
     }
 
-    # Store once
+    # --- Persist to DB ---
+    ticket_uuid = short_to_uuid(room)
+    if ticket_uuid:
+        conn = get_db_connection()
+        if conn:
+            try:
+                cur = conn.cursor()
+                # Append using JSON_MODIFY
+                cur.execute("""
+                    UPDATE SupportTickets
+                    SET messages = JSON_MODIFY(messages, 'append $.', ?)
+                    WHERE ticket_uuid = ?
+                """, (json.dumps(msg), ticket_uuid))
+                conn.commit()
+            finally:
+                cur.close()
+                conn.close()
+
+    # --- In-memory store (for instant broadcast) ---
     if room not in chat_store:
         chat_store[room] = []
     chat_store[room].append(msg)
 
-    # Broadcast to EVERYONE in the room (including sender)
+    # Broadcast to everyone in the room
     emit('new_message', msg, to=room, include_self=True)
     print(f"[{room}] {sender}: {text}")
 
@@ -1126,4 +1167,5 @@ if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=port, debug=debug, use_reloader=False)
 else:
     application = app
+
 
