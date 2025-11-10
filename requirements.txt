@@ -1,5 +1,4 @@
 Flask
-flask-socketio
 eventlet
 gunicorn
 msal
@@ -10,5 +9,6 @@ numpy
 scipy
 Pillow
 flask-session
+
 
 
