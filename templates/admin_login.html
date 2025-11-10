@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Login - Synesthetica Support</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-box {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 40px 30px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+    h1 {
+      margin: 0 0 20px;
+      font-size: 28px;
+      font-weight: 600;
+    }
+    p {
+      margin-bottom: 30px;
+      opacity: 0.9;
+      font-size: 15px;
+    }
+    input[type="password"] {
+      width: 100%;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-size: 16px;
+      outline: none;
+      transition: 0.3s;
+    }
+    input[type="password"]::placeholder {
+      color: rgba(255, 255, 255, 0.7);
+    }
+    input[type="password"]:focus {
+      background: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 0 2px #00C851;
+    }
+    button {
+      background: #00C851;
+      color: white;
+      border: none;
+      padding: 14px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 50px;
+      cursor: pointer;
+      width: 100%;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #00a651;
+      transform: translateY(-2px);
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+    .error {
+      color: #ff6b6b;
+      background: rgba(255, 107, 107, 0.2);
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h1>Support Admin</h1>
+    <p>Enter your admin password to access the dashboard.</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="error">{{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+      <input
+        type="password"
+        name="password"
+        placeholder="Enter password"
+        required
+        autofocus
+      />
+      <button type="submit">Login</button>
+    </form>
+
+    <div class="footer">
+      &copy; 2025 Synesthetica • Admin Access Only
+    </div>
+  </div>
+</body>
+</html>
