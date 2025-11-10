@@ -671,11 +671,9 @@ def admin_chat(short_id):
     ticket_uuid = short_to_uuid(short_id)
     if not ticket_uuid:
         return render_template("error.html", error="Invalid ticket"), 404
-
     conn = get_db_connection()
     if not conn:
         return "DB error", 500
-
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -685,26 +683,15 @@ def admin_chat(short_id):
         row = cur.fetchone()
         if not row:
             return "Ticket not found", 404
-
-        chat = json.loads(row[3]) if row[3] else []
-        if not chat or chat[0].get("sender") != "support":
-            now = datetime.utcnow().isoformat() + "Z"
-            welcome = {"sender": "support", "text": "Welcome to support!", "time": now}
-            chat.insert(0, welcome)
-            cur.execute("UPDATE SupportTickets SET messages = ? WHERE ticket_uuid = ?", (json.dumps(chat), ticket_uuid))
-            conn.commit()
-
-        return render_template(
-            "admin_chat.html",
-            short_id=short_id,
-            user_email=row[0],
-            category=row[1],
-            status=row[2],
-            chat=chat
-        )
-    except Exception as e:
-        logger.error(f"Admin chat error: {e}")
-        return "Server error", 500
+        user_email, category, status, messages = row
+        chat = json.loads(messages) if messages else []
+        chat = _ensure_welcome_message(chat)
+        return render_template("admin_chat.html",
+                             short_id=short_id,
+                             user_email=user_email,
+                             category=category,
+                             status=status,
+                             chat=chat)
     finally:
         cur.close()
         conn.close()
@@ -1145,6 +1132,7 @@ if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=port, debug=debug, allow_unsafe_werkzeug=True)
 else:
     application = app
+
 
 
 
