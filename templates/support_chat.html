@@ -60,64 +60,62 @@
     </button>
   </form>
 
-  <script>
-    const shortId = "{{ short_id }}";
-    const isAdmin = {{ "true" if session.get('is_admin') else "false" }};
+<script>
+  const shortId = "{{ short_id }}";
+  const isAdmin = {{ "true" if session.get('is_admin') else "false" }};
 
-    // ---- render a single bubble -------------------------------------------------
-    function addBubble(msg) {
-      const box = document.getElementById('chatBox');
-      const isUser = msg.sender === 'user';
-      const text   = isUser ? msg.user : msg.assistant;
-      const time   = msg.time ? msg.time.split('T')[1].slice(0,5) : 'Now';
+  // ---- escape HTML -------------------------------------------------
+  function escapeHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
 
-      const html = `
-        <div class="flex ${isUser?'justify-end':'justify-start'} mb-3">
-          <div class="max-w-[75%]">
-            <div class="msg-bubble ${isUser?'msg-user':'msg-admin'} text-gray-900 shadow-sm">
-              ${escapeHtml(text)}
-              <div class="msg-time">${time}</div>
-            </div>
+  // ---- add a bubble ------------------------------------------------
+  function addBubble(msg){
+    const box = document.getElementById('chatBox');
+    const isUser = msg.sender === 'user';
+    const text  = isUser ? msg.user : msg.assistant;
+    const time  = msg.time ? msg.time.split('T')[1].slice(0,5) : 'Now';
+    const html = `
+      <div class="flex ${isUser?'justify-end':'justify-start'} mb-3">
+        <div class="max-w-[75%]">
+          <div class="msg-bubble ${isUser?'msg-user':'msg-admin'} text-gray-900 shadow-sm">
+            ${escapeHtml(text)}
+            <div class="msg-time">${time}</div>
           </div>
-        </div>`;
-      box.insertAdjacentHTML('beforeend', html);
-      box.scrollTop = box.scrollHeight;
-    }
+        </div>
+      </div>`;
+    box.insertAdjacentHTML('beforeend', html);
+    box.scrollTop = box.scrollHeight;
+  }
 
-    function escapeHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+  // ---- load historic messages ---------------------------------------
+  {% if chat %}
+    {% for m in chat %}
+      addBubble({{ m|tojson }});
+    {% endfor %}
+  {% endif %}
 
-    // ---- load historic messages -------------------------------------------------
-    {% if chat %}
-      {% for m in chat %}
-        addBubble({{ m|tojson }});
-      {% endfor %}
-    {% endif %}
+  // ---- SSE – use **absolute** URL (works on Azure) -----------------
+  const es = new EventSource("{{ url_for('stream_chat', short_id=short_id, _external=True) }}");
+  es.onmessage = e => addBubble(JSON.parse(e.data));
+  es.onerror = () => { console.warn('SSE error'); es.close(); setTimeout(()=>{location.reload();},2000); };
 
-    // ---- SSE connection ---------------------------------------------------------
-    const es = new EventSource(`/api/support/${shortId}/stream`);
-    es.onmessage = e => {
-      const msg = JSON.parse(e.data);
-      addBubble(msg);
-    };
-    es.onerror = () => { console.warn('SSE error – reconnecting…'); es.close(); setTimeout(()=>{location.reload();},2000); };
+  // ---- send reply ---------------------------------------------------
+  async function sendReply(){
+    const txt = document.getElementById('replyText').value.trim();
+    if(!txt) return;
+    document.getElementById('replyText').value='';
 
-    // ---- send new reply ---------------------------------------------------------
-    async function sendReply(){
-      const txt = document.getElementById('replyText').value.trim();
-      if(!txt) return;
-      document.getElementById('replyText').value='';
+    // optimistic UI
+    const now = new Date().toISOString();
+    addBubble({time:now, sender:isAdmin?'support':'user',
+               user:isAdmin?null:txt, assistant:isAdmin?txt:null});
 
-      // optimistic UI
-      const now = new Date().toISOString();
-      addBubble({time:now, sender:isAdmin?'support':'user', user: isAdmin?null:txt, assistant:isAdmin?txt:null});
-
-      await fetch(`/api/support/${shortId}/reply`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({reply:txt})
-      });
-    }
-    document.getElementById('replyForm').onsubmit = e=>{e.preventDefault();sendReply();};
-  </script>
+    await fetch(`/api/support/${shortId}/reply`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({reply:txt})
+    });
+  }
+  document.getElementById('replyForm').onsubmit = e=>{e.preventDefault();sendReply();};
+</script>
 </body>
 </html>
