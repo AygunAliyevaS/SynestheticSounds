@@ -635,13 +635,17 @@ def authorized():
         logger.error(f"Unexpected error in auth: {str(e)}", exc_info=True)
         return render_template("error.html", error=f"Authentication failed: {str(e)}"), 500
 
+# ------------------------------------------------------------------
+#  PUSH helper – called from /reply
+# ------------------------------------------------------------------
 def _push_message(short_id: str, msg: dict):
-    """Send a message to every open SSE connection for this ticket."""
+    """Send a message to **every** open SSE connection for this ticket."""
     for gen in _active_streams.get(short_id, []):
         try:
-            gen.send(json.dumps(msg) + "\n\n")
+            gen.send(f"data: {json.dumps(msg)}\n\n")
         except Exception:
-            pass   # client disconnected
+            pass   # client gone
+
 
 @app.route("/logout")
 def logout():
@@ -672,7 +676,7 @@ def privacy():
 def support():
     logger.info("Rendering Support page")
     user = session.get('user')
-    return render_template("support.html", user=user)
+return render_template("support.html", user=user)
 
 @app.route("/admin")
 def admin():
@@ -801,12 +805,15 @@ def list_tickets():
         cur.close()
         conn.close()
 
+# ------------------------------------------------------------------
+#  CHAT PAGE – /support/<short_id>
+# ------------------------------------------------------------------
 @app.route("/support/<short_id>")
 def chat_page(short_id):
     user = session.get('user')
     ticket_uuid = short_to_uuid(short_id)
-    
-    if not ticket_uuid or not short_id:
+
+    if not ticket_uuid:
         return render_template("error.html", error="Invalid ticket"), 404
 
     conn = get_db_connection()
@@ -823,30 +830,26 @@ def chat_page(short_id):
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
-        chat = json.loads(row[4]) if row[4] else []          # <-- messages column
+        chat = json.loads(row[4]) if row[4] else []
 
-        # --------------------------------------------------------------
-        #  INSERT / UPDATE WELCOME MESSAGE WITH TIMESTAMP
-        # --------------------------------------------------------------
+        # ---- INSERT WELCOME MESSAGE (once) --------------------------------
         now_iso = datetime.utcnow().isoformat() + "Z"
         WELCOME = {
             "sender": "support",
             "assistant": "Welcome to support! How can we help you today?",
             "time": now_iso
         }
-
         if not chat or chat[0].get("sender") != "support":
             chat.insert(0, WELCOME)
-            # persist the welcome so it survives reloads
             cur.execute(
-                """UPDATE SupportTickets
-                   SET messages = ?
-                   WHERE ticket_uuid = ?""",
+                "UPDATE SupportTickets SET messages = ? WHERE ticket_uuid = ?",
                 (json.dumps(chat), ticket_uuid)
             )
             conn.commit()
-        # --------------------------------------------------------------
 
+        # --------------------------------------------------------------
+        # 2. Render the *chat* page – note the **exact** template name
+        # --------------------------------------------------------------
         return render_template(
             "support_chat.html",
             user=user,
@@ -855,9 +858,6 @@ def chat_page(short_id):
             status=row[3] or "Open",
             chat=chat
         )
-    except Exception as e:
-        logger.error(f"Error in chat_page: {e}")
-        return render_template("error.html", error="Server error"), 500
     finally:
         cur.close()
         conn.close()
@@ -928,6 +928,9 @@ def add_reply(short_id):
         cur.close()
         conn.close()
 
+# ------------------------------------------------------------------
+#  SSE – stream chat updates
+# ------------------------------------------------------------------
 @app.route("/api/support/<short_id>/stream")
 def stream_chat(short_id):
     ticket_uuid = short_to_uuid(short_id)
@@ -935,26 +938,28 @@ def stream_chat(short_id):
         return "invalid ticket", 404
 
     def event_stream():
-        # register this connection
+        # ---------- ONE queue per client ----------
         q = []
+        # Use a **per-ticket list** – Azure runs **1 worker** (see startup command)
         _active_streams.setdefault(short_id, []).append(q)
 
-        # send existing chat so the page starts with history
+        # ---------- send historic messages ----------
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("SELECT messages FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
         row = cur.fetchone()
         cur.close(); conn.close()
+
         if row and row[0]:
             for m in json.loads(row[0]):
                 yield f"data: {json.dumps(m)}\n\n"
 
-        # now wait for new messages
+        # ---------- wait for new messages ----------
         while True:
             if q:
                 yield q.pop(0)
             else:
-                time.sleep(0.2)
+                time.sleep(0.1)
 
     return Response(stream_with_context(event_stream()),
                     mimetype="text/event-stream")
@@ -1135,4 +1140,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
