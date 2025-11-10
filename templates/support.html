@@ -15,7 +15,7 @@
         <label class="block text-sm font-medium mb-1">Your Email</label>
         <input type="email" name="user_email" required
                class="w-full border rounded px-3 py-2" placeholder="you@example.com"
-               value="{{ user.email if user else '' }}">
+               value="">
       </div>
 
       <div class="mb-4">
@@ -46,6 +46,12 @@
   </div>
 
   <script>
+    // ---- pre-fill email if the user is logged in (client-side) ----
+    const loggedInEmail = "{{ user.email if user else '' }}";
+    if (loggedInEmail) {
+      document.querySelector('input[name="user_email"]').value = loggedInEmail;
+    }
+
     document.getElementById('ticketForm').onsubmit = async e => {
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -68,7 +74,7 @@
 
       result.innerHTML = `
         <p class="text-green-600">Ticket created! <strong>#${json.short_id}</strong></p>
-        <p><a href="${json.chat_url}" class="text-blue-600 underline">Open chat →</a></p>
+        <p><a href="${json.chat_url}" class="text-blue-600 underline">Open chat</a></p>
       `;
     };
   </script>
