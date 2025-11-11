@@ -759,7 +759,6 @@ def list_tickets():
 def chat_page(short_id):
     user = session.get('user')
     ticket_uuid = short_to_uuid(short_id)
-
     if not ticket_uuid:
         return render_template("error.html", error="Invalid ticket"), 404
 
@@ -777,17 +776,20 @@ def chat_page(short_id):
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
-        # ULTRA-SAFE JSON LOAD
+        # SAFE JSON LOAD (Python only!)
         chat = []
-        if row[4] and ISJSON(row[4]) = 1:
+        if row[4]:  # messages column
             try:
                 parsed = json.loads(row[4])
                 if isinstance(parsed, list):
                     chat = [m for m in parsed if isinstance(m, dict) and m.get("sender") in ["user", "support"]]
-            except:
-                pass  # fall through to empty
+                else:
+                    logger.warning(f"Invalid chat format for {short_id}: not a list")
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON error in ticket {short_id}: {e}")
+                chat = []
 
-        # ADD WELCOME (user side only)
+        # ADD WELCOME (only if no support message)
         if not any(m.get("sender") == "support" for m in chat):
             chat.insert(0, {
                 "sender": "support",
@@ -797,9 +799,13 @@ def chat_page(short_id):
 
         return render_template(
             "support_chat.html",
-            user=user, short_id=short_id, category=row[2] or "General",
-            status=row[3] or "Open", chat=chat
+            user=user,
+            short_id=short_id,
+            category=row[2] or "General",
+            status=row[3] or "Open",
+            chat=chat
         )
+
     except Exception as e:
         logger.error(f"chat_page error: {e}")
         return render_template("error.html", error="Server error"), 500
@@ -828,20 +834,24 @@ def admin_chat_page(short_id):
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
+        # SAFE JSON LOAD
         chat = []
-        if row[4] and ISJSON(row[4]) = 1:
+        if row[4]:
             try:
                 parsed = json.loads(row[4])
                 if isinstance(parsed, list):
                     chat = [m for m in parsed if isinstance(m, dict) and m.get("sender") in ["user", "support"]]
-            except:
-                pass
+            except json.JSONDecodeError:
+                chat = []
 
         return render_template(
             "admin_chat.html",
-            short_id=short_id, category=row[2] or "General",
-            status=row[3] or "Open", chat=chat
+            short_id=short_id,
+            category=row[2] or "General",
+            status=row[3] or "Open",
+            chat=chat
         )
+
     except Exception as e:
         logger.error(f"admin_chat_page error: {e}")
         return render_template("error.html", error="Server error"), 500
@@ -1125,6 +1135,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
 
 
