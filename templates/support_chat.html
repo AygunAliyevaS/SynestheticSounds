@@ -1,87 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Support – #{{ short_id }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    .chat-box { max-height: 500px; overflow-y: auto; background: #f9f9f9; padding: 1rem; border-radius: 8px; border: 1px solid #e5e7eb; }
-    .msg { margin: 0.5rem 0; }
-    .msg-user { text-align: right; }
-    .msg-admin { text-align: left; }
-    .msg-bubble { display: inline-block; padding: 0.6rem 1rem; border-radius: 1rem; max-width: 80%; word-wrap: break-word; }
-    .msg-user .msg-bubble { background: #dbeafe; color: #1e40af; }
-    .msg-admin .msg-bubble { background: #e5e7eb; color: #1f2937; }
-    .msg-time { font-size: 0.7rem; color: #6b7280; margin-top: 0.2rem; }
+    .chat-box{max-height:500px;overflow-y:auto;background:#f9f9f9;padding:1rem;border-radius:8px;border:1px solid #e5e7eb;}
+    .msg{margin:0.5rem 0;}
+    .msg-user{text-align:right;}
+    .msg-admin{text-align:left;}
+    .msg-bubble{display:inline-block;padding:0.6rem 1rem;border-radius:1rem;max-width:80%;word-wrap:break-word;}
+    .msg-user .msg-bubble{background:#dbeafe;color:#1e40af;}
+    .msg-admin .msg-bubble{background:#e5e7eb;color:#1f2937;}
+    .msg-time{font-size:0.7rem;color:#6b7280;margin-top:0.2rem;}
+    .welcome{background:#e0f2fe;padding:0.75rem 1rem;border-radius:8px;margin-bottom:1rem;font-style:italic;}
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen p-4">
-  <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow">
-    <h2 class="text-2xl font-bold mb-2">Ticket #{{ short_id }}</h2>
-    <p class="text-sm text-gray-600 mb-4">Category: {{ category }} – Status: <strong>{{ status }}</strong></p>
-    <div id="chatBox" class="chat-box mb-4"></div>
-    <form id="replyForm" class="flex gap-2">
-      <input type="text" id="replyInput" class="flex-1 p-2 border rounded" placeholder="Type your message…" required>
-      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Send</button>
-    </form>
-  </div>
+<div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow">
+  <h2 class="text-2xl font-bold mb-2">Ticket #{{ short_id }}</h2>
+  <p class="text-sm text-gray-600 mb-4">Category: {{ category }} – Status: <strong>{{ status }}</strong></p>
 
-  <script>
-    const SHORT_ID = {{ short_id | tojson }};
+  <div id="chatBox" class="chat-box mb-4"></div>
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
+  <form id="replyForm" class="flex gap-2">
+    <input type="text" id="replyInput" class="flex-1 p-2 border rounded" placeholder="Type your message…" required>
+    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Send</button>
+  </form>
+</div>
 
-    function render(chat) {
-      const box = document.getElementById('chatBox');
-      box.innerHTML = '';
-      chat.forEach(m => {
-        const time = new Date(m.time).toLocaleString();
-        const isUser = m.sender === 'user';
-        const text = isUser ? m.user : m.assistant;
-        const bubble = `<div class="msg-bubble">${escapeHtml(text)}</div><div class="msg-time">${time}</div>`;
-        box.innerHTML += `<div class="msg ${isUser ? 'msg-user' : 'msg-admin'}">${bubble}</div>`;
-      });
-      box.scrollTop = box.scrollHeight;
-    }
+<script>
+  const SHORT_ID = {{ short_id | tojson }};
 
-    async function loadChat() {
-      try {
-        const res = await fetch(`/api/support/${SHORT_ID}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.chat) render(data.chat);
-      } catch (e) {
-        console.error("Load failed:", e);
-      }
-    }
+  function esc(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
 
-    async function sendReply() {
-      const input = document.getElementById('replyInput');
-      const txt = input.value.trim();
-      if (!txt) return;
+  function render(chat){
+    const box = document.getElementById('chatBox');
+    box.innerHTML = '';
 
-      await fetch(`/api/support/${SHORT_ID}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reply: txt })
-      });
+    // ---- WELCOME (shown only on user side) ----
+    const welcome = `<div class="welcome">Thanks for reaching out! We'll reply soon.</div>`;
+    box.innerHTML += welcome;
 
-      input.value = '';
-      loadChat();
-    }
+    // ---- ALL MESSAGES ----
+    chat.forEach(m=>{
+      const time = new Date(m.time).toLocaleString();
+      const isUser = m.sender === 'user';
+      const txt = isUser ? m.user : m.assistant;
+      const bubble = `<div class="msg-bubble">${esc(txt)}</div><div class="msg-time">${time}</div>`;
+      box.innerHTML += `<div class="msg ${isUser?'msg-user':'msg-admin'}">${bubble}</div>`;
+    });
+    box.scrollTop = box.scrollHeight;
+  }
 
-    document.getElementById('replyForm').onsubmit = e => {
-      e.preventDefault();
-      sendReply();
-    };
+  async function load(){
+    const r = await fetch(`/api/support/${SHORT_ID}`);
+    const d = await r.json();
+    render(d.chat || []);
+  }
 
-    loadChat();
-    setInterval(loadChat, 5000);
-  </script>
+  async function send(){
+    const input = document.getElementById('replyInput');
+    const txt = input.value.trim();
+    if(!txt) return;
+    await fetch(`/api/support/${SHORT_ID}/reply`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({reply:txt})
+    });
+    input.value='';
+    load();
+  }
+
+  document.getElementById('replyForm').onsubmit=e=>{e.preventDefault();send();}
+  load();
+  setInterval(load,5000);
+</script>
 </body>
 </html>
