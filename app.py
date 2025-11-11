@@ -913,7 +913,7 @@ def add_reply(short_id):
     try:
         cur = conn.cursor()
         now = datetime.utcnow().isoformat() + "Z"  # Use this consistently
-      if sender == "support":
+  if sender == "support":
     new_message = {
         "sender": "support",
         "assistant": reply,
@@ -928,12 +928,13 @@ else:
 
 # Append to JSON array
 sql = """
-    UPDATE SupportTickets
-    SET messages = JSON_MODIFY(messages, 'append $', ?)
-    WHERE ticket_uuid = ?
+UPDATE SupportTickets
+SET messages = JSON_MODIFY(messages, 'append $', ?)
+WHERE ticket_uuid = ?
 """
 cur.execute(sql, (json.dumps(new_message), ticket_uuid))
-        conn.commit()
+conn.commit()
+
 
         return jsonify({"message": "Reply added"}), 200
 
@@ -1138,5 +1139,6 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
 
