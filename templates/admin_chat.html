@@ -104,28 +104,33 @@
         </div>`);
       box.scrollTop = box.scrollHeight;
     };
-    const sendReply = async () => {
-      const txt = document.getElementById('replyText').value.trim();
-      if (!txt) return;
-      addBubble(txt, true);               // show on right (admin)
-      document.getElementById('replyText').value = '';
-      try {
-        const res = await fetch('/admin/api/support/{{ short_id|default("") }}/reply', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({reply:txt})
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          const el = document.getElementById('replyResult');
-          el.classList.remove('hidden');
-          el.innerHTML = `<p class="text-red-600">${data.error||'Failed'}</p>`;
-          setTimeout(()=>el.classList.add('hidden'),4000);
-        }
-      } catch(e){ console.error(e); }
-    };
-    document.getElementById('replyForm').onsubmit = e=>{e.preventDefault(); sendReply();};
-    document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+const sendReply = async () => {
+    const txt = document.getElementById('replyText').value.trim();
+    if (!txt) return;
+    addBubble(txt, true);  // show on right (admin)
+    document.getElementById('replyText').value = '';
+
+    try {
+      const res = await fetch('/admin/api/support/{{ short_id|default("") }}/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply: txt })
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        const el = document.getElementById('replyResult');
+        el.classList.remove('hidden');
+        el.innerHTML = `<p class="text-red-600">${data.error || 'Failed'}</p>`;
+        setTimeout(() => el.classList.add('hidden'), 4000);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  document.getElementById('replyForm').onsubmit = e => { e.preventDefault(); sendReply(); };
+  document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
   </script>
 </body>
 </html>
