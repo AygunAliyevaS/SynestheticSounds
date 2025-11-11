@@ -966,10 +966,10 @@ def add_reply(short_id):
         old = cur.fetchone()
         logger.info(f"[REPLY] Before: {repr(old[0]) if old else None}")
 
-        # FIXED: PASS DICT, NOT STRING
+        # FIXED: json.dumps + CAST
         cur.execute(
-            "UPDATE SupportTickets SET messages = JSON_MODIFY(messages, 'append $', ?) WHERE ticket_uuid = ?",
-            (new_message, ticket_uuid)  # ← NO json.dumps()!
+            "UPDATE SupportTickets SET messages = JSON_MODIFY(messages, 'append $', CAST(? AS NVARCHAR(MAX))) WHERE ticket_uuid = ?",
+            (json.dumps(new_message), ticket_uuid)
         )
         affected = cur.rowcount
         conn.commit()
@@ -1194,6 +1194,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
 
 
