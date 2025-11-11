@@ -755,139 +755,122 @@ def list_tickets():
         cur.close()
         conn.close()
 
-@app.route("/support/<short_id>")
-def chat_page(short_id):
-    user = session.get('user')
+@app.route("/api/support/<short_id>/reply", methods=['POST'])
+def add_reply(short_id):
+    data = request.get_json()
+    if not data or 'reply' not in data:
+        return jsonify({"error": "reply required"}), 400
+
+    reply_text = data['reply'].strip()
+    if not reply_text:
+        return jsonify({"error": "Empty reply"}), 400
+
     ticket_uuid = short_to_uuid(short_id)
-
-    logger.info(f"[DEBUG] short_id: {short_id}, ticket_uuid: {ticket_uuid}")
-
     if not ticket_uuid:
-        return render_template("error.html", error=f"Invalid short_id: {short_id}"), 404
+        return jsonify({"error": "Ticket not found"}), 404
+
+    # Determine sender
+    is_admin = request.path.startswith('/admin')
+    sender = "support" if is_admin else "user"
+    now = datetime.utcnow().isoformat() + "Z"
+
+    new_message = {
+        "sender": sender,
+        "time": now
+    }
+    if sender == "support":
+        new_message["assistant"] = reply_text
+    else:
+        new_message["user"] = reply_text
+
+    logger.info(f"[REPLY DEBUG] short_id: {short_id}, UUID: {ticket_uuid}")
+    logger.info(f"[REPLY DEBUG] New message: {new_message}")
 
     conn = get_db_connection()
     if not conn:
-        return render_template("error.html", error="Database connection failed"), 500
+        return jsonify({"error": "DB error"}), 500
 
     try:
         cur = conn.cursor()
-        cur.execute(
-            "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
-            (ticket_uuid,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return render_template("error.html", error=f"Ticket not found: {ticket_uuid}"), 404
 
-        logger.info(f"[DEBUG] Raw messages: {repr(row[4])}")
+        # DEBUG: Show current messages BEFORE update
+        cur.execute("SELECT messages FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
+        old_row = cur.fetchone()
+        logger.info(f"[REPLY DEBUG] Old messages: {repr(old_row[0]) if old_row else None}")
 
-        # FIXED: Handle double-encoded JSON
-        chat = []
-        if row[4]:
-            try:
-                parsed = json.loads(row[4])
-                if isinstance(parsed, list):
-                    for item in parsed:
-                        if isinstance(item, str):
-                            try:
-                                msg = json.loads(item)
-                                if isinstance(msg, dict) and msg.get("sender") in ["user", "support"]:
-                                    chat.append(msg)
-                            except json.JSONDecodeError:
-                                continue
-                        elif isinstance(item, dict) and item.get("sender") in ["user", "support"]:
-                            chat.append(item)
-                else:
-                    logger.warning(f"messages is not a list: {parsed}")
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON decode failed: {e}")
-                chat = []
+        # CORRECT: Pass dict directly → pyodbc handles JSON
+        sql = """
+            UPDATE SupportTickets
+            SET messages = JSON_MODIFY(messages, 'append $', ?)
+            WHERE ticket_uuid = ?
+        """
+        logger.info(f"[REPLY DEBUG] Executing SQL with message: {new_message}")
+        cur.execute(sql, (json.dumps(new_message), ticket_uuid))  # ← MUST BE json.dumps!
+        affected = cur.rowcount
+        conn.commit()
 
-        logger.info(f"[DEBUG] Final chat: {chat}")
+        logger.info(f"[REPLY DEBUG] Rows affected: {affected}")
 
-        # Add welcome
-        if not any(m.get("sender") == "support" for m in chat):
-            chat.insert(0, {
-                "sender": "support",
-                "assistant": "Welcome to support! How can we help you today?",
-                "time": datetime.utcnow().isoformat() + "Z"
-            })
+        # DEBUG: Show AFTER update
+        cur.execute("SELECT messages FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
+        new_row = cur.fetchone()
+        logger.info(f"[REPLY DEBUG] New messages: {repr(new_row[0]) if new_row else None}")
 
-        return render_template(
-            "support_chat.html",
-            user=user,
-            short_id=short_id,
-            category=row[2] or "General",
-            status=row[3] or "Open",
-            chat=chat
-        )
+        if affected == 0:
+            return jsonify({"error": "Failed to update (no rows affected)"}), 500
+
+        return jsonify({"status": "saved", "message": new_message}), 200
 
     except Exception as e:
-        logger.error(f"chat_page crash: {e}")
-        return render_template("error.html", error="Server error"), 500
+        logger.error(f"[REPLY ERROR] {e}")
+        return jsonify({"error": "Failed to save"}), 500
     finally:
         cur.close()
         conn.close()
 
 
-@app.route("/admin/support/<short_id>")
-def admin_chat_page(short_id):
-    ticket_uuid = short_to_uuid(short_id)
-    logger.info(f"[ADMIN] short_id: {short_id} → {ticket_uuid}")
+@app.route("/admin/api/support/<short_id>/reply", methods=['POST'])
+def admin_add_reply(short_id):
+    if not session.get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
 
+    data = request.get_json()
+    reply = data.get('reply', '').strip()
+    if not reply:
+        return jsonify({"error": "reply required"}), 400
+
+    ticket_uuid = short_to_uuid(short_id)
     if not ticket_uuid:
-        return render_template("error.html", error=f"Invalid short_id: {short_id}"), 404
+        return jsonify({"error": "Ticket not found"}), 404
+
+    new_message = {
+        "sender": "support",
+        "assistant": reply,
+        "time": datetime.utcnow().isoformat() + "Z"
+    }
+
+    logger.info(f"[ADMIN REPLY] Adding: {new_message}")
 
     conn = get_db_connection()
-    if not conn:
-        return render_template("error.html", error="Database connection failed"), 500
-
     try:
         cur = conn.cursor()
+        cur.execute("SELECT messages FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
+        logger.info(f"[ADMIN] Before: {cur.fetchone()[0]}")
+
         cur.execute(
-            "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
-            (ticket_uuid,)
+            "UPDATE SupportTickets SET messages = JSON_MODIFY(messages, 'append $', ?) WHERE ticket_uuid = ?",
+            (json.dumps(new_message), ticket_uuid)
         )
-        row = cur.fetchone()
-        if not row:
-            return render_template("error.html", error=f"Ticket not found: {ticket_uuid}"), 404
+        conn.commit()
+        logger.info(f"[ADMIN] After update: {cur.rowcount} row(s)")
 
-        logger.info(f"[ADMIN] Raw messages: {repr(row[4])}")
+        cur.execute("SELECT messages FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
+        logger.info(f"[ADMIN] Final: {cur.fetchone()[0]}")
 
-        chat = []
-        if row[4]:
-            try:
-                parsed = json.loads(row[4])
-                if isinstance(parsed, list):
-                    for item in parsed:
-                        if isinstance(item, str):
-                            try:
-                                msg = json.loads(item)
-                                if isinstance(msg, dict) and msg.get("sender") in ["user", "support"]:
-                                    chat.append(msg)
-                            except json.JSONDecodeError:
-                                continue
-                        elif isinstance(item, dict) and item.get("sender") in ["user", "support"]:
-                            chat.append(item)
-                else:
-                    logger.warning(f"messages not a list: {parsed}")
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON error: {e}")
-                chat = []
-
-        logger.info(f"[ADMIN] Final chat: {chat}")
-
-        return render_template(
-            "admin_chat.html",
-            short_id=short_id,
-            category=row[2] or "General",
-            status=row[3] or "Open",
-            chat=chat
-        )
-
+        return jsonify({"status": "saved"}), 200
     except Exception as e:
-        logger.error(f"admin_chat_page crash: {e}")
-        return render_template("error.html", error="Server error"), 500
+        logger.error(f"[ADMIN REPLY ERROR] {e}")
+        return jsonify({"error": "Failed"}), 500
     finally:
         cur.close()
         conn.close()
@@ -1168,6 +1151,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
 
 
