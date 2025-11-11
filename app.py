@@ -755,6 +755,7 @@ def list_tickets():
         cur.close()
         conn.close()
 
+# USER CHAT ROUTE (with safe load)
 @app.route("/support/<short_id>")
 def chat_page(short_id):
     user = session.get('user')
@@ -777,13 +778,14 @@ def chat_page(short_id):
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
-        # ---------- SAFE JSON LOAD ----------
+        # SAFE JSON LOAD
         chat = []
-        if row[4]:                                          # row[4] = messages column
+        if row[4]:
             try:
                 parsed = json.loads(row[4])
                 if isinstance(parsed, list):
-                    chat = parsed
+                    # Filter out invalid items (strings instead of dicts)
+                    chat = [msg for msg in parsed if isinstance(msg, dict)]
                 else:
                     logger.warning(f"Invalid chat format for ticket {short_id}: {parsed}")
                     chat = []
@@ -791,15 +793,15 @@ def chat_page(short_id):
                 logger.error(f"JSON decode error in chat for {short_id}: {e}, raw: {row[4]}")
                 chat = []
 
-        # ---------- ADD WELCOME (only if no support message exists) ----------
+        # ADD WELCOME if no support message
         now_iso = datetime.utcnow().isoformat() + "Z"
         WELCOME = {
             "sender": "support",
             "assistant": "Welcome to support! How can we help you today?",
             "time": now_iso
         }
-        if not chat or chat[0].get("sender") != "support":
-            chat = [WELCOME] + chat
+        if not any(msg.get("sender") == "support" for msg in chat):
+            chat.insert(0, WELCOME)
 
         return render_template(
             "support_chat.html",
@@ -817,6 +819,7 @@ def chat_page(short_id):
         cur.close()
         conn.close()
 
+# ADMIN CHAT ROUTE (with safe load)
 @app.route("/admin/support/<short_id>")
 def admin_chat_page(short_id):
     ticket_uuid = short_to_uuid(short_id)
@@ -838,19 +841,19 @@ def admin_chat_page(short_id):
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
-        # ---------- SAFE JSON LOAD (admin) ----------
+        # SAFE JSON LOAD for admin
         chat = []
         if row[4]:
             try:
                 parsed = json.loads(row[4])
                 if isinstance(parsed, list):
-                    chat = parsed
+                    # Filter out invalid items (strings instead of dicts)
+                    chat = [msg for msg in parsed if isinstance(msg, dict)]
                 else:
                     chat = []
             except json.JSONDecodeError:
                 chat = []
 
-        # No welcome message for admin view
         return render_template(
             "admin_chat.html",
             short_id=short_id,
@@ -1134,6 +1137,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
 
 
