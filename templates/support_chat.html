@@ -22,39 +22,57 @@
 </div>
 
 <script>
+/* ----- Safe way to inject Flask variables into JS ----- */
+const SHORT_ID = "{{ short_id }}";
+
 function escapeHtml(t){
-    const d=document.createElement('div'); d.textContent=t; return d.innerHTML;
+    const d=document.createElement('div');
+    d.textContent=t;
+    return d.innerHTML;
 }
+
 function render(chat){
     const box=document.getElementById('chatBox');
     box.innerHTML='';
     chat.forEach(m=>{
         const time=new Date(m.time).toLocaleString();
         const isUser = m.sender==='user';
-        const bubble = `<div class="msg-bubble">${escapeHtml(isUser?m.user:m.assistant)}</div>
+        const text = isUser ? m.user : m.assistant;
+        const bubble = `<div class="msg-bubble">${escapeHtml(text)}</div>
                         <div class="msg-time">${time}</div>`;
         box.innerHTML += `<div class="msg ${isUser?'msg-user':'msg-admin'}">${bubble}</div>`;
     });
-    box.scrollTop=box.scrollHeight;
+    box.scrollTop = box.scrollHeight;
 }
+
 async function loadChat(){
-    const r=await fetch(`/api/support/{{ short_id }}`);
-    const d=await r.json();
-    render(d.chat);
+    const resp = await fetch(`/api/support/${SHORT_ID}`);
+    const data = await resp.json();
+    render(data.chat);
 }
+
 async function sendReply(){
-    const txt=document.getElementById('replyInput').value.trim();
+    const txt = document.getElementById('replyInput').value.trim();
     if(!txt) return;
-    await fetch(`/api/support/{{ short_id }}/reply`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({reply:txt})
+
+    await fetch(`/api/support/${SHORT_ID}/reply`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({reply: txt})
     });
-    document.getElementById('replyInput').value='';
+
+    document.getElementById('replyInput').value = '';
     loadChat();
 }
-document.getElementById('replyForm').onsubmit=e=>{e.preventDefault();sendReply();}
+
+/* ----- Form handling ----- */
+document.getElementById('replyForm').onsubmit = e => {
+    e.preventDefault();
+    sendReply();
+};
+
+/* ----- Initial load & auto-refresh ----- */
 loadChat();
-setInterval(loadChat,7000);   // auto-refresh every 7 s
+setInterval(loadChat, 7000);
 </script>
 {% endblock %}
