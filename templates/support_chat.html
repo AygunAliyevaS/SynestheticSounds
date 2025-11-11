@@ -1,81 +1,187 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Support – #{{ short_id }}</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support – #{{ short_id|default('Ticket') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    .chat-box{max-height:500px;overflow-y:auto;background:#f9f9f9;padding:1rem;border-radius:8px;border:1px solid #e5e7eb;}
-    .msg{margin:0.5rem 0;}
-    .msg-user{text-align:right;}
-    .msg-admin{text-align:left;}
-    .msg-bubble{display:inline-block;padding:0.6rem 1rem;border-radius:1rem;max-width:80%;word-wrap:break-word;}
-    .msg-user .msg-bubble{background:#dbeafe;color:#1e40af;}
-    .msg-admin .msg-bubble{background:#e5e7eb;color:#1f2937;}
-    .msg-time{font-size:0.7rem;color:#6b7280;margin-top:0.2rem;}
-    .welcome{background:#e0f2fe;padding:0.75rem 1rem;border-radius:8px;margin-bottom:1rem;font-style:italic;}
+    /* -------------------------------------------------
+       SportyBet-style bubbles
+       ------------------------------------------------- */
+    .msg-bubble {
+      min-height: 44px;
+      position: relative;
+      padding: 10px 14px 20px 14px;   /* extra bottom space for time */
+      border-radius: 1.3rem;
+    }
+    .msg-user   { background:#DCF8C6; border-top-right-radius:0; }
+    .msg-admin  { background:#FFFFFF; border-top-left-radius:0; }
+
+    .msg-time {
+      position:absolute;
+      bottom:4px;
+      right:10px;
+      font-size:11px;
+      color:#666;
+      line-height:1;
+    }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen p-4">
-<div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow">
-  <h2 class="text-2xl font-bold mb-2">Ticket #{{ short_id }}</h2>
-  <p class="text-sm text-gray-600 mb-4">Category: {{ category }} – Status: <strong>{{ status }}</strong></p>
+<body class="flex flex-col h-screen m-0 p-0">
 
-  <div id="chatBox" class="chat-box mb-4"></div>
+  <!-- WhatsApp Header -->
+  <header class="bg-[#075E54] text-white p-3 flex items-center justify-between shadow-lg">
+    <div class="flex items-center space-x-3">
+      <a href="/support" class="text-white hover:opacity-80">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </a>
+      <div class="flex items-center space-x-2">
+        <div class="w-10 h-10 rounded-full bg-[#128C7E] flex items-center justify-center font-bold text-lg">
+          {{ (short_id|default('?'))[0]|upper }}
+        </div>
+        <div>
+          <p class="font-semibold">Ticket #{{ short_id|default('????') }}</p>
+          <p class="text-xs opacity-80">{{ category|default('Unknown') }} • {{ status|default('Open') }}</p>
+        </div>
+      </div>
+    </div>
 
-  <form id="replyForm" class="flex gap-2">
-    <input type="text" id="replyInput" class="flex-1 p-2 border rounded" placeholder="Type your message…" required>
-    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Send</button>
+    <div class="flex items-center space-x-3 text-sm">
+      {% if user %}
+        <span class="hidden sm:inline">Hi, {{ user.name }}</span>
+        <a href="/logout" class="hover:underline">Logout</a>
+      {% else %}
+        <a href="/auth" class="hover:underline">Login</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- Chat Messages -->
+  <div id="chatBox"
+       class="flex-1 overflow-y-auto p-4 space-y-4"
+       style="max-height: calc(100vh - 120px);">
+    {% if chat and chat|length > 0 %}
+      {% for msg in chat %}
+        {% if msg.sender == 'user' %}
+          <!-- USER (right) -->
+          <div class="flex justify-end mb-3">
+            <div class="max-w-[75%]">
+              <div class="msg-bubble msg-user text-gray-900 shadow-sm">
+                {{ msg.user | safe }}
+                <div class="msg-time">
+                  {% if msg.time %}
+                    {{ msg.time.split('T')[1][:5] }}
+                  {% else %}
+                    Now
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        {% elif msg.sender == 'support' %}
+          <!-- ADMIN / WELCOME (left) -->
+          <div class="flex justify-start mb-3">
+            <div class="max-w-[75%]">
+              <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
+                {{ msg.assistant | safe }}
+                <div class="msg-time">
+                  {% if msg.time %}
+                    {{ msg.time.split('T')[1][:5] }}
+                  {% else %}
+                    Now
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% else %}
+      <p class="text-center text-gray-600 italic mt-10">No messages yet. Start the conversation!</p>
+    {% endif %}
+  </div>
+
+  <!-- Reply Input -->
+  <form id="replyForm" class="bg-[#F0F0F0] border-t border-gray-300 p-3 flex items-center space-x-2">
+    <div class="flex-1 bg-white rounded-full shadow-sm flex items-center px-3 py-2">
+      <textarea id="replyText"
+                rows="1"
+                placeholder="Type a message..."
+                class="flex-1 resize-none border-none outline-none text-sm text-gray-800"
+                required></textarea>
+    </div>
+    <button type="submit"
+            class="bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full p-3 shadow-md transition">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+      </svg>
+    </button>
   </form>
-</div>
 
-<script>
-  const SHORT_ID = {{ short_id | tojson }};
+  <div id="replyResult" class="hidden p-2"></div>
 
-  function esc(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+  <!-- JavaScript -->
+  <script>
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
 
-  function render(chat){
-    const box = document.getElementById('chatBox');
-    box.innerHTML = '';
+    function addBubble(text, isUser) {
+      const box = document.getElementById('chatBox');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = `
+        <div class="flex ${isUser ? 'justify-end mb-3' : 'justify-start mb-3'}">
+          <div class="max-w-[75%]">
+            <div class="msg-bubble ${isUser ? 'msg-user text-gray-900' : 'msg-admin text-gray-900'} shadow-sm">
+              ${escapeHtml(text)}
+              <div class="msg-time">${time}</div>
+            </div>
+          </div>
+        </div>`;
+      box.insertAdjacentHTML('beforeend', bubble);
+      box.scrollTop = box.scrollHeight;
+    }
 
-    // ---- WELCOME (shown only on user side) ----
-    const welcome = `<div class="welcome">Thanks for reaching out! We'll reply soon.</div>`;
-    box.innerHTML += welcome;
+    async function sendReply() {
+      const txt = document.getElementById('replyText').value.trim();
+      if (!txt) return;
 
-    // ---- ALL MESSAGES ----
-    chat.forEach(m=>{
-      const time = new Date(m.time).toLocaleString();
-      const isUser = m.sender === 'user';
-      const txt = isUser ? m.user : m.assistant;
-      const bubble = `<div class="msg-bubble">${esc(txt)}</div><div class="msg-time">${time}</div>`;
-      box.innerHTML += `<div class="msg ${isUser?'msg-user':'msg-admin'}">${bubble}</div>`;
+      addBubble(txt, true);
+      document.getElementById('replyText').value = '';
+
+      try {
+        const res = await fetch('/api/support/{{ short_id|default("") }}/reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reply: txt })
+        });
+        const data = await res.json();
+        const result = document.getElementById('replyResult');
+
+        if (!res.ok) {
+          result.classList.remove('hidden');
+          result.innerHTML = `<p class="text-red-600">${data.error || 'Failed'}</p>`;
+          setTimeout(() => result.classList.add('hidden'), 4000);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    document.getElementById('replyForm').addEventListener('submit', e => {
+      e.preventDefault();
+      sendReply();
     });
-    box.scrollTop = box.scrollHeight;
-  }
 
-  async function load(){
-    const r = await fetch(`/api/support/${SHORT_ID}`);
-    const d = await r.json();
-    render(d.chat || []);
-  }
-
-  async function send(){
-    const input = document.getElementById('replyInput');
-    const txt = input.value.trim();
-    if(!txt) return;
-    await fetch(`/api/support/${SHORT_ID}/reply`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({reply:txt})
-    });
-    input.value='';
-    load();
-  }
-
-  document.getElementById('replyForm').onsubmit=e=>{e.preventDefault();send();}
-  load();
-  setInterval(load,5000);
-</script>
+    // Scroll to bottom
+    document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+  </script>
 </body>
 </html>
