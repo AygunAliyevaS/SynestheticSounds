@@ -939,8 +939,7 @@ def add_reply(short_id):
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
 
-    # ---- WHO IS SENDING? ----
-    # Admin pages call this route from /admin/chat/… → we set a flag
+    # Detect if this is from admin page
     is_admin = request.path.startswith('/admin') or session.get('is_admin', False)
 
     conn = get_db_connection()
@@ -954,7 +953,6 @@ def add_reply(short_id):
             "user": reply if not is_admin else None
         }
 
-        # JSON_MODIFY works only on SQL Server 2016+
         cur.execute(
             """UPDATE SupportTickets
                SET messages = JSON_MODIFY(messages, 'append $.', ?)
@@ -964,7 +962,7 @@ def add_reply(short_id):
         conn.commit()
         return jsonify({"message": "Reply added"}), 200
     except Exception as e:
-        logger.error(f"add_reply error: {e}")
+        logger.error(f"Error: {e}")
         return jsonify({"error": "Failed"}), 500
     finally:
         cur.close()
@@ -1146,5 +1144,6 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
 
