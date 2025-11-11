@@ -928,13 +928,11 @@ def admin_add_reply(short_id):
     try:
         cur = conn.cursor()
         now = datetime.utcnow().isoformat() + "Z"
-
         new_message = {
             "sender": "support",
             "assistant": reply,
             "time": now
         }
-
         sql = """
             UPDATE SupportTickets
             SET messages = JSON_MODIFY(messages, 'append $.', CAST(? AS NVARCHAR(MAX)))
@@ -943,14 +941,13 @@ def admin_add_reply(short_id):
         cur.execute(sql, (json.dumps(new_message), ticket_uuid))
         conn.commit()
         return jsonify({"message": "Reply added"}), 200
-
     except Exception as e:
         logger.error(f"Admin reply error: {e}")
         return jsonify({"error": "Failed"}), 500
     finally:
         cur.close()
         conn.close()
-
+        
 @app.route("/submit", methods=['POST'])
 def submit():
     connection = get_db_connection()
@@ -1106,5 +1103,6 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
 
