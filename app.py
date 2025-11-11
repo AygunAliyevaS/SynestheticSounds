@@ -759,105 +759,110 @@ def list_tickets():
 def chat_page(short_id):
     user = session.get('user')
     ticket_uuid = short_to_uuid(short_id)
+
+    # DEBUG: Show what short_id and UUID are
+    logger.info(f"[DEBUG] short_id: {short_id}, resolved ticket_uuid: {ticket_uuid}")
+
     if not ticket_uuid:
-        return render_template("error.html", error="Invalid ticket"), 404
+        return f"<h3>ERROR: Invalid short_id '{short_id}'</h3><p>No matching ticket.</p>", 404
 
     conn = get_db_connection()
     if not conn:
-        return render_template("error.html", error="Database error"), 500
+        return "<h3>DB CONNECTION FAILED</h3>", 500
 
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
-            (ticket_uuid,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return render_template("error.html", error="Ticket not found"), 404
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
+        (ticket_uuid,)
+    )
+    row = cur.fetchone()
 
-        # SAFE JSON LOAD (Python only!)
-        chat = []
-        if row[4]:  # messages column
-            try:
-                parsed = json.loads(row[4])
-                if isinstance(parsed, list):
-                    chat = [m for m in parsed if isinstance(m, dict) and m.get("sender") in ["user", "support"]]
-                else:
-                    logger.warning(f"Invalid chat format for {short_id}: not a list")
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON error in ticket {short_id}: {e}")
-                chat = []
+    if not row:
+        return f"<h3>TICKET NOT FOUND</h3><p>UUID: {ticket_uuid}</p>", 404
 
-        # ADD WELCOME (only if no support message)
-        if not any(m.get("sender") == "support" for m in chat):
-            chat.insert(0, {
-                "sender": "support",
-                "assistant": "Welcome to support! How can we help you today?",
-                "time": datetime.utcnow().isoformat() + "Z"
-            })
+    # DEBUG: Print raw DB values
+    logger.info(f"[DEBUG] DB Row: {row}")
+    logger.info(f"[DEBUG] Raw messages (row[4]): {repr(row[4])}")
 
-        return render_template(
-            "support_chat.html",
-            user=user,
-            short_id=short_id,
-            category=row[2] or "General",
-            status=row[3] or "Open",
-            chat=chat
-        )
+    # --- NO TRY/EXCEPT: Let it crash and show error ---
+    chat = []
+    if row[4]:
+        parsed = json.loads(row[4])  # This will crash if invalid
+        if not isinstance(parsed, list):
+            raise ValueError(f"messages is not a list: {parsed}")
+        chat = [m for m in parsed if isinstance(m, dict) and m.get("sender") in ["user", "support"]]
+    else:
+        logger.info("[DEBUG] messages column is NULL or empty")
 
-    except Exception as e:
-        logger.error(f"chat_page error: {e}")
-        return render_template("error.html", error="Server error"), 500
-    finally:
-        cur.close()
-        conn.close()
+    logger.info(f"[DEBUG] Parsed chat: {chat}")
+
+    # Add welcome
+    if not any(m.get("sender") == "support" for m in chat):
+        chat.insert(0, {
+            "sender": "support",
+            "assistant": "Welcome to support! How can we help you today?",
+            "time": datetime.utcnow().isoformat() + "Z"
+        })
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "support_chat.html",
+        user=user,
+        short_id=short_id,
+        category=row[2] or "General",
+        status=row[3] or "Open",
+        chat=chat
+    )
 
 
 @app.route("/admin/support/<short_id>")
 def admin_chat_page(short_id):
     ticket_uuid = short_to_uuid(short_id)
+    logger.info(f"[ADMIN DEBUG] short_id: {short_id} → ticket_uuid: {ticket_uuid}")
+
     if not ticket_uuid:
-        return render_template("error.html", error="Invalid ticket"), 404
+        return f"<h3>ADMIN: Invalid short_id '{short_id}'</h3>", 404
 
     conn = get_db_connection()
     if not conn:
-        return render_template("error.html", error="Database error"), 500
+        return "<h3>ADMIN: DB CONNECTION FAILED</h3>", 500
 
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
-            (ticket_uuid,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return render_template("error.html", error="Ticket not found"), 404
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
+        (ticket_uuid,)
+    )
+    row = cur.fetchone()
 
-        # SAFE JSON LOAD
-        chat = []
-        if row[4]:
-            try:
-                parsed = json.loads(row[4])
-                if isinstance(parsed, list):
-                    chat = [m for m in parsed if isinstance(m, dict) and m.get("sender") in ["user", "support"]]
-            except json.JSONDecodeError:
-                chat = []
+    if not row:
+        return f"<h3>ADMIN: TICKET NOT FOUND</h3><p>UUID: {ticket_uuid}</p>", 404
 
-        return render_template(
-            "admin_chat.html",
-            short_id=short_id,
-            category=row[2] or "General",
-            status=row[3] or "Open",
-            chat=chat
-        )
+    logger.info(f"[ADMIN DEBUG] Raw messages: {repr(row[4])}")
 
-    except Exception as e:
-        logger.error(f"admin_chat_page error: {e}")
-        return render_template("error.html", error="Server error"), 500
-    finally:
-        cur.close()
-        conn.close()
+    # NO TRY/EXCEPT — Let it crash
+    chat = []
+    if row[4]:
+        parsed = json.loads(row[4])
+        if not isinstance(parsed, list):
+            raise ValueError(f"messages not a list: {parsed}")
+        chat = [m for m in parsed if isinstance(m, dict) and m.get("sender") in ["user", "support"]]
+    else:
+        logger.info("[ADMIN DEBUG] messages is NULL")
+
+    logger.info(f"[ADMIN DEBUG] Final chat: {chat}")
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "admin_chat.html",
+        short_id=short_id,
+        category=row[2] or "General",
+        status=row[3] or "Open",
+        chat=chat
+    )
 
 def short_to_uuid(short: str) -> str | None:
     if not short or len(short) != 8:
@@ -1135,6 +1140,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
 
 
