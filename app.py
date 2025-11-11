@@ -786,6 +786,8 @@ def chat_page(short_id):
                 if isinstance(parsed, list):
                     # Filter out invalid items (strings instead of dicts)
                     chat = [msg for msg in parsed if isinstance(msg, dict)]
+                    print(f"DEBUG — Loaded chat for {short_id}: {chat}")
+
                 else:
                     logger.warning(f"Invalid chat format for ticket {short_id}: {parsed}")
                     chat = []
@@ -1138,9 +1140,3 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
-
-
-
-
-
-
