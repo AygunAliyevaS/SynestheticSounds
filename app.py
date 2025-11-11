@@ -946,22 +946,13 @@ def add_reply(short_id):
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
 
-    # Determine sender
-    is_admin = request.path.startswith('/admin')
-    sender = "support" if is_admin else "user"
-    now = datetime.utcnow().isoformat() + "Z"
-
     new_message = {
-        "sender": sender,
-        "time": now
+        "sender": "user",
+        "user": reply_text,
+        "time": datetime.utcnow().isoformat() + "Z"
     }
-    if sender == "support":
-        new_message["assistant"] = reply_text
-    else:
-        new_message["user"] = reply_text
 
-    logger.info(f"[REPLY DEBUG] short_id: {short_id}, UUID: {ticket_uuid}")
-    logger.info(f"[REPLY DEBUG] New message: {new_message}")
+    logger.info(f"[REPLY] Adding: {new_message}")
 
     conn = get_db_connection()
     if not conn:
@@ -970,41 +961,37 @@ def add_reply(short_id):
     try:
         cur = conn.cursor()
 
-        # DEBUG: Show current messages BEFORE update
+        # BEFORE
         cur.execute("SELECT messages FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
-        old_row = cur.fetchone()
-        logger.info(f"[REPLY DEBUG] Old messages: {repr(old_row[0]) if old_row else None}")
+        old = cur.fetchone()
+        logger.info(f"[REPLY] Before: {repr(old[0]) if old else None}")
 
-        # CORRECT: Pass dict directly → pyodbc handles JSON
-        sql = """
-            UPDATE SupportTickets
-            SET messages = JSON_MODIFY(messages, 'append $', ?)
-            WHERE ticket_uuid = ?
-        """
-        logger.info(f"[REPLY DEBUG] Executing SQL with message: {new_message}")
-        cur.execute(sql, (json.dumps(new_message), ticket_uuid))  # ← MUST BE json.dumps!
+        # FIXED: PASS DICT, NOT STRING
+        cur.execute(
+            "UPDATE SupportTickets SET messages = JSON_MODIFY(messages, 'append $', ?) WHERE ticket_uuid = ?",
+            (new_message, ticket_uuid)  # ← NO json.dumps()!
+        )
         affected = cur.rowcount
         conn.commit()
 
-        logger.info(f"[REPLY DEBUG] Rows affected: {affected}")
+        logger.info(f"[REPLY] Rows affected: {affected}")
 
-        # DEBUG: Show AFTER update
+        # AFTER
         cur.execute("SELECT messages FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
-        new_row = cur.fetchone()
-        logger.info(f"[REPLY DEBUG] New messages: {repr(new_row[0]) if new_row else None}")
+        new = cur.fetchone()
+        logger.info(f"[REPLY] After: {repr(new[0]) if new else None}")
 
         if affected == 0:
-            return jsonify({"error": "Failed to update (no rows affected)"}), 500
+            return jsonify({"error": "No update"}), 500
 
         return jsonify({"status": "saved", "message": new_message}), 200
 
     except Exception as e:
         logger.error(f"[REPLY ERROR] {e}")
-        return jsonify({"error": "Failed to save"}), 500
+        return jsonify({"error": "Failed"}), 500
     finally:
         cur.close()
         conn.close()
-
 
 @app.route("/admin/api/support/<short_id>/reply", methods=['POST'])
 def admin_add_reply(short_id):
@@ -1207,6 +1194,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
 
 
