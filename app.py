@@ -594,7 +594,6 @@ def authorized():
     if not code:
         logger.error("No code provided in callback")
         return render_template("error.html", error="Authentication failed: No code provided"), 400
-
     try:
         logger.info(f"Attempting token acquisition with redirect_uri: {REDIRECT_URI}, scopes: {SCOPE}")
         token_result = msal_client.acquire_token_by_authorization_code(
@@ -606,10 +605,8 @@ def authorized():
         if "error" in token_result:
             logger.error(f"Auth error: {token_result['error']}, Description: {token_result.get('error_description')}")
             return render_template("error.html", error=f"Authentication failed: {token_result['error']} - {token_result.get('error_description')}"), 400
-
         session['access_token'] = token_result['access_token']
         logger.info("Token acquired successfully")
-
         graph_endpoint = "https://graph.microsoft.com/v1.0/me"
         headers = {"Authorization": f"Bearer {session['access_token']}"}
         logger.info("Fetching user profile from Microsoft Graph")
@@ -624,52 +621,43 @@ def authorized():
             logger.info(f"User logged in: {session['user']['name']} ({session['user']['email']})")
         else:
             logger.error(f"Failed to fetch user profile: {user_response.status_code}, {user_response.text}")
-            session.pop('access_token', None)  # Clear token on failure
+            session.pop('access_token', None) # Clear token on failure
             return render_template("error.html", error="Failed to fetch user profile"), 400
-
-        session.modified = True  # Ensure session is marked as modified
+        session.modified = True # Ensure session is marked as modified
         return redirect(url_for('home'))
     except Exception as e:
         logger.error(f"Unexpected error in auth: {str(e)}", exc_info=True)
         return render_template("error.html", error=f"Authentication failed: {str(e)}"), 500
-
 @app.route("/logout")
 def logout():
     session.clear()
     session['show_welcome'] = False
     logger.info("User logged out")
     return redirect(url_for('home'))
-
 @app.route('/about')
 def about():
-    user = session.get('user')  # Retrieve user from session for authentication
+    user = session.get('user') # Retrieve user from session for authentication
     return render_template('about.html', user=user)
-
 @app.route("/pricing")
 def pricing():
     logger.info("Rendering Pricing page")
     user = session.get('user')
     return render_template("pricing.html", user=user)
-
 @app.route("/privacy")
 def privacy():
     logger.info("Rendering Privacy Policy page")
     user = session.get('user')
     return render_template("privacy.html", user=user)
-
-
 @app.route("/support")
 def support():
     logger.info("Rendering Support page")
     user = session.get('user')
     return render_template("support.html", user=user)
-
 @app.route("/admin")
 def admin():
     conn = get_db_connection()
     if not conn:
         return "Database error", 500
-
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -694,47 +682,37 @@ def admin():
     finally:
         cur.close()
         conn.close()
-
 @app.route("/api/support", methods=['POST'])
 def create_ticket():
     data = request.get_json()
     if not data:
         return jsonify({"error": "No data"}), 400
-
     category = data.get('category')
     user_email = data.get('user_email')
     user_message = data.get('user_message')
-
     if not all([category, user_email, user_message]):
         return jsonify({"error": "category, user_email, user_message required"}), 400
-
     conn = get_db_connection()
     if not conn:
         return jsonify({"error": "DB error"}), 500
-
     try:
         cur = conn.cursor()
         ticket_uuid = str(uuid.uuid4())
         now = datetime.utcnow().isoformat() + "Z"
-
-        messages = [{"time": now, "user": user_message, "assistant": None}]
+        messages = [{"time": now, "sender": "user", "user": user_message, "assistant": None}]
         messages_json = json.dumps(messages)
-
         sql = """
-            INSERT INTO SupportTickets 
+            INSERT INTO SupportTickets
                 (ticket_uuid, user_email, category, messages, status, created_at)
             VALUES (?, ?, ?, ?, 'Open', GETDATE())
         """
         cur.execute(sql, (ticket_uuid, user_email, category, messages_json))
         conn.commit()
-
         # Get short_id
         cur.execute("SELECT short_id FROM SupportTickets WHERE ticket_uuid = ?", (ticket_uuid,))
         short_id = cur.fetchone()[0]
-
         # SEND CONFIRMATION EMAIL TO USER
         send_user_confirmation(user_email, short_id, category, user_message)
-
         return jsonify({
             "ticket_uuid": ticket_uuid,
             "short_id": short_id,
@@ -742,22 +720,18 @@ def create_ticket():
             "chat": messages,
             "chat_url": url_for('chat_page', short_id=short_id, _external=True)
         }), 201
-
     except Exception as e:
         logger.error(f"Error: {e}")
         return jsonify({"error": "Failed to create ticket"}), 500
     finally:
         cur.close()
         conn.close()
-
 @app.route("/api/support", methods=['GET'])
 def list_tickets():
     user_email = session.get('user', {}).get('email')
     if not user_email: return jsonify({"error": "Login required"}), 401
-
     conn = get_db_connection()
     if not conn: return jsonify({"error": "DB error"}), 500
-
     try:
         cur = conn.cursor()
         sql = "SELECT ticket_uuid, title, category, status, created_at, messages FROM SupportTickets WHERE user_email = ? ORDER BY created_at DESC"
@@ -771,7 +745,7 @@ def list_tickets():
                 "category": row.category,
                 "status": row.status,
                 "created_at": row.created_at.isoformat(),
-                "chat": chat  # Full conversation
+                "chat": chat # Full conversation
             })
         return jsonify({"tickets": tickets}), 200
     except Exception as e:
@@ -780,19 +754,16 @@ def list_tickets():
     finally:
         cur.close()
         conn.close()
-
 @app.route("/support/<short_id>")
 def chat_page(short_id):
     user = session.get('user')
     ticket_uuid = short_to_uuid(short_id)
-    
+   
     if not ticket_uuid or not short_id:
         return render_template("error.html", error="Invalid ticket"), 404
-
     conn = get_db_connection()
     if not conn:
         return render_template("error.html", error="Database error"), 500
-
     try:
         cur = conn.cursor()
         cur.execute(
@@ -802,31 +773,20 @@ def chat_page(short_id):
         row = cur.fetchone()
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
-
-        chat = json.loads(row[4]) if row[4] else []          # <-- messages column
-
+        chat = json.loads(row[4]) if row[4] else [] # <-- messages column
         # --------------------------------------------------------------
-        #  INSERT / UPDATE WELCOME MESSAGE WITH TIMESTAMP
+        # ADD WELCOME MESSAGE ONLY FOR USER VIEW (NOT PERSISTED)
         # --------------------------------------------------------------
         now_iso = datetime.utcnow().isoformat() + "Z"
         WELCOME = {
             "sender": "support",
             "assistant": "Welcome to support! How can we help you today?",
-            "time": now_iso
+            "time": now_iso,
+            "user": None
         }
-
-        if not chat or chat[0].get("sender") != "support":
-            chat.insert(0, WELCOME)
-            # persist the welcome so it survives reloads
-            cur.execute(
-                """UPDATE SupportTickets
-                   SET messages = ?
-                   WHERE ticket_uuid = ?""",
-                (json.dumps(chat), ticket_uuid)
-            )
-            conn.commit()
+        if chat and chat[0].get("sender") != "support":
+            chat = [WELCOME] + chat
         # --------------------------------------------------------------
-
         return render_template(
             "support_chat.html",
             user=user,
@@ -841,7 +801,41 @@ def chat_page(short_id):
     finally:
         cur.close()
         conn.close()
-
+@app.route("/admin/support/<short_id>")
+def admin_chat_page(short_id):
+    ticket_uuid = short_to_uuid(short_id)
+   
+    if not ticket_uuid or not short_id:
+        return render_template("error.html", error="Invalid ticket"), 404
+    conn = get_db_connection()
+    if not conn:
+        return render_template("error.html", error="Database error"), 500
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT ticket_uuid, user_email, category, status, messages FROM SupportTickets WHERE ticket_uuid = ?",
+            (ticket_uuid,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return render_template("error.html", error="Ticket not found"), 404
+        chat = json.loads(row[4]) if row[4] else [] # <-- messages column
+        # --------------------------------------------------------------
+        # NO WELCOME FOR ADMIN VIEW
+        # --------------------------------------------------------------
+        return render_template(
+            "admin_chat.html",
+            short_id=short_id,
+            category=row[2] or "Unknown",
+            status=row[3] or "Open",
+            chat=chat
+        )
+    except Exception as e:
+        logger.error(f"Error in admin_chat_page: {e}")
+        return render_template("error.html", error="Server error"), 500
+    finally:
+        cur.close()
+        conn.close()
 def short_to_uuid(short: str) -> str | None:
     if not short or len(short) != 8:
         return None
@@ -862,35 +856,29 @@ def short_to_uuid(short: str) -> str | None:
     finally:
         cur.close()
         conn.close()
-
 @app.route("/api/support/<short_id>/reply", methods=['POST'])
 def add_reply(short_id):
     data = request.get_json()
     reply = data.get('reply')
     if not reply:
         return jsonify({"error": "reply required"}), 400
-
     ticket_uuid = short_to_uuid(short_id)
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
-
     # --- Determine sender ---
     is_admin = request.path.startswith('/admin') or session.get('is_admin', False)
     # If accessed from /admin or has admin session → support message
     # Otherwise → user message
-
     conn = get_db_connection()
     try:
         cur = conn.cursor()
         now = datetime.utcnow().isoformat() + "Z"
-
         new_message = {
             "time": now,
             "sender": "support" if is_admin else "user",
             "assistant": reply if is_admin else None,
             "user": reply if not is_admin else None
         }
-
         sql = """
             UPDATE SupportTickets
             SET messages = JSON_MODIFY(messages, 'append $.', ?)
@@ -905,24 +893,20 @@ def add_reply(short_id):
     finally:
         cur.close()
         conn.close()
-
 @app.route("/submit", methods=['POST'])
 def submit():
     connection = get_db_connection()
     if not connection:
         logger.error("Database connection failed")
         return jsonify({"error": "Database connection failed"}), 500
-
     try:
         cursor = connection.cursor()
-
         # Get submission key (user email or IP address)
         today = datetime.now().strftime('%Y-%m-%d')
         submission_key = request.remote_addr
         is_authenticated = 'user' in session
         if is_authenticated:
             submission_key = session['user']['email']
-
         # Count submissions for the day
         query = """
             SELECT COUNT(*) as count
@@ -932,7 +916,6 @@ def submit():
         """
         cursor.execute(query, (today, submission_key if is_authenticated else None, submission_key if not is_authenticated else None))
         submission_count = cursor.fetchone()[0]
-
         # Check subscription status
         is_subscribed = False
         subscription_id = None
@@ -946,11 +929,9 @@ def submit():
             if result:
                 is_subscribed = True
                 subscription_id = result[0]
-
         # Define limits
         UNAUTHENTICATED_LIMIT = 5
         AUTHENTICATED_LIMIT = 10
-
         # Check submission limits
         if not is_authenticated and submission_count >= UNAUTHENTICATED_LIMIT:
             logger.warning(f"Submission limit exceeded for unauthenticated user (IP: {request.remote_addr})")
@@ -973,13 +954,11 @@ def submit():
                 VALUES (?, ?, ?, ?, GETDATE())
             """, (subscription_id, submission_key, None, ADDITIONAL_SUBMISSION_COST))
             logger.info(f"Charged ${ADDITIONAL_SUBMISSION_COST} for additional submission {submission_count + 1} by {submission_key}")
-            report_metered_usage(subscription_id, 1)  # Report 1 additional submission
-
+            report_metered_usage(subscription_id, 1) # Report 1 additional submission
         data = request.json
         if 'image' not in data:
             logger.error("No image provided in request")
             return jsonify({"error": "No image provided"}), 400
-
         brush = data.get('brush', 'round')
         image_data = data['image'].split(',')[1]
         try:
@@ -987,13 +966,10 @@ def submit():
         except Exception as e:
             logger.error(f"Invalid image data: {str(e)}")
             return jsonify({"error": f"Invalid image data: {str(e)}"}), 400
-
         width, height = img.size
         logger.info(f"Received image size: {width}x{height}")
-
         timeline = {}
         colors_found = set()
-
         for x in range(width):
             freqs = []
             for y in range(height):
@@ -1007,32 +983,26 @@ def submit():
                         colors_found.add((r, g, b))
             if freqs:
                 timeline[x] = list(np.unique(freqs))
-
         non_silent_columns = {x: freqs for x, freqs in timeline.items() if freqs}
         logger.info(f"Processed {len(non_silent_columns)} non-silent columns")
         logger.info(f"Colors detected: {colors_found}")
-
         stop = max((x for x, freqs in timeline.items() if freqs), default=0)
         timeline = {x: freqs if freqs else 0 for x in range(stop + 1)}
-
         if not non_silent_columns:
             logger.warning("No valid colors detected in image")
             return jsonify({"error": "No valid colors detected"}), 400
-
         audio_segments = []
         for x in range(stop + 1):
             segment = generate_tone(timeline.get(x, 0), brush)
             audio_segments.append(segment)
-        
+       
         audio = np.concatenate(audio_segments)
         audio = audio / np.max(np.abs(audio))
         audio_int16 = np.int16(audio * 32767)
-
         filename = f"sound_{int(time.time() * 1000)}.wav"
         filepath = os.path.join(OUTPUT_DIR, filename)
         write_wav(filepath, SAMPLE_RATE, audio_int16)
         logger.info(f"Generated audio file: {filename}")
-
         # Store submission in database
         insert_query = """
             INSERT INTO submissions (user_email, submission_date, image_data, audio_path, brush_type, ip_address)
@@ -1050,7 +1020,6 @@ def submit():
         submission_id = cursor.fetchone()[0]
         connection.commit()
         logger.info(f"Submission {submission_id} stored in database for {submission_key}")
-
         # Update billing record with submission_id if applicable
         if is_authenticated and is_subscribed and submission_count >= FREE_SUBMISSION_LIMIT:
             cursor.execute("""
@@ -1060,7 +1029,6 @@ def submit():
             """, (submission_id, submission_key, submission_key))
             connection.commit()
             logger.info(f"Updated billing record with submission_id {submission_id} for {submission_key}")
-
         return jsonify({"url": f"/static/audio/{filename}"})
     except Exception as e:
         logger.error(f"Error processing submission: {str(e)}")
@@ -1070,15 +1038,13 @@ def submit():
             cursor.close()
             connection.close()
             logger.info("Database connection closed")
-
 @app.route('/static/audio/<path:filename>')
 def serve_audio(filename):
     logger.info(f"Serving audio file: {filename}")
     return send_from_directory(OUTPUT_DIR, filename)
-
 if __name__ == "__main__":
     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.getenv('PORT', 8000))
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
-    application = app  # For Gunicorn
+    application = app # For Gunicor
