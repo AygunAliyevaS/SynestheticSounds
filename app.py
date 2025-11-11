@@ -754,16 +754,19 @@ def list_tickets():
     finally:
         cur.close()
         conn.close()
+
 @app.route("/support/<short_id>")
 def chat_page(short_id):
     user = session.get('user')
     ticket_uuid = short_to_uuid(short_id)
-   
+
     if not ticket_uuid or not short_id:
         return render_template("error.html", error="Invalid ticket"), 404
+
     conn = get_db_connection()
     if not conn:
         return render_template("error.html", error="Database error"), 500
+
     try:
         cur = conn.cursor()
         cur.execute(
@@ -773,20 +776,31 @@ def chat_page(short_id):
         row = cur.fetchone()
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
-        chat = json.loads(row[4]) if row[4] else [] # <-- messages column
-        # --------------------------------------------------------------
-        # ADD WELCOME MESSAGE ONLY FOR USER VIEW (NOT PERSISTED)
-        # --------------------------------------------------------------
+
+        # ---------- SAFE JSON LOAD ----------
+        chat = []
+        if row[4]:                                          # row[4] = messages column
+            try:
+                parsed = json.loads(row[4])
+                if isinstance(parsed, list):
+                    chat = parsed
+                else:
+                    logger.warning(f"Invalid chat format for ticket {short_id}: {parsed}")
+                    chat = []
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error in chat for {short_id}: {e}, raw: {row[4]}")
+                chat = []
+
+        # ---------- ADD WELCOME (only if no support message exists) ----------
         now_iso = datetime.utcnow().isoformat() + "Z"
         WELCOME = {
             "sender": "support",
             "assistant": "Welcome to support! How can we help you today?",
-            "time": now_iso,
-            "user": None
+            "time": now_iso
         }
-        if chat and chat[0].get("sender") != "support":
+        if not chat or chat[0].get("sender") != "support":
             chat = [WELCOME] + chat
-        # --------------------------------------------------------------
+
         return render_template(
             "support_chat.html",
             user=user,
@@ -795,21 +809,25 @@ def chat_page(short_id):
             status=row[3] or "Open",
             chat=chat
         )
+
     except Exception as e:
         logger.error(f"Error in chat_page: {e}")
         return render_template("error.html", error="Server error"), 500
     finally:
         cur.close()
         conn.close()
+
 @app.route("/admin/support/<short_id>")
 def admin_chat_page(short_id):
     ticket_uuid = short_to_uuid(short_id)
-   
+
     if not ticket_uuid or not short_id:
         return render_template("error.html", error="Invalid ticket"), 404
+
     conn = get_db_connection()
     if not conn:
         return render_template("error.html", error="Database error"), 500
+
     try:
         cur = conn.cursor()
         cur.execute(
@@ -819,10 +837,20 @@ def admin_chat_page(short_id):
         row = cur.fetchone()
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
-        chat = json.loads(row[4]) if row[4] else [] # <-- messages column
-        # --------------------------------------------------------------
-        # NO WELCOME FOR ADMIN VIEW
-        # --------------------------------------------------------------
+
+        # ---------- SAFE JSON LOAD (admin) ----------
+        chat = []
+        if row[4]:
+            try:
+                parsed = json.loads(row[4])
+                if isinstance(parsed, list):
+                    chat = parsed
+                else:
+                    chat = []
+            except json.JSONDecodeError:
+                chat = []
+
+        # No welcome message for admin view
         return render_template(
             "admin_chat.html",
             short_id=short_id,
@@ -830,12 +858,15 @@ def admin_chat_page(short_id):
             status=row[3] or "Open",
             chat=chat
         )
+
     except Exception as e:
         logger.error(f"Error in admin_chat_page: {e}")
         return render_template("error.html", error="Server error"), 500
     finally:
         cur.close()
         conn.close()
+
+
 def short_to_uuid(short: str) -> str | None:
     if not short or len(short) != 8:
         return None
@@ -1103,6 +1134,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
 
 
