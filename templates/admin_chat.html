@@ -1,62 +1,90 @@
-{% extends "base.html" %}
-{% block title %}Admin – #{{ short_id }}{% endblock %}
-
-{% block content %}
-<div class="max-w-4xl mx-auto p-4">
-    <h2 class="text-2xl font-bold mb-2">Admin Chat – #{{ short_id }}</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin – #{{ short_id }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .chat-box { max-height: 500px; overflow-y: auto; background: #f9f9f9; padding: 1rem; border-radius: 8px; border: 1px solid #e5e7eb; }
+    .msg { margin: 0.5rem 0; }
+    .msg-user { text-align: right; }
+    .msg-admin { text-align: left; }
+    .msg-bubble { display: inline-block; padding: 0.6rem 1rem; border-radius: 1rem; max-width: 80%; word-wrap: break-word; }
+    .msg-user .msg-bubble { background: #dbeafe; color: #1e40af; }
+    .msg-admin .msg-bubble { background: #e5e7eb; color: #1f2937; }
+    .msg-time { font-size: 0.7rem; color: #6b7280; margin-top: 0.2rem; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4">
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow">
+    <h2 class="text-2xl font-bold mb-2 text-green-700">Admin Chat – #{{ short_id }}</h2>
     <p class="text-sm text-gray-600 mb-4">
-        User: <strong>{{ user_email }}</strong> |
-        Category: {{ category }} |
-        Status: <strong>{{ status }}</strong>
+      User: <strong>{{ user_email }}</strong> | Category: {{ category }} | Status: <strong>{{ status }}</strong>
     </p>
 
     <div id="chatBox" class="chat-box mb-4"></div>
 
     <form id="replyForm" class="flex gap-2">
-        <input type="text" id="replyInput"
-               class="flex-1 p-2 border rounded"
-               placeholder="Reply as support…" required>
-        <button type="submit"
-                class="bg-green-600 text-white px-4 py-2 rounded">
-            Reply
-        </button>
+      <input type="text" id="replyInput" class="flex-1 p-2 border rounded" placeholder="Reply as support…" required>
+      <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Reply</button>
     </form>
-</div>
+  </div>
 
-<script>
-function escapeHtml(t){
-    const d=document.createElement('div'); d.textContent=t; return d.innerHTML;
-}
-function render(chat){
-    const box=document.getElementById('chatBox');
-    box.innerHTML='';
-    chat.forEach(m=>{
-        const time=new Date(m.time).toLocaleString();
-        const isAdmin = m.sender==='support';
-        const bubble = `<div class="msg-bubble">${escapeHtml(isAdmin?m.assistant:m.user)}</div>
-                        <div class="msg-time">${time}</div>`;
-        box.innerHTML += `<div class="msg ${isAdmin?'msg-admin':'msg-user'}">${bubble}</div>`;
-    });
-    box.scrollTop=box.scrollHeight;
-}
-async function loadChat(){
-    const r=await fetch(`/api/support/{{ short_id }}`);
-    const d=await r.json();
-    render(d.chat);
-}
-async function sendReply(){
-    const txt=document.getElementById('replyInput').value.trim();
-    if(!txt) return;
-    await fetch(`/admin/chat/{{ short_id }}/reply`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({reply:txt})
-    });
-    document.getElementById('replyInput').value='';
+  <script>
+    const SHORT_ID = "{{ short_id }}";
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function render(chat) {
+      const box = document.getElementById('chatBox');
+      box.innerHTML = '';
+      chat.forEach(m => {
+        const time = new Date(m.time).toLocaleString();
+        const isAdmin = m.sender === 'support';
+        const text = isAdmin ? m.assistant : m.user;
+        const bubble = `<div class="msg-bubble">${escapeHtml(text)}</div><div class="msg-time">${time}</div>`;
+        box.innerHTML += `<div class="msg ${isAdmin ? 'msg-admin' : 'msg-user'}">${bubble}</div>`;
+      });
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function loadChat() {
+      try {
+        const res = await fetch(`/api/support/${SHORT_ID}`);
+        const data = await res.json();
+        if (data.chat) render(data.chat);
+      } catch (e) {
+        console.error("Load failed:", e);
+      }
+    }
+
+    async function sendReply() {
+      const input = document.getElementById('replyInput');
+      const txt = input.value.trim();
+      if (!txt) return;
+
+      await fetch(`/api/support/${SHORT_ID}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply: txt })
+      });
+
+      input.value = '';
+      loadChat();
+    }
+
+    document.getElementById('replyForm').onsubmit = e => {
+      e.preventDefault();
+      sendReply();
+    };
+
     loadChat();
-}
-document.getElementById('replyForm').onsubmit=e=>{e.preventDefault();sendReply();}
-loadChat();
-setInterval(loadChat,5000);
-</script>
-{% endblock %}
+    setInterval(loadChat, 5000);
+  </script>
+</body>
+</html>
