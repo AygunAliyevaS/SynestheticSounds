@@ -862,37 +862,53 @@ def add_reply(short_id):
     reply = data.get('reply')
     if not reply:
         return jsonify({"error": "reply required"}), 400
+
     ticket_uuid = short_to_uuid(short_id)
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
+
     # --- Determine sender ---
+    # If request comes from /admin/support/... OR user is admin in session → support
     is_admin = request.path.startswith('/admin') or session.get('is_admin', False)
-    # If accessed from /admin or has admin session → support message
-    # Otherwise → user message
+    sender = "support" if is_admin else "user"
+
     conn = get_db_connection()
     try:
         cur = conn.cursor()
-        now = datetime.utcnow().isoformat() + "Z"
-        new_message = {
-            "time": now,
-            "sender": "support" if is_admin else "user",
-            "assistant": reply if is_admin else None,
-            "user": reply if not is_admin else None
-        }
+        now = datetime.utcnow().isoformat() + "Z"  # Use this consistently
+
+        if sender == "support":
+            new_message = {
+                "sender": "support",
+                "assistant": reply,
+                "time": now
+            }
+        else:
+            new_message = {
+                "sender": "user",
+                "user": reply,
+                "time": now
+            }
+
+        # Append to JSON array
         sql = """
             UPDATE SupportTickets
-            SET messages = JSON_MODIFY(messages, 'append $.', ?)
+            SET messages = JSON_MODIFY(messages, 'append $.', CAST(? AS NVARCHAR(MAX)))
             WHERE ticket_uuid = ?
         """
         cur.execute(sql, (json.dumps(new_message), ticket_uuid))
         conn.commit()
+
         return jsonify({"message": "Reply added"}), 200
+
     except Exception as e:
         logger.error(f"Error adding reply: {e}")
-        return jsonify({"error": "Failed"}), 500
+        return jsonify({"error": "Failed to save reply"}), 500
+
     finally:
         cur.close()
         conn.close()
+        
 @app.route("/submit", methods=['POST'])
 def submit():
     connection = get_db_connection()
@@ -1048,3 +1064,4 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
