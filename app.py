@@ -892,6 +892,46 @@ def admin_chat_page(short_id):
         cur.close()
         conn.close()
 
+# ========================================
+# ADD THIS FUNCTION: short_to_uuid()
+# ========================================
+def short_to_uuid(short_id: str):
+    """
+    Convert 8-char short_id (first 8 chars of UUID without dashes) to full UUID.
+    Example: 'BB9D2634' → 'BB9D2634-3540-4411-B9DA-D7E555788364'
+    """
+    if not short_id or len(short_id) != 8:
+        logger.warning(f"Invalid short_id length: {short_id}")
+        return None
+
+    try:
+        conn = get_db_connection()
+        if not conn:
+            logger.error("DB connection failed in short_to_uuid")
+            return None
+
+        cur = conn.cursor()
+        # Query: Find ticket where first 8 chars of UUID (no dashes) match short_id
+        cur.execute("""
+            SELECT ticket_uuid 
+            FROM SupportTickets 
+            WHERE LEFT(REPLACE(CAST(ticket_uuid AS varchar(36)), '-', ''), 8) = ?
+        """, (short_id.upper(),))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if row:
+            full_uuid = str(row[0])
+            logger.info(f"Resolved short_id {short_id} → {full_uuid}")
+            return full_uuid
+        else:
+            logger.warning(f"short_id {short_id} not found in DB")
+            return None
+    except Exception as e:
+        logger.error(f"Error in short_to_uuid: {e}")
+        return None
+
 @app.route("/api/support/<short_id>/reply", methods=['POST'])
 def add_reply(short_id):
     data = request.get_json()
@@ -1167,6 +1207,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
 
 
