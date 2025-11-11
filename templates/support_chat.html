@@ -44,37 +44,37 @@
 
   <!-- Messages -->
   <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-4" style="max-height:calc(100vh-120px);">
-    {% if chat %}
-      {% for msg in chat %}
-        {% if msg.sender == 'user' %}
-          <!-- USER (right) -->
-          <div class="flex justify-end mb-3">
-            <div class="max-w-[75%]">
-              <div class="msg-bubble msg-user text-gray-900 shadow-sm">
-                {{ msg.user | safe }}
-                <div class="msg-time">
-                  {{ (msg.time.split('T')[1][:5]) if msg.time else 'Now' }}
-                </div>
-              </div>
+{% if chat %}
+  {% for msg in chat %}
+    {% if msg and msg.sender == 'user' %}
+      <!-- USER (right) -->
+      <div class="flex justify-end mb-3">
+        <div class="max-w-[75%]">
+          <div class="msg-bubble msg-user text-gray-900 shadow-sm">
+            {{ msg.user | safe }}
+            <div class="msg-time">
+              {{ (msg.time.split('T')[1][:5]) if msg.time else 'Now' }}
             </div>
           </div>
-        {% elif msg.sender == 'support' %}
-          <!-- SUPPORT (left) -->
-          <div class="flex justify-start mb-3">
-            <div class="max-w-[75%]">
-              <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
-                {{ msg.assistant | safe }}
-                <div class="msg-time">
-                  {{ (msg.time.split('T')[1][:5]) if msg.time else 'Now' }}
-                </div>
-              </div>
+        </div>
+      </div>
+    {% elif msg and msg.sender == 'support' %}
+      <!-- SUPPORT (left) -->
+      <div class="flex justify-start mb-3">
+        <div class="max-w-[75%]">
+          <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
+            {{ msg.assistant | safe }}
+            <div class="msg-time">
+              {{ (msg.time.split('T')[1][:5]) if msg.time else 'Now' }}
             </div>
           </div>
-        {% endif %}
-      {% endfor %}
-    {% else %}
-      <p class="text-center text-gray-600 italic mt-10">No messages yet. Start the conversation!</p>
+        </div>
+      </div>
     {% endif %}
+  {% endfor %}
+{% else %}
+  <p class="text-center text-gray-600 italic mt-10">No messages yet. Start the conversation!</p>
+{% endif %}
   </div>
 
   <!-- Reply -->
