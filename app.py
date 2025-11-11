@@ -856,6 +856,7 @@ def short_to_uuid(short: str) -> str | None:
     finally:
         cur.close()
         conn.close()
+        
 @app.route("/api/support/<short_id>/reply", methods=['POST'])
 def add_reply(short_id):
     data = request.get_json()
@@ -908,7 +909,48 @@ def add_reply(short_id):
     finally:
         cur.close()
         conn.close()
-        
+
+@app.route("/admin/api/support/<short_id>/reply", methods=['POST'])
+def admin_add_reply(short_id):
+    if not session.get('is_admin', False):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.get_json()
+    reply = data.get('reply')
+    if not reply:
+        return jsonify({"error": "reply required"}), 400
+
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        return jsonify({"error": "Ticket not found"}), 404
+
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        now = datetime.utcnow().isoformat() + "Z"
+
+        new_message = {
+            "sender": "support",
+            "assistant": reply,
+            "time": now
+        }
+
+        sql = """
+            UPDATE SupportTickets
+            SET messages = JSON_MODIFY(messages, 'append $.', CAST(? AS NVARCHAR(MAX)))
+            WHERE ticket_uuid = ?
+        """
+        cur.execute(sql, (json.dumps(new_message), ticket_uuid))
+        conn.commit()
+        return jsonify({"message": "Reply added"}), 200
+
+    except Exception as e:
+        logger.error(f"Admin reply error: {e}")
+        return jsonify({"error": "Failed"}), 500
+    finally:
+        cur.close()
+        conn.close()
+
 @app.route("/submit", methods=['POST'])
 def submit():
     connection = get_db_connection()
@@ -1064,4 +1106,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
