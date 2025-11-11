@@ -755,13 +755,12 @@ def list_tickets():
         cur.close()
         conn.close()
 
-# USER CHAT ROUTE (with safe load)
 @app.route("/support/<short_id>")
 def chat_page(short_id):
     user = session.get('user')
     ticket_uuid = short_to_uuid(short_id)
 
-    if not ticket_uuid or not short_id:
+    if not ticket_uuid:
         return render_template("error.html", error="Invalid ticket"), 404
 
     conn = get_db_connection()
@@ -778,55 +777,41 @@ def chat_page(short_id):
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
-        # SAFE JSON LOAD
+        # ULTRA-SAFE JSON LOAD
         chat = []
-        if row[4]:
+        if row[4] and ISJSON(row[4]) = 1:
             try:
                 parsed = json.loads(row[4])
                 if isinstance(parsed, list):
-                    # Filter out invalid items (strings instead of dicts)
-                    chat = [msg for msg in parsed if isinstance(msg, dict)]
-                    print(f"DEBUG — Loaded chat for {short_id}: {chat}")
+                    chat = [m for m in parsed if isinstance(m, dict) and m.get("sender") in ["user", "support"]]
+            except:
+                pass  # fall through to empty
 
-                else:
-                    logger.warning(f"Invalid chat format for ticket {short_id}: {parsed}")
-                    chat = []
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON decode error in chat for {short_id}: {e}, raw: {row[4]}")
-                chat = []
-
-        # ADD WELCOME if no support message
-        now_iso = datetime.utcnow().isoformat() + "Z"
-        WELCOME = {
-            "sender": "support",
-            "assistant": "Welcome to support! How can we help you today?",
-            "time": now_iso
-        }
-        if not any(msg.get("sender") == "support" for msg in chat):
-            chat.insert(0, WELCOME)
+        # ADD WELCOME (user side only)
+        if not any(m.get("sender") == "support" for m in chat):
+            chat.insert(0, {
+                "sender": "support",
+                "assistant": "Welcome to support! How can we help you today?",
+                "time": datetime.utcnow().isoformat() + "Z"
+            })
 
         return render_template(
             "support_chat.html",
-            user=user,
-            short_id=short_id,
-            category=row[2] or "Unknown",
-            status=row[3] or "Open",
-            chat=chat
+            user=user, short_id=short_id, category=row[2] or "General",
+            status=row[3] or "Open", chat=chat
         )
-
     except Exception as e:
-        logger.error(f"Error in chat_page: {e}")
+        logger.error(f"chat_page error: {e}")
         return render_template("error.html", error="Server error"), 500
     finally:
         cur.close()
         conn.close()
 
-# ADMIN CHAT ROUTE (with safe load)
+
 @app.route("/admin/support/<short_id>")
 def admin_chat_page(short_id):
     ticket_uuid = short_to_uuid(short_id)
-
-    if not ticket_uuid or not short_id:
+    if not ticket_uuid:
         return render_template("error.html", error="Invalid ticket"), 404
 
     conn = get_db_connection()
@@ -843,34 +828,26 @@ def admin_chat_page(short_id):
         if not row:
             return render_template("error.html", error="Ticket not found"), 404
 
-        # SAFE JSON LOAD for admin
         chat = []
-        if row[4]:
+        if row[4] and ISJSON(row[4]) = 1:
             try:
                 parsed = json.loads(row[4])
                 if isinstance(parsed, list):
-                    # Filter out invalid items (strings instead of dicts)
-                    chat = [msg for msg in parsed if isinstance(msg, dict)]
-                else:
-                    chat = []
-            except json.JSONDecodeError:
-                chat = []
+                    chat = [m for m in parsed if isinstance(m, dict) and m.get("sender") in ["user", "support"]]
+            except:
+                pass
 
         return render_template(
             "admin_chat.html",
-            short_id=short_id,
-            category=row[2] or "Unknown",
-            status=row[3] or "Open",
-            chat=chat
+            short_id=short_id, category=row[2] or "General",
+            status=row[3] or "Open", chat=chat
         )
-
     except Exception as e:
-        logger.error(f"Error in admin_chat_page: {e}")
+        logger.error(f"admin_chat_page error: {e}")
         return render_template("error.html", error="Server error"), 500
     finally:
         cur.close()
         conn.close()
-
 
 def short_to_uuid(short: str) -> str | None:
     if not short or len(short) != 8:
@@ -895,56 +872,65 @@ def short_to_uuid(short: str) -> str | None:
         
 @app.route("/api/support/<short_id>/reply", methods=['POST'])
 def add_reply(short_id):
+    """
+    Add a reply to a support ticket using the short_id.
+    Handles both user and admin messages.
+    """
     data = request.get_json()
-    reply = data.get('reply')
-    if not reply:
+    if not data or 'reply' not in data:
         return jsonify({"error": "reply required"}), 400
 
+    reply_text = data['reply'].strip()
+    if not reply_text:
+        return jsonify({"error": "Empty reply"}), 400
+
+    # Convert short_id to ticket_uuid
     ticket_uuid = short_to_uuid(short_id)
     if not ticket_uuid:
         return jsonify({"error": "Ticket not found"}), 404
 
-    # --- Determine sender ---
-    # If request comes from /admin/support/... OR user is admin in session → support
+    # Determine sender: admin or user
     is_admin = request.path.startswith('/admin') or session.get('is_admin', False)
     sender = "support" if is_admin else "user"
 
+    now = datetime.utcnow().isoformat() + "Z"
+
+    # Build new message
+    if sender == "support":
+        new_message = {
+            "sender": "support",
+            "assistant": reply_text,
+            "time": now
+        }
+    else:
+        new_message = {
+            "sender": "user",
+            "user": reply_text,
+            "time": now
+        }
+
+    # Update database
     conn = get_db_connection()
     try:
         cur = conn.cursor()
-        now = datetime.utcnow().isoformat() + "Z"  # Use this consistently
-  if sender == "support":
-    new_message = {
-        "sender": "support",
-        "assistant": reply,
-        "time": now
-    }
-else:
-    new_message = {
-        "sender": "user",
-        "user": reply,
-        "time": now
-    }
-
-# Append to JSON array
-sql = """
-UPDATE SupportTickets
-SET messages = JSON_MODIFY(messages, 'append $', ?)
-WHERE ticket_uuid = ?
-"""
-cur.execute(sql, (json.dumps(new_message), ticket_uuid))
-conn.commit()
-
+        sql = """
+        UPDATE SupportTickets
+        SET messages = JSON_MODIFY(messages, 'append $', ?)
+        WHERE ticket_uuid = ?
+        """
+        cur.execute(sql, (json.dumps(new_message), ticket_uuid))
+        conn.commit()
 
         return jsonify({"message": "Reply added"}), 200
 
     except Exception as e:
-        logger.error(f"Error adding reply: {e}")
+        logger.error(f"Error adding reply for {short_id}: {e}")
         return jsonify({"error": "Failed to save reply"}), 500
 
     finally:
         cur.close()
         conn.close()
+
 
 @app.route("/admin/api/support/<short_id>/reply", methods=['POST'])
 def admin_add_reply(short_id):
@@ -1139,6 +1125,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app # For Gunicor
+
 
 
 
