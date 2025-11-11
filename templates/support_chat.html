@@ -114,7 +114,8 @@
       addBubble(txt, true);
       document.getElementById('replyText').value = '';
       try {
-        const res = await fetch('/api/support/{{ short_id|default("") }}/reply', {
+        <!-- KEEP THIS (correct for users) -->
+         const res = await fetch('/api/support/{{ short_id|default("") }}/reply', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({reply:txt})
