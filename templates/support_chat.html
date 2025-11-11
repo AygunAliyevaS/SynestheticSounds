@@ -20,9 +20,7 @@
   <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow">
     <h2 class="text-2xl font-bold mb-2">Ticket #{{ short_id }}</h2>
     <p class="text-sm text-gray-600 mb-4">Category: {{ category }} – Status: <strong>{{ status }}</strong></p>
-
     <div id="chatBox" class="chat-box mb-4"></div>
-
     <form id="replyForm" class="flex gap-2">
       <input type="text" id="replyInput" class="flex-1 p-2 border rounded" placeholder="Type your message…" required>
       <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Send</button>
@@ -30,7 +28,7 @@
   </div>
 
   <script>
-    const SHORT_ID = "{{ short_id }}";
+    const SHORT_ID = {{ short_id | tojson }};
 
     function escapeHtml(text) {
       const div = document.createElement('div');
@@ -54,6 +52,7 @@
     async function loadChat() {
       try {
         const res = await fetch(`/api/support/${SHORT_ID}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.chat) render(data.chat);
       } catch (e) {
@@ -81,7 +80,6 @@
       sendReply();
     };
 
-    // Load immediately & every 5 seconds
     loadChat();
     setInterval(loadChat, 5000);
   </script>
