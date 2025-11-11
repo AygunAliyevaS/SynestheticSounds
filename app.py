@@ -878,6 +878,35 @@ def chat_page(short_id):
         cur.close()
         conn.close()
 
+@app.route("/api/support/<short_id>", methods=['GET'])
+def get_ticket_chat(short_id):
+    ticket_uuid = short_to_uuid(short_id)
+    if not ticket_uuid:
+        return jsonify({"error": "Ticket not found"}), 404
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "DB error"}), 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT messages FROM SupportTickets WHERE ticket_uuid = ?",
+            (ticket_uuid,)
+        )
+        row = cur.fetchone()
+        if not row or not row[0]:
+            return jsonify({"chat": []}), 200
+
+        chat = json.loads(row[0])
+        return jsonify({"chat": chat}), 200
+    except Exception as e:
+        logger.error(f"get_ticket_chat error: {e}")
+        return jsonify({"error": "Failed to load chat"}), 500
+    finally:
+        cur.close()
+        conn.close()
+
 def short_to_uuid(short: str) -> str | None:
     if not short or len(short) != 8:
         return None
@@ -1117,4 +1146,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False, threaded=False)
 else:
     application = app  # For Gunicorn
+
 
