@@ -88,35 +88,34 @@
   </form>
   <div id="replyResult" class="hidden p-2"></div>
 
-  <script>
-    const escapeHtml = t => { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; };
-    const addBubble = (txt, isOwn) => {
-      const box = document.getElementById('chatBox');
-      const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-      box.insertAdjacentHTML('beforeend', `
-        <div class="flex ${isOwn?'justify-end mb-3':'justify-start mb-3'}">
-          <div class="max-w-[75%]">
-            <div class="msg-bubble ${isOwn?'msg-user':'msg-admin'} text-gray-900 shadow-sm">
-              ${escapeHtml(txt)}
-              <div class="msg-time">${time}</div>
-            </div>
+<script>
+  const escapeHtml = t => { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; };
+  const addBubble = (txt, isOwn) => {
+    const box = document.getElementById('chatBox');
+    const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    box.insertAdjacentHTML('beforeend', `
+      <div class="flex ${isOwn?'justify-end mb-3':'justify-start mb-3'}">
+        <div class="max-w-[75%]">
+          <div class="msg-bubble ${isOwn?'msg-user':'msg-admin'} text-gray-900 shadow-sm">
+            ${escapeHtml(txt)}
+            <div class="msg-time">${time}</div>
           </div>
-        </div>`);
-      box.scrollTop = box.scrollHeight;
-    };
-const sendReply = async () => {
+        </div>
+      </div>`);
+    box.scrollTop = box.scrollHeight;
+  };
+
+  const sendReply = async () => {
     const txt = document.getElementById('replyText').value.trim();
     if (!txt) return;
-    addBubble(txt, true);  // show on right (admin)
+    addBubble(txt, true);
     document.getElementById('replyText').value = '';
-
     try {
       const res = await fetch('/admin/api/support/{{ short_id|default("") }}/reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reply: txt })
       });
-
       if (!res.ok) {
         const data = await res.json();
         const el = document.getElementById('replyResult');
@@ -131,6 +130,6 @@ const sendReply = async () => {
 
   document.getElementById('replyForm').onsubmit = e => { e.preventDefault(); sendReply(); };
   document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
-  </script>
+</script>
 </body>
 </html>
