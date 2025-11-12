@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin – #{{ short_id|default('Ticket') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; }
     .msg-bubble {
@@ -32,8 +32,8 @@
       max-height: 120px;
     }
     .send-btn {
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -41,13 +41,14 @@
       background: #25D366;
       color: white;
       transition: all 0.2s;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
     .send-btn:hover { background: #1EBE5D; transform: scale(1.05); }
     .send-btn:disabled { background: #ccc; cursor: not-allowed; }
     @media (max-width: 640px) {
       .header-title { font-size: 1rem; }
       .msg-bubble { max-width: 85%; }
-      .send-btn { width: 36px; height: 36px; }
+      .send-btn { width: 40px; height: 40px; }
     }
   </style>
 </head>
@@ -110,7 +111,7 @@
 
   <!-- Input -->
   <form id="replyForm" class="bg-white border-t border-gray-200 p-3 flex items-end space-x-2 shadow-lg">
-    <div class="flex-1 bg-gray-100 rounded-2xl flex items-center px-4 py-2">
+    <div class="flex-1 bg-gray-100 rounded-full flex items-center px-4 py-2 shadow-sm">
       <textarea
         id="replyText"
         rows="1"
@@ -119,7 +120,7 @@
         required
       ></textarea>
     </div>
-    <button type="submit" id="sendBtn" class="send-btn shadow-md">
+    <button type="submit" id="sendBtn" class="send-btn">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
       </svg>
@@ -208,7 +209,7 @@
     // Initial scroll
     document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
 
-    // Animation
+    // Fade-in animation
     const style = document.createElement('style');
     style.textContent = `
       @keyframes fadeIn {
