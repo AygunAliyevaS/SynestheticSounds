@@ -43,10 +43,10 @@
 {% if chat %}
   {% for msg in chat %}
     {% if msg and msg.sender == 'support' %}
-      <!-- ADMIN (right) -->
-      <div class="flex justify-end mb-3">
+      <!-- ADMIN (left) -->
+      <div class="flex justify-start mb-3">
         <div class="max-w-[75%]">
-          <div class="msg-bubble msg-user text-gray-900 shadow-sm">
+          <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
             {{ msg.assistant | safe }}
             <div class="msg-time">
               {{ (msg.time.split('T')[1][:5]) if msg.time else 'Now' }}
@@ -55,10 +55,10 @@
         </div>
       </div>
     {% elif msg and msg.sender == 'user' %}
-      <!-- USER (left) -->
-      <div class="flex justify-start mb-3">
+      <!-- USER (right) -->
+      <div class="flex justify-end mb-3">
         <div class="max-w-[75%]">
-          <div class="msg-bubble msg-admin text-gray-900 shadow-sm">
+          <div class="msg-bubble msg-user text-gray-900 shadow-sm">
             {{ msg.user | safe }}
             <div class="msg-time">
               {{ (msg.time.split('T')[1][:5]) if msg.time else 'Now' }}
@@ -104,11 +104,10 @@
       </div>`);
     box.scrollTop = box.scrollHeight;
   };
-
   const sendReply = async () => {
     const txt = document.getElementById('replyText').value.trim();
     if (!txt) return;
-    addBubble(txt, true);
+    addBubble(txt, true);  // Admin = right
     document.getElementById('replyText').value = '';
     try {
       const res = await fetch('/admin/api/support/{{ short_id|default("") }}/reply', {
@@ -127,7 +126,6 @@
       console.error(e);
     }
   };
-
   document.getElementById('replyForm').onsubmit = e => { e.preventDefault(); sendReply(); };
   document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
 </script>
