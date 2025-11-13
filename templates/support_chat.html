@@ -6,12 +6,66 @@
   <title>Support – #{{ short_id|default('Ticket') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    .msg-bubble{min-height:44px;position:relative;padding:10px 14px 20px 14px;border-radius:1.3rem;}
-    .msg-user{background:#DCF8C6;border-top-right-radius:0;}
-    .msg-admin{background:#FFFFFF;border-top-left-radius:0;}
-    .msg-time{position:absolute;bottom:4px;right:10px;font-size:11px;color:#666;line-height:1;}
-  </style>
+<style>
+  /* WhatsApp-like message bubbles */
+  .msg-bubble {
+    display: inline-block;
+    background: #fff;
+    padding: 10px 14px 22px 14px;
+    border-radius: 18px;
+    line-height: 1.5;
+    font-size: 0.95rem;
+    white-space: pre-wrap;         /* keeps natural line breaks */
+    word-wrap: break-word;         /* allows long words to wrap */
+    overflow-wrap: break-word;
+    width: auto;                   /* fit bubble to text */
+    max-width: 80%;                /* limit to readable width */
+    min-width: 40px;               /* avoid too tiny bubbles */
+    position: relative;
+    animation: fadeIn 0.2s ease-in-out;
+  }
+
+  /* Right-side (user) bubble */
+  .msg-user {
+    background-color: #DCF8C6;
+    align-self: flex-end;
+    border-top-right-radius: 0px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+  }
+
+  /* Left-side (admin/support) bubble */
+  .msg-admin {
+    background-color: #fff;
+    align-self: flex-start;
+    border-top-left-radius: 0px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+  }
+
+  /* Time text */
+  .msg-time {
+    position: absolute;
+    bottom: 4px;
+    right: 10px;
+    font-size: 11px;
+    color: #666;
+  }
+
+  /* Responsive on small screens */
+  @media (max-width: 640px) {
+    .msg-bubble {
+      max-width: 85%;
+      font-size: 0.9rem;
+      padding: 8px 12px 20px 12px;
+    }
+  }
+
+  /* Fade-in animation like WhatsApp */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+
 
 </head>
 <body class="flex flex-col h-screen m-0 p-0 bg-gray-50">
