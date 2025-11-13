@@ -5,47 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin – #{{ short_id|default('Ticket') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    /* SAFE: Use system fonts only */
-    body { font-family: system-ui, -apple-system, sans-serif; }
-    .msg-bubble {
-      min-height: 44px;
-      position: relative;
-      padding: 10px 14px 20px 14px;
-      border-radius: 1.3rem;
-      max-width: 80%;
-      word-wrap: break-word;
-    }
-    .msg-user { background: #DCF8C6; border-top-right-radius: 0; }
-    .msg-admin { background: #FFFFFF; border-top-left-radius: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-    .msg-time {
-      position: absolute;
-      bottom: 4px;
-      right: 10px;
-      font-size: 11px;
-      color: #666;
-    }
-    #replyText {
-      resize: none;
-      min-height: 40px;
-      max-height: 120px;
-    }
-    .send-btn {
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      background: #25D366;
-      color: white;
-    }
-    .send-btn:hover { background: #1EBE5D; }
-    .send-btn:disabled { background: #ccc; }
-    @media (max-width: 640px) {
-      .msg-bubble { max-width: 85%; }
-      .send-btn { width: 36px; height: 36px; }
-    }
+<style>
+    .msg-bubble{min-height:44px;position:relative;padding:10px 14px 20px 14px;border-radius:1.3rem;}
+    .msg-user{background:#DCF8C6;border-top-right-radius:0;}
+    .msg-admin{background:#FFFFFF;border-top-left-radius:0;}
+    .msg-time{position:absolute;bottom:4px;right:10px;font-size:11px;color:#666;line-height:1;}
   </style>
 </head>
 <body class="flex flex-col h-screen m-0 p-0 bg-gray-50">
