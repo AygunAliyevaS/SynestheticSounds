@@ -6,51 +6,12 @@
   <title>Support – #{{ short_id|default('Ticket') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  /* Natural fit for message bubbles */
-  .msg-bubble {
-    display: inline-block;
-    white-space: pre-wrap;       /* keeps line breaks */
-    word-break: break-word;      /* breaks long words */
-    overflow-wrap: anywhere;     /* ensures no overflow */
-    padding: 10px 14px 22px 14px;
-    border-radius: 1.3rem;
-    line-height: 1.5;
-    font-size: 0.95rem;
-    max-width: 75%;              /* sets a limit */
-    width: fit-content;          /* makes width depend on text length */
-  }
-
-  .msg-user {
-    background: linear-gradient(135deg, #DCF8C6, #c8f2af);
-    border-top-right-radius: 0.4rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .msg-admin {
-    background: #fff;
-    border-top-left-radius: 0.4rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-  }
-
-  /* Fix mobile scaling */
-  @media (max-width: 640px) {
-    .msg-bubble {
-      max-width: 85%;
-      font-size: 0.9rem;
-      width: fit-content;
-    }
-  }
-
-  /* Optional: smoother animation */
-  @keyframes bubblePop {
-    from { opacity: 0; transform: translateY(6px) scale(0.97); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-  }
-  .msg-bubble {
-    animation: bubblePop 0.25s ease-out;
-  }
-</style>
+  <style>
+    .msg-bubble{min-height:44px;position:relative;padding:10px 14px 20px 14px;border-radius:1.3rem;}
+    .msg-user{background:#DCF8C6;border-top-right-radius:0;}
+    .msg-admin{background:#FFFFFF;border-top-left-radius:0;}
+    .msg-time{position:absolute;bottom:4px;right:10px;font-size:11px;color:#666;line-height:1;}
+  </style>
 
 </head>
 <body class="flex flex-col h-screen m-0 p-0 bg-gray-50">
