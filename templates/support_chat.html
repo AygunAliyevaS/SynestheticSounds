@@ -7,19 +7,20 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Make bubbles wrap text neatly and look natural */
+  /* Natural fit for message bubbles */
   .msg-bubble {
     display: inline-block;
-    white-space: pre-wrap;      /* allows line breaks and wrapping */
-    word-break: break-word;     /* prevent overflow on long words */
-    overflow-wrap: anywhere;    /* safely break long words */
+    white-space: pre-wrap;       /* keeps line breaks */
+    word-break: break-word;      /* breaks long words */
+    overflow-wrap: anywhere;     /* ensures no overflow */
     padding: 10px 14px 22px 14px;
     border-radius: 1.3rem;
     line-height: 1.5;
     font-size: 0.95rem;
+    max-width: 75%;              /* sets a limit */
+    width: fit-content;          /* makes width depend on text length */
   }
 
-  /* Add subtle shadow and smoother edges for modern feel */
   .msg-user {
     background: linear-gradient(135deg, #DCF8C6, #c8f2af);
     border-top-right-radius: 0.4rem;
@@ -32,45 +33,18 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
   }
 
-  /* Adjust chat spacing for breathing room */
-  #chatBox {
-    padding-bottom: 80px; /* so last message doesn’t hide behind input bar */
-  }
-
-  /* Better message alignment on mobile */
+  /* Fix mobile scaling */
   @media (max-width: 640px) {
     .msg-bubble {
-      max-width: 90%;
+      max-width: 85%;
       font-size: 0.9rem;
-      padding: 10px 12px 20px 12px;
+      width: fit-content;
     }
   }
 
-  /* Smooth input area */
-  #replyForm {
-    background: #fff;
-    border-top: 1px solid #e5e7eb;
-    padding: 10px 12px;
-  }
-
-  #replyText {
-    width: 100%;
-    line-height: 1.4;
-    font-size: 0.95rem;
-  }
-
-  /* Enhance scroll feel */
-  #chatBox::-webkit-scrollbar {
-    width: 6px;
-  }
-  #chatBox::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 3px;
-  }
-
-  /* Optional: subtle fade animation for messages */
+  /* Optional: smoother animation */
   @keyframes bubblePop {
-    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    from { opacity: 0; transform: translateY(6px) scale(0.97); }
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
   .msg-bubble {
