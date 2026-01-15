@@ -1,0 +1,18 @@
+2026-01-12 23:19:27,922 [INFO] Environment variables - CLIENT_ID: 782a891e-7bf2-4602-b914-be22bc7123be, AUTHORITY: https://login.microsoftonline.com/f71cfc55-c062-43f2-be63-98cb4530c448, REDIRECT_URI: https://synesthetica.azurewebsites.net/getAToken
+2026-01-12 23:19:27,925 [INFO] Initializing with Entra authority: https://login.microsoftonline.com/f71cfc55-c062-43f2-be63-98cb4530c448
+2026-01-12 23:19:41,048 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://172.20.10.2:8000
+2026-01-12 23:19:41,066 [INFO] [33mPress CTRL+C to quit[0m
+2026-01-12 23:21:02,046 [INFO] Rendering front page
+2026-01-12 23:21:20,262 [INFO] 127.0.0.1 - - [12/Jan/2026 23:21:20] "GET / HTTP/1.1" 200 -
+2026-01-12 23:21:24,490 [INFO] 127.0.0.1 - - [12/Jan/2026 23:21:24] "GET /static/logo.png HTTP/1.1" 200 -
+2026-01-12 23:21:25,022 [INFO] 127.0.0.1 - - [12/Jan/2026 23:21:25] "GET /static/logo2.png HTTP/1.1" 200 -
+2026-01-12 23:21:35,484 [INFO] 127.0.0.1 - - [12/Jan/2026 23:21:35] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-01-12 23:21:52,748 [INFO] Rendering Support page
+2026-01-12 23:21:54,223 [INFO] 127.0.0.1 - - [12/Jan/2026 23:21:54] "GET /support HTTP/1.1" 200 -
+2026-01-12 23:21:54,311 [INFO] 127.0.0.1 - - [12/Jan/2026 23:21:54] "[36mGET /static/logo.png HTTP/1.1[0m" 304 -
+2026-01-12 23:21:59,927 [INFO] Rendering Pricing page
+2026-01-12 23:22:00,427 [INFO] 127.0.0.1 - - [12/Jan/2026 23:22:00] "GET /pricing HTTP/1.1" 200 -
+2026-01-12 23:22:00,507 [INFO] 127.0.0.1 - - [12/Jan/2026 23:22:00] "[36mGET /static/logo.png HTTP/1.1[0m" 304 -
